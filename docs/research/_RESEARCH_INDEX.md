@@ -1,6 +1,6 @@
 # Research Corpus — design source of truth
 
-> Imported from the `47_NIZAM BANKING` Google Drive folder. These are the strategy + architecture references NIZAM is built from. General research (no raw statements/balances/payslips). Review before making any repo public.
+> Imported from a personal Google Drive folder. BACKGROUND research only. **On stack + architecture, `.kiro/steering/` is authoritative** (web app + Google Drive DB + Dexie + integer milliunits); where these docs suggest SQLite/Tauri/desktop or any named agent, treat as generic patterns and follow the steering. General research only (no raw statements/balances/payslips). Review before making any repo public.
 
 | file | topic |
 |------|-------|

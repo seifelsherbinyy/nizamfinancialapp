@@ -1,3 +1,5 @@
+> **NIZAM build note (read first).** This document is BACKGROUND RESEARCH only. The AUTHORITATIVE architecture for NIZAM lives in `.kiro/steering/`: a **web app** (Vite + React + TypeScript) with **Google Drive as the database** (scope `drive.file`) and a **Dexie/IndexedDB** offline cache; money is **integer milliunits**. Where this research recommends SQLite, Tauri, a desktop shell, or any named agent/component, treat those as **generic patterns only** and **follow the steering, not this document, on stack + architecture.** Use this doc for domain logic (budgeting rules, dedup, import) and general design reasoning.
+
 # Building a Private Offline First Budgeting App Inspired by YNAB
 
 ## Executive Technical Summary

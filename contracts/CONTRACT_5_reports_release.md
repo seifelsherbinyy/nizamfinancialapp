@@ -15,7 +15,7 @@ Add reporting and the Egypt-context "rescue" intelligence from the research docs
 - **Gate:** reports compute from store; unit tests on calcs.
 
 ### Phase 5.2 — Rescue analytics (research-driven)
-- Tasks: widgets for card utilization, FOIR/debt-service ratio, liquidity runway, 30/60/90 control panel — formulas sourced from `docs/research/*`. Vendor-neutral, personal only.
+- Tasks: widgets for card utilization, FOIR/debt-service ratio, liquidity runway, 30/60/90 control panel — formulas sourced from `docs/research/*`. Provider-neutral, personal-only.
 - **Gate:** widgets render from real imported data; formulas cite the research doc.
 
 ### Phase 5.3 — PWA / offline

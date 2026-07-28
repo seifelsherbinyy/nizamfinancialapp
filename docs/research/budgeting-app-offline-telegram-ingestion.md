@@ -1,3 +1,5 @@
+> **NIZAM build note (read first).** This document is BACKGROUND RESEARCH only. The AUTHORITATIVE architecture for NIZAM lives in `.kiro/steering/`: a **web app** (Vite + React + TypeScript) with **Google Drive as the database** (scope `drive.file`) and a **Dexie/IndexedDB** offline cache; money is **integer milliunits**. Where this research recommends SQLite, Tauri, a desktop shell, or any named agent/component, treat those as **generic patterns only** and **follow the steering, not this document, on stack + architecture.** Use this doc for domain logic (budgeting rules, dedup, import) and general design reasoning.
+
 # Building a Private Offline-First Budgeting App with Telegram Ingestion
 
 ## Executive Summary
@@ -6,7 +8,7 @@ This report recommends building the application as a **desktop-first, local-firs
 
 The clearest practical reference system is **Actual Budget**, not because it should be copied, but because its public docs confirm a viable implementation pattern: local data plus optional server sync, import pipelines for CSV/QIF/OFX/QFX/CAMT, duplicate detection using file IDs plus fuzzy matching, a rules engine for payee/category cleanup, split transactions, tagging, reconciliation, and a programmatic local API for custom import/export workflows. Actual explicitly states that its client stores data locally, syncs in the background, and that its official API is **not** an HTTP API but a headless local/client package with full programmatic access to the budget. Those are highly reusable patterns for a private, offline-first clone in spirit without touching any proprietary YNAB code or internals. citeturn41view0turn27view0turn27view1turn28view0turn28view1turn28view2turn28view3turn41view2
 
-For **Telegram ingestion through a HERMES agent**, the safest design is **not** to make Telegram a write path into the core ledger. Instead, Telegram should deliver messages into a **transaction inbox** as **unposted candidate transactions**. The user then confirms, edits, or rejects them locally. Telegram’s Bot API supports both webhooks and long polling, provides `secret_token` headers for webhooks, supports update filtering, and documents meaningful bot rate limits. Because local devices are usually not publicly reachable, **polling from the local app or local helper** is the most practical default; webhook delivery to a private local device should be considered an advanced option only when the user deliberately exposes a secure endpoint. citeturn13view0turn12view1turn12view5turn33view0turn33view2
+For **Telegram ingestion through a Telegram ingestion adapter**, the safest design is **not** to make Telegram a write path into the core ledger. Instead, Telegram should deliver messages into a **transaction inbox** as **unposted candidate transactions**. The user then confirms, edits, or rejects them locally. Telegram’s Bot API supports both webhooks and long polling, provides `secret_token` headers for webhooks, supports update filtering, and documents meaningful bot rate limits. Because local devices are usually not publicly reachable, **polling from the local app or local helper** is the most practical default; webhook delivery to a private local device should be considered an advanced option only when the user deliberately exposes a secure endpoint. citeturn13view0turn12view1turn12view5turn33view0turn33view2
 
 For **Google Drive import**, the design should remain intentionally narrow. Use Drive only as an **optional import source or backup transport**, not as a collaborative database. The strongest least-privilege shape is a dedicated app folder or dedicated imported-files folder, polled incrementally using `changes.getStartPageToken` and `changes.list`, or watched via `changes.watch` only if the user already operates a public HTTPS receiver. Google explicitly recommends narrow scopes such as `drive.file`, and its docs distinguish that from broad restricted scopes like `drive.readonly`. citeturn15view1turn15view2turn34view2turn34view3turn15view5
 
@@ -34,7 +36,7 @@ There are also some high-confidence caution signals from the community. Firefly 
 
 ## Architecture and Stack Selection
 
-The architecture should be split into five layers: a **presentation layer**, a **domain engine**, a **persistence layer**, an **integration layer**, and an **optional sync/backup layer**. The presentation layer renders budget screens and local inbox UX. The domain engine owns all budgeting rules, category calculations, reconciliation state, recurring transactions, duplicate detection, and forecasting. The persistence layer owns SQLite, migrations, query materialization, and attachment indexing. The integration layer hosts adapters for CSV/QIF/OFX parsing, Telegram/HERMES ingestion, and Google Drive watch/poll import. The optional sync/backup layer is intentionally downstream and must never become the primary authority for budget state. That local-first posture is consistent with the literature and with Actual’s public sync model. citeturn8view0turn41view0turn41view2
+The architecture should be split into five layers: a **presentation layer**, a **domain engine**, a **persistence layer**, an **integration layer**, and an **optional sync/backup layer**. The presentation layer renders budget screens and local inbox UX. The domain engine owns all budgeting rules, category calculations, reconciliation state, recurring transactions, duplicate detection, and forecasting. The persistence layer owns SQLite, migrations, query materialization, and attachment indexing. The integration layer hosts adapters for CSV/QIF/OFX parsing, Telegram ingestion, and Google Drive watch/poll import. The optional sync/backup layer is intentionally downstream and must never become the primary authority for budget state. That local-first posture is consistent with the literature and with Actual’s public sync model. citeturn8view0turn41view0turn41view2
 
 ```mermaid
 flowchart LR
@@ -43,7 +45,7 @@ flowchart LR
     DB[(SQLite / SQLCipher)]
     IDX[Search Index / Derived Views]
     IMP[Import Adapters]
-    TG[Telegram HERMES Adapter]
+    TG[Telegram Ingestion Adapter]
     GD[Google Drive Adapter]
     SYNC[Optional Sync / Backup]
 
@@ -115,7 +117,7 @@ A clean modular layout for the codebase should look like this:
 | `core_audit` | append-only audit log and object diffs |
 | `infra_db` | migrations, repositories, transactions, encryption bootstrap |
 | `infra_files` | attachments, checksuming, export/import bundles |
-| `adapter_telegram` | HERMES message fetch, auth checks, canonical transaction candidate queue |
+| `adapter_telegram` | message fetch, auth checks, canonical transaction candidate queue |
 | `adapter_drive` | Drive polling/watch, file caching, import scheduling |
 | `ui_desktop` | budget view, ledger UI, inbox, reports, settings |
 
@@ -1053,17 +1055,17 @@ Modeled on actual workflow expectations:
 - scheduled outflows and recurring income
 - scenario simulation: “if rent + salary + planned car payment happen, what remains?”
 
-## Telegram HERMES and Google Drive Integrations
+## Telegram ingestion and Google Drive Integrations
 
-### Telegram HERMES ingestion
+### Telegram ingestion
 
 Telegram’s official docs document the core mechanics needed here: the Bot API is HTTP-based, bots connect through a backend, updates are received by `getUpdates` or webhooks, `setWebhook` supports a `secret_token`, update types can be filtered, webhook status exposes pending updates and last errors, and the FAQ gives practical sending limits. citeturn13view1turn12view1turn12view5turn13view3turn33view0
 
 The cleanest design is:
 
-1. User copies SMS transaction text into a private Telegram chat with the HERMES bot.
-2. HERMES parses the text into a canonical transaction candidate.
-3. HERMES stores that candidate in an adapter queue.
+1. User copies SMS transaction text into a private Telegram chat with the ingestion bot.
+2. the ingestion adapter parses the text into a canonical transaction candidate.
+3. the ingestion adapter stores that candidate in an adapter queue.
 4. The local app fetches the queue and inserts **candidate** records into the inbox.
 5. The user confirms locally before the ledger is affected.
 
@@ -1074,7 +1076,7 @@ This avoids turning Telegram into a direct posting authority and reduces the dam
 | Option | How it works | Pros | Cons | Recommendation |
 |---|---|---|---|---|
 | Local polling | Local app/helper calls `getUpdates` and advances offset | No public endpoint; simplest topology | Bot token on device; app must be online periodically | **Best default** |
-| Hosted webhook relay | Public HERMES endpoint receives updates, local app later pulls from relay | Stable inbound delivery | Adds cloud relay and token surface | Good if user already runs a small server |
+| Hosted webhook relay | Public ingestion endpoint receives updates, local app later pulls from relay | Stable inbound delivery | Adds cloud relay and token surface | Good if user already runs a small server |
 | Direct webhook to local device | Telegram posts to user device endpoint | Low latency | Needs public HTTPS or tunnel; larger attack surface | Advanced only |
 | Manual export | Bot replies with JSON/CSV; user imports manually | Maximum control | Most friction | Best “hard privacy” fallback |
 
@@ -1153,7 +1155,7 @@ Examples:
 
 - strip issuer prefixes,
 - convert localized decimals,
-- map `AMZN Mktp`, `AMAZON`, `AMZN.COM/BILL` → `Amazon`,
+- map `RIDEco *TRIP`, `RIDE-CO`, `RIDECO.COM` → `Rides`,
 - infer inflow keywords: `salary`, `refund`, `reversal`, `cashback`,
 - infer transfer keywords: `payment received`, `card payment`, `from savings`.
 
@@ -1226,7 +1228,7 @@ The safest combined topology is:
 ```mermaid
 flowchart TD
     SMS[Bank SMS copied by user]
-    TG[Telegram HERMES Bot]
+    TG[Telegram Ingestion Bot]
     Q[Remote candidate queue]
     APP[Local desktop app]
     DB[(SQLite / SQLCipher)]
@@ -1282,7 +1284,7 @@ SQLite WAL and SQLCipher both come with specific operational implications: WAL i
 | Foundation | Tauri app shell, SQLite schema, budget/account/category/transaction CRUD, audit log | usable local budget with no imports |
 | Budget engine | category balances, month rollover, zero-based assignment, reconciliation, splits, tags, schedules | single-device budgeting usable daily |
 | Import core | CSV/OFX/QIF parsers, mapping templates, dedupe, rules, inbox | bank file import is reliable |
-| Telegram HERMES | bot adapter, parser registry, candidate inbox, auth allowlists | SMS copy-paste to candidate flow works end-to-end |
+| Telegram ingestion | bot adapter, parser registry, candidate inbox, auth allowlists | SMS copy-paste to candidate flow works end-to-end |
 | Assets and forecasts | assets, liabilities, valuation snapshots, runway and cash forecast | net worth and planning screens usable |
 | Optional Drive | scoped OAuth, polling, local cache, change tokens | import from Drive folder works safely |
 | Optional sync | exports, backups, then maybe narrow single-writer sync | no silent divergence in tests |
@@ -1308,7 +1310,7 @@ SQLite WAL and SQLCipher both come with specific operational implications: WAL i
 This report is intentionally **implementation-oriented**, but a few items remain design choices rather than verified facts:
 
 - Exact “Age of Money” behavior is proposed as a **design approximation**, not a claim about YNAB internals.
-- “HERMES” is treated as a **generic Telegram-capable agent** with webhook/API access because no proprietary HERMES spec was provided.
+- The ingestion adapter is a **generic Telegram-capable component** with webhook/API access (no proprietary component is assumed).
 - Telegram parsing examples assume English-centric transaction text; multi-locale merchant grammars will need real sample corpora.
 - Google Drive **push** is technically supported, but for most private users **polling** is the better operational trade-off unless they already manage public HTTPS endpoints.
 - Shared multi-user budgets should stay out of the MVP unless collaboration is a true requirement.

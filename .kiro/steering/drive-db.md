@@ -5,4 +5,4 @@
 - **Concurrency:** use Drive file version/etag; if remote changed since last pull -> run 3-way merge (base = last-synced, local = cache, remote = drive). Fallback: last-write-wins WITH an audit entry in `meta.conflicts`.
 - **Offline:** Dexie is the working mirror; a `dirty` queue flushes to Drive when online.
 - **Import of EXISTING data:** the master_ledger CSV (and credit_limits) are imported ONCE via Google Picker (grants drive.file on the picked file), parsed per `data/ledgers/LEDGER_SCHEMA.md`, deduped, and merged into `nizam_db.json`.
-- **No Amazon/other data** is ever read or written by this app — it is a personal-finance app bound to the user's personal Drive only.
+- **No external/organizational data** is ever read or written by this app — it is a personal-finance app bound to the user's own personal Drive only.
