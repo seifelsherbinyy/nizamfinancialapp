@@ -1,0 +1,22 @@
+{
+  "name": "nizam",
+  "version": "0.0.0",
+  "private": true,
+  "description": "NIZAM — private YNAB-style personal finance webapp with Google Drive as the database (PLACEHOLDER — deps filled by KIRO Contract 1).",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "__TODO_KIRO_C1__": "react, react-dom, zustand, dexie, gapi-script/google api client, decimal-free integer money — pin in Contract 1 Phase 2"
+  },
+  "devDependencies": {
+    "__TODO_KIRO_C1__": "vite, typescript, @vitejs/plugin-react, vitest, @testing-library/react, eslint, prettier — pin in Contract 1 Phase 2"
+  }
+}

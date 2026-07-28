@@ -1,0 +1,15 @@
+{
+  "//": "PLACEHOLDER — finalize in Contract 1 Phase 2 (strict, bundler resolution, path aliases @/*).",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "baseUrl": ".",
+    "paths": { "@/*": ["src/*"] },
+    "skipLibCheck": true
+  },
+  "include": ["src", "tests"]
+}

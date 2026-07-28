@@ -1,0 +1,20 @@
+# deps / build
+node_modules/
+dist/
+.vite/
+coverage/
+# env / secrets — NEVER commit
+.env
+.env.local
+*.client_secret.json
+token.json
+# local personal data — never commit real ledgers
+data/ledgers/*.json
+data/ledgers/*.csv
+!data/ledgers/*.example.json
+!data/ledgers/.gitkeep
+# os / editor
+.DS_Store
+Thumbs.db
+.idea/
+*.log

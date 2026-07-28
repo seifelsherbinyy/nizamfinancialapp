@@ -1,0 +1,10 @@
+{
+  "//": "PLACEHOLDER example shape of the canonical Drive DB file (nizam_db.json). Real file lives in Google Drive.",
+  "schemaVersion": 1,
+  "meta": { "currency": "EGP", "moneyBase": "milliunits", "createdAt": null },
+  "accounts": [ { "id": "acc_cib_debit", "name": "CIB Current", "type": "CIB_DEBIT", "onBudget": true, "balance": 0 } ],
+  "categoryGroups": [ { "id": "grp_essentials", "name": "Essentials", "order": 0 } ],
+  "categories": [ { "id": "cat_rent", "groupId": "grp_essentials", "name": "Rent", "target": null } ],
+  "months": [ { "month": "2026-07", "budgeted": {}, "activity": {}, "available": {} } ],
+  "payees": [], "transactions": []
+}

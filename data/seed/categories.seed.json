@@ -1,0 +1,9 @@
+{
+  "//": "PLACEHOLDER seed — YNAB-style category groups (Contract 3 refines from research + master_ledger categories).",
+  "groups": [
+    { "name": "Essentials", "categories": ["Rent","Utilities","Groceries","Transport"] },
+    { "name": "Debt & Credit", "categories": ["Credit Card Payment","Loan Installment"] },
+    { "name": "Buffers", "categories": ["Liquidity Buffer","Emergency"] },
+    { "name": "Life", "categories": ["Dining","Subscriptions","Health"] }
+  ]
+}
