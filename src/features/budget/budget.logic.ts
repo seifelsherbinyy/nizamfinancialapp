@@ -1,6 +1,6 @@
 /**
  * NIZAM · Zero-based budget engine — assigned/activity/available + rollover + RTA
- * Implemented by: KIRO Contract 3 / Phases 3.1–3.5
+ * Implemented by: Contract 3 / Phase 3 (subphases 3.1 through 3.5)
  * Depends on: budget.types.ts, lib/db/schema.ts, lib/ledger/ledgerStore.ts, lib/money
  *
  * PURE functions over NizamDb (no I/O, integer milliunits only).

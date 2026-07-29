@@ -16,3 +16,4 @@
 - 2026-07-29 | C3.3 | gate: PASS | computeBudget: available = carryIn+assigned+activity; RTA = cum income − cum assigned − cum cash overspend; parity tests green
 - 2026-07-29 | C3.4 | gate: PASS | rollover max(0,prev); cash overspend resets + reduces next RTA; credit overspend -> card debt (RTA untouched); mixed matrix tested
 - 2026-07-29 | C3.5 | gate: PASS | funded credit spend auto-moves to payment category (per-account attribution); payments draw down; ensureCreditCardPaymentCategories idempotent; goals monthly + target_by_date (ceil suggestion); 19 engine tests green
+- 2026-07-29 | C4.1 | gate: PASS | design tokens (styles/theme.ts + globals.css), MoneyCell (RAG + EGP), Modal (focus trap + escape), MoneyInput (integer milliunits at the boundary); typecheck + lint + build green; 85 tests green

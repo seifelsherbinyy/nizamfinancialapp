@@ -21,3 +21,5 @@ Thumbs.db
 # continuation analysis + build session inputs (tooling, not app code)
 outputs/
 Execute and build.md
+# loop scratch (the ledger itself IS committed)
+.loop/tmp/

@@ -1,0 +1,58 @@
+{
+  "genesisHash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "eventCount": 4,
+  "events": [
+    {
+      "seq": 1,
+      "kind": "PRODUCE",
+      "itemId": "BASELINE-2026-07-29",
+      "actor": "builder",
+      "artifactHash": "344322b4da4423e4ed20c40989e86dcf7456f74df7b67bb7f01daec4ea9e70c7",
+      "disposition": null,
+      "confidence": null,
+      "note": "state of contracts one to three plus contract four phase one at ledger introduction",
+      "prevHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "contentHash": "cfe35a9eda04dc11b70329553a8d99311aa3d2934ef21409f2cf10f135c2c5bf",
+      "recordedAt": "2026-07-29T09:44:57.071Z"
+    },
+    {
+      "seq": 2,
+      "kind": "VERIFY",
+      "itemId": "BASELINE-2026-07-29",
+      "actor": "gate-runner",
+      "artifactHash": "344322b4da4423e4ed20c40989e86dcf7456f74df7b67bb7f01daec4ea9e70c7",
+      "disposition": null,
+      "confidence": null,
+      "note": "five gate commands executed on the pinned runtime, all exit zero, 85 tests passing, static build emitted",
+      "prevHash": "cfe35a9eda04dc11b70329553a8d99311aa3d2934ef21409f2cf10f135c2c5bf",
+      "contentHash": "efaa186d047cbaa0c2bf1b1b55ba55349e3c098390aa00e87ae4f28ee4e2e67a",
+      "recordedAt": "2026-07-29T09:45:18.481Z"
+    },
+    {
+      "seq": 3,
+      "kind": "APPROVE",
+      "itemId": "BASELINE-2026-07-29",
+      "actor": "continuation-architect",
+      "artifactHash": "344322b4da4423e4ed20c40989e86dcf7456f74df7b67bb7f01daec4ea9e70c7",
+      "disposition": null,
+      "confidence": null,
+      "note": "evidence reviewed against the outcome contract",
+      "prevHash": "efaa186d047cbaa0c2bf1b1b55ba55349e3c098390aa00e87ae4f28ee4e2e67a",
+      "contentHash": "09a46f55450ed842be07f8ad55041c11528b034372a81fd95f326c42c83ea0f5",
+      "recordedAt": "2026-07-29T09:45:18.714Z"
+    },
+    {
+      "seq": 4,
+      "kind": "CERTIFY",
+      "itemId": "BASELINE-2026-07-29",
+      "actor": "continuation-architect",
+      "artifactHash": "344322b4da4423e4ed20c40989e86dcf7456f74df7b67bb7f01daec4ea9e70c7",
+      "disposition": "RESOLVED",
+      "confidence": "VERIFIED",
+      "note": "covers: C1.1,C1.2,C1.3,C1.4,C1.5,C2.1,C2.2,C2.3,C2.4,C2.5,C3.1,C3.2,C3.3,C3.4,C3.5,C4.1",
+      "prevHash": "09a46f55450ed842be07f8ad55041c11528b034372a81fd95f326c42c83ea0f5",
+      "contentHash": "3063ef7de149136f176459ad8f3ea1d788ab97b8a3741ae8b5a5633f5d773433",
+      "recordedAt": "2026-07-29T09:45:18.964Z"
+    }
+  ]
+}

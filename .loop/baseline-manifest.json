@@ -1,0 +1,57 @@
+{
+  "baselineId": "BASELINE-2026-07-29",
+  "purpose": "Attests the state of the repository at the moment the verification ledger was introduced, so that phases completed before the ledger existed are covered by evidence rather than by assumption.",
+  "commit": "63bb1912e1fde3e569af4047be6ae74ec9324626",
+  "runtime": {
+    "node": "v24.14.1",
+    "npm": "11.11.0"
+  },
+  "gatesExecuted": {
+    "node_identity": "PASS",
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "test": "PASS",
+    "build": "PASS"
+  },
+  "evidence": {
+    "tests": 85,
+    "testFiles": 8,
+    "bundleJsKb": 143.49,
+    "bundleGzipKb": 46.17,
+    "cssKb": 5.3
+  },
+  "coveredPhases": [
+    "C1.1",
+    "C1.2",
+    "C1.3",
+    "C1.4",
+    "C1.5",
+    "C2.1",
+    "C2.2",
+    "C2.3",
+    "C2.4",
+    "C2.5",
+    "C3.1",
+    "C3.2",
+    "C3.3",
+    "C3.4",
+    "C3.5",
+    "C4.1"
+  ],
+  "notCovered": [
+    "C4.2",
+    "C4.3",
+    "C4.4",
+    "C4.5",
+    "C4.6",
+    "C4.7",
+    "C5.1",
+    "C5.2",
+    "C5.3",
+    "C5.4",
+    "C5.5"
+  ],
+  "producedBy": "builder",
+  "verifiedBy": "gate-runner",
+  "verificationMethod": "The five gate commands were executed on 2026-07-29 through a shell with the pinned runtime resolved first, and their exit codes recorded in a machine readable probe file."
+}
