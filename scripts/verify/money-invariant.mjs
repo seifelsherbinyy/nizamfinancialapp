@@ -22,7 +22,7 @@ for (const f of files) {
     const at = f + ":" + (i + 1);
     if (line.trim().startsWith("*") || line.trim().startsWith("//")) return;
     if (!inCore) for (const b of BANNED) if (b.test(line)) findings.push(at + " uses a floating point conversion outside the money core");
-    if (MONEY_FIELDS.test(line) && !FAIL_FIXTURE.test(line)) findings.push(at + " assigns a decimal literal to a money bearing field, including test fixtures");
+    if (MONEY_FIELDS.test(line) && !(isTest && FAIL_FIXTURE.test(line))) findings.push(at + " assigns a decimal literal to a money bearing field" + (isTest ? ", including test fixtures" : ""));
   });
 }
 verdict("money stays integral outside the money core", findings, ["scanned " + files.length + " source files, money core exempt for its own parsing boundary"]);

@@ -4,7 +4,7 @@ import { walk, read, verdict } from "./_util.mjs";
 // A forbidden full scope is a quoted string literal that is exactly the broad drive scope.
 // A .startsWith guard or a variable comparison that DETECTS a broad scope is defensive and allowed.
 const FULL = /["'`]https:\/\/www\.googleapis\.com\/auth\/drive["'`]/;
-const DEFENSIVE = /(startsWith|includes|forbidden|assert|reject|throw|!==|===|filter)\b/i;
+const DEFENSIVE = /(startsWith|includes|forbidden|assert|reject|throw|!==|===|filter)(?![A-Za-z0-9])/i;
 const NARROW = /auth\/drive\.file/;
 const files = walk("src", [".ts", ".tsx"]).concat(walk("scripts", [".mjs"]));
 const findings = [];
