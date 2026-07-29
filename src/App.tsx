@@ -1,32 +1,96 @@
 /**
- * NIZAM · Root component — router outlet + app chrome
- * Implemented by: KIRO Contract 1 / Phase 1.3 (shell; YNAB-style chrome lands in Contract 4)
- * Depends on: app/router.tsx
+ * NIZAM · Root component — YNAB-style shell: sidebar + router outlet
+ * Implemented by: KIRO Contract 4 / Phase 4.2
+ * Depends on: app/router.tsx, features/* views, state/store.ts
  */
-import type { ReactNode } from 'react';
-import { RouterOutlet, type RoutePath } from '@/app/router';
+import { useEffect, type ReactNode } from 'react';
+import { RouterOutlet, useHashRoute, type RoutePath } from '@/app/router';
+import { useNizamStore } from '@/state/store';
+import { createEmptyDb } from '@/lib/db/schema';
+import { AccountsSidebar } from '@/features/accounts/AccountsSidebar';
+import { BudgetView } from '@/features/budget/BudgetView';
+import { Register } from '@/features/transactions/Register';
+import { Reports } from '@/features/reports/Reports';
+import { ImportWizard } from '@/features/import/ImportWizard';
+import { Reconcile } from '@/features/reconciliation/Reconcile';
 
-function Stub(props: { title: string }) {
+const NAV: { path: RoutePath; label: string }[] = [
+  { path: '/budget', label: 'Budget' },
+  { path: '/reports', label: 'Reports' },
+  { path: '/import', label: 'Import' },
+  { path: '/reconcile', label: 'Reconcile' },
+];
+
+function SyncBadge() {
+  const sessionStatus = useNizamStore((s) => s.sessionStatus);
+  const syncStatus = useNizamStore((s) => s.syncStatus);
+  const connectDrive = useNizamStore((s) => s.connectDrive);
+  const disconnect = useNizamStore((s) => s.disconnect);
+
   return (
-    <section>
-      <h1>{props.title}</h1>
-      <p>Coming in a later contract.</p>
-    </section>
+    <div className="sidebar-footer">
+      {sessionStatus === 'signedIn' ? (
+        <>
+          <span className="badge">Drive: {syncStatus}</span>{' '}
+          <button className="btn btn-sm btn-secondary" onClick={() => void disconnect()}>
+            Sign out
+          </button>
+        </>
+      ) : (
+        <button
+          className="btn btn-sm"
+          disabled={sessionStatus === 'signingIn'}
+          onClick={() => void connectDrive()}
+        >
+          {sessionStatus === 'signingIn' ? 'Connecting…' : 'Connect Google Drive'}
+        </button>
+      )}
+    </div>
   );
 }
 
 const views: Record<RoutePath, ReactNode> = {
-  '/budget': <Stub title="Budget" />,
-  '/accounts': <Stub title="Accounts" />,
-  '/reports': <Stub title="Reports" />,
-  '/import': <Stub title="Import" />,
-  '/reconcile': <Stub title="Reconcile" />,
+  '/budget': <BudgetView />,
+  '/accounts': <Register />,
+  '/reports': <Reports />,
+  '/import': <ImportWizard />,
+  '/reconcile': <Reconcile />,
 };
 
 export default function App() {
+  const db = useNizamStore((s) => s.db);
+  const hydrateFromCache = useNizamStore((s) => s.hydrateFromCache);
+  const route = useHashRoute();
+
+  // Local-first boot: hydrate from the offline cache; start a fresh local db
+  // when nothing exists yet (Drive connect merges later).
+  useEffect(() => {
+    void (async () => {
+      await hydrateFromCache();
+      const state = useNizamStore.getState();
+      if (!state.db) {
+        useNizamStore.setState({ db: createEmptyDb(new Date().toISOString()) });
+      }
+    })();
+  }, [hydrateFromCache]);
+
   return (
-    <main>
-      <RouterOutlet views={views} />
-    </main>
+    <div className="app-shell">
+      <nav className="sidebar" aria-label="Main navigation">
+        <div className="sidebar-brand">NIZAM</div>
+        <div className="sidebar-nav">
+          {NAV.map((n) => (
+            <a key={n.path} href={`#${n.path}`} className={route.path === n.path ? 'active' : ''}>
+              {n.label}
+            </a>
+          ))}
+        </div>
+        <AccountsSidebar />
+        <SyncBadge />
+      </nav>
+      <main className="app-main">
+        {db ? <RouterOutlet views={views} /> : <p className="muted">Loading…</p>}
+      </main>
+    </div>
   );
 }

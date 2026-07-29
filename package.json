@@ -2,7 +2,7 @@
   "name": "nizam",
   "version": "0.1.0",
   "private": true,
-  "description": "NIZAM \u2014 private YNAB-style personal finance webapp with Google Drive as the database.",
+  "description": "NIZAM — private YNAB-style personal finance webapp with Google Drive as the database.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -41,6 +41,7 @@
     "prettier": "3.4.2",
     "typescript": "^5.5.4",
     "vite": "5.4.11",
+    "vite-plugin-pwa": "^0.21.1",
     "vitest": "2.1.8"
   },
   "engines": {

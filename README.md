@@ -1,39 +1,76 @@
 # NIZAM
 **A private, offline-first, YNAB-style personal-finance webapp — with your own Google Drive as the database.**
 
-Built from the research + real financial data in the `47_NIZAM BANKING` Drive folder. Single-user, private, no third-party servers: your Google Drive stores the canonical database (`nizam_db.json`), the app runs in the browser (React + TypeScript), and a local IndexedDB cache keeps it working offline.
+Single-user and private by construction: the canonical database is one JSON file
+(`nizam_db.json`) in **your** Google Drive, the app is a static React + TypeScript
+SPA, and a local IndexedDB (Dexie) mirror keeps everything working offline. No
+third-party servers, no telemetry.
 
-> **Status:** SCAFFOLD + build contracts only. The actual code is built by KIRO IDE, executing `contracts/CONTRACT_1..5` in a loop. This repo is not yet a running app — it is the machine-readable build plan + placeholders KIRO fills.
+> **Status:** BUILT. All five build contracts are complete
+> (`contracts/_CONTRACT_INDEX.md`), the test suite is green, and `npm run build`
+> emits a working installable PWA. Live Google Drive sign-in needs your own
+> credentials in `.env.local` (see below) — everything else works without them.
 
-## What it will do (v1)
-- Zero-based budgeting (YNAB's four rules): categories, monthly assign/activity/available, Ready-To-Assign, rollover, goals.
-- Accounts (CIB current, HSBC credit cards, cash), transaction register, splits/transfers, reconciliation.
-- Import your existing `master_ledger` (25-column schema) once via Google Picker, with dedup.
-- Reports (net worth, spending, age-of-money) + Egypt-context "rescue" widgets (card utilization, FOIR, liquidity runway, 30/60/90) drawn from `docs/research`.
-- Installable PWA, works offline.
+## What it does (v1)
+- Zero-based budgeting (YNAB's four rules): category groups + categories, monthly
+  Assigned / Activity / Available, Ready-To-Assign, rollover, cash-vs-credit
+  overspend rules, credit-card payment automation, targets (monthly + by-date).
+- Accounts (bank / credit card / cash / tracking), transaction register with
+  running balance, splits and transfers, reconciliation with adjustment + lock.
+- One-time import of an existing 25-column `master_ledger` CSV
+  (`data/ledgers/LEDGER_SCHEMA.md`) via Google Picker or a local file, with
+  exact + fuzzy dedup (re-import is a no-op).
+- Reports: spending by category, net worth, Age of Money — plus Egypt-context
+  rescue analytics (card utilization, debt-service ratio, liquidity runway,
+  30/60/90 control panel) with formulas cited from `docs/research/`.
+  Personal analytics only — not regulated financial advice.
+- Installable offline PWA (service worker precaches only local assets).
 
 ## Architecture (one line)
-`React SPA` → `budget engine (pure, tested)` → `Drive-as-database adapter (drive.file scope)` ↔ `Dexie offline cache`. Money is integer **milliunits** (1 EGP = 1000), never floats.
+`React SPA` → `budget engine (pure, tested)` → `Drive-as-database adapter
+(drive.file scope ONLY)` ↔ `Dexie offline cache`. Money is integer
+**milliunits** (1 EGP = 1000) — never floats. Details: `docs/architecture/`.
 
-## Run (after KIRO completes the build)
+## Run
+Requires Node 24 (see `.nvmrc`).
+
 ```bash
-cp .env.example .env.local     # fill Google client id / api key / drive folder id
-npm install
-npm run dev                    # local dev
-npm run test                   # vitest
-npm run build                  # static SPA in dist/
+npm ci                # reproducible install from the lockfile
+npm run dev           # local dev server
+npm run test          # vitest (unit + component suites)
+npm run build         # static SPA + service worker in dist/
+npm run preview       # serve the production build locally
+npm run verify:all    # full acceptance harness (17 checks)
 ```
 
-## How this repo is built (KIRO)
-1. Read `BUILD_PLAN.md` then `contracts/_CONTRACT_INDEX.md`.
-2. Execute `contracts/CONTRACT_1_foundation.md` → ... → `CONTRACT_5_reports_release.md`, IN ORDER.
-3. For each phase: build → self-verify against the phase gate → **loop until green** → tick `.kiro/specs/*/tasks.md` and append to `contracts/_BUILD_LOG.md`.
-4. Full build done when all 5 contracts pass, `npm run build` works, and the repo is clean + push-ready.
+The app runs fully offline/local out of the box (data stays in your browser's
+IndexedDB). To use Google Drive as the database:
+
+```bash
+cp .env.example .env.local    # then fill the values below
+```
+
+1. Create a Google Cloud project; enable the **Drive API** and **Picker API**.
+2. Create an OAuth **Web** client id (add your local origin, e.g.
+   `http://localhost:5173`) and a browser API key.
+3. Put both in `.env.local`. Optionally set a Drive folder id for the database.
+4. Start the app and press **Connect Google Drive**. The requested scope is
+   `drive.file` only — the app can see only files it created or you picked.
+
+## Repo map
+- `src/lib/money` integer money core · `src/lib/drive` Drive-as-DB + sync ·
+  `src/lib/db` schema/cache/migrations · `src/features/*` budget, accounts,
+  transactions, reconciliation, import, reports
+- `contracts/` the five build contracts + build log · `.kiro/specs/` per-contract specs
+- `docs/architecture/` design docs · `docs/adr/` decisions · `docs/research/` corpus
+- `scripts/verify` acceptance checks · `scripts/loop` verification ledger
 
 ## Privacy & safety
-- Database = **your** Google Drive, scope `drive.file` ONLY (app-created + picked files; never full-drive).
-- Real ledgers are **gitignored**; only `.example` shapes are committed. Secrets live in `.env.local` (gitignored).
+- Database = **your** Google Drive, scope `drive.file` ONLY — never full-drive.
+- Real ledgers are **gitignored**; only `.example` shapes are committed.
+  Secrets live in `.env.local` (gitignored). Tokens stay in memory.
 - Account identifiers are redacted (last-4) in the UI.
 
-## GitHub
-Push target provided later. `git init` is done; **do not push until the remote is set and confirmed** (Contract 5, Phase 5.5).
+## Release
+See `RELEASE_CHECKLIST.md`. The repository is push-ready; nothing is pushed
+until a remote is provided and explicitly confirmed.

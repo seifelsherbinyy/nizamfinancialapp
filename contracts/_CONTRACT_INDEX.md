@@ -6,7 +6,7 @@ Execute in order. Each contract loops its phases to a GREEN gate before advancin
 | 1 | Foundation & Scaffolding | - | [x] DONE |
 | 2 | Google Drive Data Layer | C1 | [x] DONE |
 | 3 | Budgeting Engine (YNAB core) | C1,C2 | [x] DONE |
-| 4 | UI / UX (YNAB-style) | C1-C3 | [ ] IN PROGRESS - 4.1 done, 4.2 to 4.7 open |
-| 5 | Reports, Rescue Analytics & Release | C1-C4 | [ ] TODO |
+| 4 | UI / UX (YNAB-style) | C1-C3 | [x] DONE |
+| 5 | Reports, Rescue Analytics & Release | C1-C4 | [x] DONE |
 
 **Full build DONE when:** all 5 = DONE, `npm run build` works, tests green, README verified, repo clean + push-ready.
