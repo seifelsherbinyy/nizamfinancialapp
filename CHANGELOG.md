@@ -3,6 +3,19 @@
 All notable changes to NIZAM. Format loosely follows Keep a Changelog; the
 project adheres to semantic versioning from 0.1.0 onward.
 
+## [Unreleased]
+
+### Added
+- Budget grid target editing (post-release item R2): set / clear a monthly or
+  by-date target per category from the grid; goal badge shows funding progress
+  and the suggested per-month amount for by-date targets (engine support landed
+  in Contract 3 / Phase 3.5; this exposes it in the UI).
+
+### Changed
+- AC15 release check now recognizes an owner-acknowledged release: a remote
+  branch with a "Released" section in RELEASE_CHECKLIST.md passes; an
+  unrecorded remote branch still fails (accidental-push detection preserved).
+
 ## [0.1.0] — 2026-07-29
 
 First complete build. All five build contracts executed and verified

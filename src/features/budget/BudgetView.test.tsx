@@ -8,7 +8,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { BudgetView } from './BudgetView';
 import { bootStore, fixtureDb, makeTxn } from '../../../tests/helpers/fixtures';
 import { useNizamStore } from '@/state/store';
-import { setAssigned, computeMonth } from './budget.logic';
+import { setAssigned, computeMonth, nextMonth } from './budget.logic';
 
 const THIS_MONTH = new Date().toISOString().slice(0, 7);
 
@@ -75,6 +75,64 @@ describe('BudgetView', () => {
     const before = heading.textContent;
     fireEvent.click(screen.getByRole('button', { name: /previous month/i }));
     expect(screen.getByRole('heading', { level: 2 }).textContent).not.toBe(before);
+  });
+
+  it('sets a monthly target through the target modal and shows goal progress', () => {
+    bootStore(seededDb());
+    render(<BudgetView />);
+    fireEvent.click(screen.getByRole('button', { name: /edit target for groceries/i }));
+    fireEvent.change(screen.getByRole('combobox', { name: /target type/i }), {
+      target: { value: 'monthly' },
+    });
+    const amount = screen.getByRole('textbox', { name: /target amount/i });
+    fireEvent.change(amount, { target: { value: '100' } });
+    fireEvent.blur(amount);
+    fireEvent.click(screen.getByRole('button', { name: /save target/i }));
+
+    // Persisted through the store:
+    const cat = useNizamStore.getState().db!.categories.find((c) => c.id === 'cat_groc');
+    expect(cat?.target).toEqual({ type: 'monthly', amount: 100_000, targetMonth: null });
+    // Assigned 60 of 100 -> 60% goal badge:
+    const badge = screen.getByRole('status', { name: /goal for groceries/i });
+    expect(badge.textContent).toContain('60%');
+  });
+
+  it('shows a by-date target with the suggested per-month funding', () => {
+    const db = seededDb();
+    // Need 100 available by 3 months from now; currently 35 available (60 assigned − 25 spent).
+    const target = nextMonth(nextMonth(THIS_MONTH));
+    db.categories[0]!.target = { type: 'target_by_date', amount: 100_000, targetMonth: target };
+    bootStore(db);
+    render(<BudgetView />);
+    const badge = screen.getByRole('status', { name: /goal for groceries/i });
+    // remaining 65.000 over 3 months (this month .. target inclusive) -> ceil = 21.667/mo
+    expect(badge.textContent).toContain('35%');
+    expect(badge.textContent).toContain('21.67');
+  });
+
+  it('refuses a non-positive target amount with a visible message', () => {
+    bootStore(seededDb());
+    render(<BudgetView />);
+    fireEvent.click(screen.getByRole('button', { name: /edit target for groceries/i }));
+    fireEvent.change(screen.getByRole('combobox', { name: /target type/i }), {
+      target: { value: 'monthly' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save target/i }));
+    expect(screen.getByRole('alert').textContent).toMatch(/positive/i);
+    expect(useNizamStore.getState().db!.categories.find((c) => c.id === 'cat_groc')?.target).toBeNull();
+  });
+
+  it('clears a target by choosing "No target"', () => {
+    const db = seededDb();
+    db.categories[0]!.target = { type: 'monthly', amount: 50_000, targetMonth: null };
+    bootStore(db);
+    render(<BudgetView />);
+    fireEvent.click(screen.getByRole('button', { name: /edit target for groceries/i }));
+    fireEvent.change(screen.getByRole('combobox', { name: /target type/i }), {
+      target: { value: 'none' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save target/i }));
+    expect(useNizamStore.getState().db!.categories.find((c) => c.id === 'cat_groc')?.target).toBeNull();
   });
 
   it('offers the starter-seed action when no categories exist', () => {

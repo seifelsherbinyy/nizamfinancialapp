@@ -1,6 +1,6 @@
 {
   "genesisHash": "0000000000000000000000000000000000000000000000000000000000000000",
-  "eventCount": 48,
+  "eventCount": 56,
   "events": [
     {
       "seq": 1,
@@ -625,6 +625,110 @@
       "prevHash": "7a59e7a362ef2d393679e138488ec490a43569d4d5ac37da0f8ff2dd6cbf2096",
       "contentHash": "45cdf213793694cab8211502b3f925ace3c1166fa5431385738b19f253cc1c3d",
       "recordedAt": "2026-07-29T12:13:49.724Z"
+    },
+    {
+      "seq": 49,
+      "kind": "PRODUCE",
+      "itemId": "R1-release-reconcile",
+      "actor": "builder",
+      "artifactHash": "e9f36fcc4bd0a657f884a949e9325ee7238bf36a346bdb472625f38c003f1e85",
+      "disposition": null,
+      "confidence": null,
+      "note": "post-release AC15 semantics (acknowledged push passes, unrecorded push fails), checklist Released section, tag v0.1.0",
+      "prevHash": "45cdf213793694cab8211502b3f925ace3c1166fa5431385738b19f253cc1c3d",
+      "contentHash": "9a69945901f27f6d0ff8b65ed44d0461f5bc37365c603dfee38be0c894d48e0d",
+      "recordedAt": "2026-07-29T14:36:34.630Z"
+    },
+    {
+      "seq": 50,
+      "kind": "VERIFY",
+      "itemId": "R1-release-reconcile",
+      "actor": "gate-runner",
+      "artifactHash": "e9f36fcc4bd0a657f884a949e9325ee7238bf36a346bdb472625f38c003f1e85",
+      "disposition": null,
+      "confidence": null,
+      "note": "push-ready reports released state; loop refusal tests still green",
+      "prevHash": "9a69945901f27f6d0ff8b65ed44d0461f5bc37365c603dfee38be0c894d48e0d",
+      "contentHash": "441f070751935e564d313ed031a968c6eabe90027ec43500d5a770ff02aac447",
+      "recordedAt": "2026-07-29T14:36:35.073Z"
+    },
+    {
+      "seq": 51,
+      "kind": "APPROVE",
+      "itemId": "R1-release-reconcile",
+      "actor": "reviewer",
+      "artifactHash": "e9f36fcc4bd0a657f884a949e9325ee7238bf36a346bdb472625f38c003f1e85",
+      "disposition": null,
+      "confidence": null,
+      "note": "accidental-push detection preserved: remote branch without checklist ack still fails",
+      "prevHash": "441f070751935e564d313ed031a968c6eabe90027ec43500d5a770ff02aac447",
+      "contentHash": "79f0f30d5fef6f447a4b4a82cc8bf71b6c0a6e0898a49cf48507f7f9e3bce5dd",
+      "recordedAt": "2026-07-29T14:36:35.481Z"
+    },
+    {
+      "seq": 52,
+      "kind": "CERTIFY",
+      "itemId": "R1-release-reconcile",
+      "actor": "reviewer",
+      "artifactHash": "e9f36fcc4bd0a657f884a949e9325ee7238bf36a346bdb472625f38c003f1e85",
+      "disposition": "RESOLVED",
+      "confidence": "VERIFIED",
+      "note": "covers: R1",
+      "prevHash": "79f0f30d5fef6f447a4b4a82cc8bf71b6c0a6e0898a49cf48507f7f9e3bce5dd",
+      "contentHash": "6d2e18cbf5171244a9e2e4480f1a44a9aa27c86ac49e8b91625be46161917e84",
+      "recordedAt": "2026-07-29T14:36:36.449Z"
+    },
+    {
+      "seq": 53,
+      "kind": "PRODUCE",
+      "itemId": "R2-goals-ui",
+      "actor": "builder",
+      "artifactHash": "d4cd7d1d346ee495486f3c09b7913b90f70c69ce4b9c167ca1975326d5cda576",
+      "disposition": null,
+      "confidence": null,
+      "note": "target editor modal (monthly / by-date / clear), goal badge with progress + suggested per-month funding",
+      "prevHash": "6d2e18cbf5171244a9e2e4480f1a44a9aa27c86ac49e8b91625be46161917e84",
+      "contentHash": "df2b284d542619277ce11876bd0f0641506f866d2a5cf5a158aa36e7e344e4d8",
+      "recordedAt": "2026-07-29T14:40:42.631Z"
+    },
+    {
+      "seq": 54,
+      "kind": "VERIFY",
+      "itemId": "R2-goals-ui",
+      "actor": "gate-runner",
+      "artifactHash": "d4cd7d1d346ee495486f3c09b7913b90f70c69ce4b9c167ca1975326d5cda576",
+      "disposition": null,
+      "confidence": null,
+      "note": "typecheck 0; lint 0; 135/135 tests (28 budget); money-invariant PASS; build+PWA PASS",
+      "prevHash": "df2b284d542619277ce11876bd0f0641506f866d2a5cf5a158aa36e7e344e4d8",
+      "contentHash": "a977a341cb8e82782c1518c1575100f93743cbe99d2361a713ccb40a9f692032",
+      "recordedAt": "2026-07-29T14:40:42.784Z"
+    },
+    {
+      "seq": 55,
+      "kind": "APPROVE",
+      "itemId": "R2-goals-ui",
+      "actor": "reviewer",
+      "artifactHash": "d4cd7d1d346ee495486f3c09b7913b90f70c69ce4b9c167ca1975326d5cda576",
+      "disposition": null,
+      "confidence": null,
+      "note": "targets persist via store, integer milliunits at boundary, non-positive amount refused, no engine changes",
+      "prevHash": "a977a341cb8e82782c1518c1575100f93743cbe99d2361a713ccb40a9f692032",
+      "contentHash": "927bb148f4ae862951e915318ffe12aeb6a98f0ea82dfcb24b8bde51cf0aa7c2",
+      "recordedAt": "2026-07-29T14:40:42.934Z"
+    },
+    {
+      "seq": 56,
+      "kind": "CERTIFY",
+      "itemId": "R2-goals-ui",
+      "actor": "reviewer",
+      "artifactHash": "d4cd7d1d346ee495486f3c09b7913b90f70c69ce4b9c167ca1975326d5cda576",
+      "disposition": "RESOLVED",
+      "confidence": "VERIFIED",
+      "note": "covers: R2",
+      "prevHash": "927bb148f4ae862951e915318ffe12aeb6a98f0ea82dfcb24b8bde51cf0aa7c2",
+      "contentHash": "67c83ee12e36eaaa864412c16d6b14fb64a7cf58e908380e7a6ca761dc90573e",
+      "recordedAt": "2026-07-29T14:40:43.096Z"
     }
   ]
 }
