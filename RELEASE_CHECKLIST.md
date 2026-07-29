@@ -33,7 +33,13 @@ go from the owner (steering: never push until the user provides the remote).
 - [x] Build log has one line per completed phase
 - [x] Verification ledger intact with one certificate per phase
 
-## Waiting on the owner
-- [ ] GitHub remote URL (U3) — then: `git remote add origin <URL>` and push on explicit go
-- [ ] Google OAuth client id + API key (U1) and optional folder id (U2) in
-  `.env.local` for live Drive sign-in, round-trip, and Picker import verification
+## Released
+- [x] GitHub remote provided by the owner and push explicitly authorized ("push it", 2026-07-29)
+- [x] Pushed `master` to `origin` (github.com/seifelsherbinyy/nizamfinancialapp) at commit `4b0a66a`
+- [x] Tagged `v0.1.0`
+- [x] Pre-push secret scan clean (153 tracked files, zero findings)
+
+## Still waiting on the owner
+- [ ] Google **Web application** OAuth client id + browser API key (U1) and optional
+  folder id (U2) in `.env.local` — needed for live Drive sign-in, round-trip, and
+  Picker import verification (the tracked credential type on file is a desktop client)
