@@ -1,11 +1,23 @@
 /**
  * NIZAM · App entry — mount React root, providers
- * Implemented by: KIRO Contract 1 / Phase 3
- * Status: PLACEHOLDER — build per .kiro/specs + contracts/CONTRACT_1_*.md
+ * Implemented by: KIRO Contract 1 / Phase 1.3
  * Depends on: App.tsx, app/providers.tsx
- * TODO:
- *   - createRoot(#root)
- *   - wrap in providers
- *   - register service worker (Contract 5)
  */
-export {}; // placeholder — replace on implementation
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { AppProviders } from '@/app/providers';
+import App from '@/App';
+import '@/styles/globals.css';
+
+const rootEl = document.getElementById('root');
+if (!rootEl) {
+  throw new Error('NIZAM: #root element not found');
+}
+
+createRoot(rootEl).render(
+  <StrictMode>
+    <AppProviders>
+      <App />
+    </AppProviders>
+  </StrictMode>,
+);

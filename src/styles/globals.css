@@ -1,2 +1,375 @@
-/* NIZAM globals — PLACEHOLDER (Contract 4 / Phase 1). CSS reset + tokens. */
-:root { /* TODO tokens */ }
+/* NIZAM globals — Implemented by: KIRO Contract 4 / Phase 4.1
+   CSS reset + design tokens (mirrors src/styles/theme.ts). */
+
+:root {
+  --sidebar-bg: #26315f;
+  --sidebar-bg-hover: #32407a;
+  --sidebar-text: #e7eaf6;
+  --sidebar-muted: #9aa3c7;
+  --content-bg: #f6f7f9;
+  --surface: #ffffff;
+  --border: #dde1e7;
+  --text: #1f2430;
+  --text-muted: #68707f;
+  --accent: #3a5bdc;
+  --accent-text: #ffffff;
+
+  --rag-green-bg: #d8f0e0;
+  --rag-green-text: #14663c;
+  --rag-amber-bg: #fdeeca;
+  --rag-amber-text: #8a6100;
+  --rag-red-bg: #fbdcda;
+  --rag-red-text: #a52a1e;
+  --rag-neutral-bg: #eceef1;
+  --rag-neutral-text: #68707f;
+
+  --font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --mono: Consolas, 'SF Mono', Menlo, monospace;
+}
+
+/* --- reset --- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  font-family: var(--font-family);
+  font-size: 14px;
+  color: var(--text);
+  background: var(--content-bg);
+}
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+h1,
+h2,
+h3 {
+  margin: 0 0 8px;
+}
+table {
+  border-collapse: collapse;
+}
+
+/* --- app shell --- */
+.app-shell {
+  display: flex;
+  height: 100%;
+}
+.app-main {
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
+}
+
+/* --- sidebar --- */
+.sidebar {
+  width: 260px;
+  min-width: 260px;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.sidebar-brand {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 18px 16px 10px;
+}
+.sidebar-nav a {
+  display: block;
+  color: var(--sidebar-text);
+  text-decoration: none;
+  padding: 8px 16px;
+  border-left: 3px solid transparent;
+}
+.sidebar-nav a:hover {
+  background: var(--sidebar-bg-hover);
+}
+.sidebar-nav a.active {
+  background: var(--sidebar-bg-hover);
+  border-left-color: var(--accent);
+  font-weight: 600;
+}
+.sidebar-section {
+  padding: 14px 16px 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sidebar-muted);
+}
+.sidebar-account {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 16px;
+  color: var(--sidebar-text);
+  text-decoration: none;
+  font-size: 13px;
+}
+.sidebar-account:hover {
+  background: var(--sidebar-bg-hover);
+}
+.sidebar-account.active {
+  background: var(--sidebar-bg-hover);
+}
+.sidebar-account .neg {
+  color: #ff9d94;
+}
+.sidebar-footer {
+  margin-top: auto;
+  padding: 12px 16px;
+  font-size: 12px;
+  color: var(--sidebar-muted);
+}
+
+/* --- cards / surfaces --- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+/* --- buttons / inputs --- */
+.btn {
+  background: var(--accent);
+  color: var(--accent-text);
+  border: none;
+  border-radius: 6px;
+  padding: 7px 14px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn:hover {
+  filter: brightness(1.08);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.btn-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-danger {
+  background: #b3261e;
+}
+.btn-sm {
+  padding: 3px 9px;
+  font-size: 12.5px;
+}
+.input,
+select.input {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 9px;
+  background: var(--surface);
+  width: 100%;
+}
+.input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.input-money {
+  font-family: var(--mono);
+  text-align: right;
+}
+label.field {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+label.field > span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--text-muted);
+}
+
+/* --- money cell (RAG) --- */
+.money {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.money-pill {
+  display: inline-block;
+  padding: 1px 10px;
+  border-radius: 99px;
+}
+.money-positive {
+  background: var(--rag-green-bg);
+  color: var(--rag-green-text);
+}
+.money-zero {
+  background: var(--rag-neutral-bg);
+  color: var(--rag-neutral-text);
+}
+.money-warning {
+  background: var(--rag-amber-bg);
+  color: var(--rag-amber-text);
+}
+.money-negative {
+  background: var(--rag-red-bg);
+  color: var(--rag-red-text);
+}
+.money-plain.money-negative,
+.money-plain.money-warning,
+.money-plain.money-positive,
+.money-plain.money-zero {
+  background: transparent;
+}
+.money-plain.money-negative {
+  color: var(--rag-red-text);
+}
+
+/* --- data tables --- */
+.table {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.table th {
+  text-align: left;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: #fafbfc;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.table tr:last-child td {
+  border-bottom: none;
+}
+.table tr:hover td {
+  background: #f4f6fb;
+}
+.table .num {
+  text-align: right;
+}
+.group-row td {
+  background: #eef0f4;
+  font-weight: 700;
+  font-size: 12.5px;
+}
+.table tr.group-row:hover td {
+  background: #eef0f4;
+}
+
+/* --- budget header --- */
+.rta-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-weight: 700;
+}
+.rta-banner .rta-amount {
+  font-size: 20px;
+  font-family: var(--mono);
+}
+.rta-positive {
+  background: var(--rag-green-bg);
+  color: var(--rag-green-text);
+}
+.rta-warning {
+  background: var(--rag-amber-bg);
+  color: var(--rag-amber-text);
+}
+.rta-negative {
+  background: var(--rag-red-bg);
+  color: var(--rag-red-text);
+}
+.month-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.month-nav h2 {
+  margin: 0;
+  min-width: 130px;
+  text-align: center;
+}
+
+/* --- modal --- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 24, 40, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal {
+  background: var(--surface);
+  border-radius: 10px;
+  min-width: 420px;
+  max-width: 640px;
+  max-height: 85vh;
+  overflow: auto;
+  padding: 20px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+.modal h3 {
+  margin-top: 0;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* --- misc --- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.spacer {
+  flex: 1;
+}
+.muted {
+  color: var(--text-muted);
+}
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: var(--rag-neutral-bg);
+  color: var(--rag-neutral-text);
+}
+.error-text {
+  color: var(--rag-red-text);
+  font-size: 13px;
+}
+.clickable {
+  cursor: pointer;
+}

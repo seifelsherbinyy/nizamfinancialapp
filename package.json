@@ -1,22 +1,43 @@
 {
   "name": "nizam",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
-  "description": "NIZAM — private YNAB-style personal finance webapp with Google Drive as the database (PLACEHOLDER — deps filled by KIRO Contract 1).",
+  "description": "NIZAM — private YNAB-style personal finance webapp with Google Drive as the database.",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint .",
+    "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "__TODO_KIRO_C1__": "react, react-dom, zustand, dexie, gapi-script/google api client, decimal-free integer money — pin in Contract 1 Phase 2"
+    "dexie": "4.0.10",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "zod": "3.24.1",
+    "zustand": "5.0.2"
   },
   "devDependencies": {
-    "__TODO_KIRO_C1__": "vite, typescript, @vitejs/plugin-react, vitest, @testing-library/react, eslint, prettier — pin in Contract 1 Phase 2"
+    "@testing-library/jest-dom": "6.6.3",
+    "@testing-library/react": "16.1.0",
+    "@testing-library/user-event": "14.5.2",
+    "@types/node": "^22.10.2",
+    "@types/react": "18.3.14",
+    "@types/react-dom": "18.3.2",
+    "@typescript-eslint/eslint-plugin": "7.18.0",
+    "@typescript-eslint/parser": "7.18.0",
+    "@vitejs/plugin-react": "4.3.4",
+    "eslint": "8.57.1",
+    "eslint-plugin-react-hooks": "4.6.2",
+    "eslint-plugin-react-refresh": "0.4.16",
+    "fake-indexeddb": "^6.0.0",
+    "jsdom": "25.0.1",
+    "prettier": "3.4.2",
+    "typescript": "^5.5.4",
+    "vite": "5.4.11",
+    "vitest": "2.1.8"
   }
 }
