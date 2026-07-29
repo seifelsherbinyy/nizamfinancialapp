@@ -23,3 +23,8 @@ outputs/
 Execute and build.md
 # loop scratch (the ledger itself IS committed)
 .loop/tmp/
+# --- local secrets (never commit) ---
+.secrets/
+.env.*.local
+*client_secret*.json
+secretsgoogle*.txt
