@@ -29,6 +29,9 @@ for (const c of certs) {
   if (c.producedBy && c.verifiedBy && c.producedBy.toLowerCase() === c.verifiedBy.toLowerCase()) {
     fail.push("certificate for " + c.itemId + " was verified by its producer");
   }
+  if (c.producedBy && c.approvedBy && c.producedBy.toLowerCase() === c.approvedBy.toLowerCase()) {
+    fail.push("certificate for " + c.itemId + " was approved by its producer");
+  }
 }
 
 const loggedPhases = existsSync(BUILD_LOG)

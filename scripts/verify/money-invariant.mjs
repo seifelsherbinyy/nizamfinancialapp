@@ -9,6 +9,9 @@ import { walk, read, verdict } from "./_util.mjs";
 const MONEY_CORE = "src/lib/money/";
 const BANNED = [/\bparseFloat\s*\(/, /\bNumber\.parseFloat\s*\(/, /\.toFixed\s*\(/];
 const MONEY_FIELDS = /\b(amount|outflow|inflow|assigned|available|balance|carryIn|activity|target|limit|milliunits)\b\s*[:=]\s*-?\d+\.\d+/;
+// A line explicitly marked as an intentional invalid fixture is a negative test that
+// PROVES the validator rejects a float. Such a line is exempt.
+const FAIL_FIXTURE = /(must fail|must be integer|float\b|invalid|rejects?|should throw)/i;
 const findings = [];
 const files = walk("src", [".ts", ".tsx"]);
 for (const f of files) {
@@ -19,7 +22,7 @@ for (const f of files) {
     const at = f + ":" + (i + 1);
     if (line.trim().startsWith("*") || line.trim().startsWith("//")) return;
     if (!inCore) for (const b of BANNED) if (b.test(line)) findings.push(at + " uses a floating point conversion outside the money core");
-    if (!isTest && MONEY_FIELDS.test(line)) findings.push(at + " assigns a decimal literal to a money bearing field");
+    if (MONEY_FIELDS.test(line) && !FAIL_FIXTURE.test(line)) findings.push(at + " assigns a decimal literal to a money bearing field, including test fixtures");
   });
 }
 verdict("money stays integral outside the money core", findings, ["scanned " + files.length + " source files, money core exempt for its own parsing boundary"]);

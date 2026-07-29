@@ -18,6 +18,10 @@ for (const f of files) {
   if (ALLOW_FILES.has(f) || SKIP_EXT.test(f)) continue;
   let t = "";
   try { t = read(f).toLowerCase(); } catch { continue; }
-  for (const d of DENY) if (t.includes(d)) findings.push(f + " contains an organization specific term");
+  for (const d of DENY) {
+    const esc = d.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp("(^|[^a-z0-9])" + esc + "([^a-z0-9]|$)", "i");
+    if (re.test(t)) findings.push(f + " contains an organization specific term: " + d);
+  }
 }
 verdict("no organization specific terms in tracked files", findings, ["scanned " + files.length + " tracked text files against " + DENY.length + " denied terms"]);

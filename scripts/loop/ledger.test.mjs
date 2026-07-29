@@ -171,3 +171,26 @@ test("the escalation ladder routes deterministically and the override cannot ope
   assert.equal(canEnterL3({ contractPresent: true, escalationTrigger: "t", budgetRemaining: 1, inScope: true }), true);
   assert.equal(canEnterL3({ contractPresent: true, escalationTrigger: "t", budgetRemaining: 1, inScope: false }), false);
 });
+
+test("F01 regression: verifyIntegrity rejects a forged ledger that certifies without a verify and approve", () => {
+  const l = seeded();
+  l.save();
+  const raw = JSON.parse(readFileSync(l.path, "utf8"));
+  // hand craft a CERTIFY with correct chain hashes but no prior VERIFY or APPROVE
+  const forged = { seq: 2, kind: "CERTIFY", itemId: "C4.2", actor: "reviewer", artifactHash: H1, disposition: "RESOLVED", confidence: "VERIFIED", note: "", prevHash: raw.events[0].contentHash };
+  forged.contentHash = eventHash(forged);
+  forged.recordedAt = new Date().toISOString();
+  raw.events.push(forged);
+  writeFileSync(l.path, JSON.stringify(raw, null, 2), "utf8");
+  const res = new VerificationLedger(l.path).verifyIntegrity();
+  assert.equal(res.ok, false);
+  assert.ok(res.errors.some((e) => e.error.includes("no matching VERIFY")));
+  assert.ok(res.errors.some((e) => e.error.includes("no matching APPROVE")));
+});
+
+test("F04 regression: the retry gate is one indexed and refuses a non positive attempt", () => {
+  assert.throws(() => routeDisposition({ attempt: 0 }), MalformedEventError);
+  assert.equal(routeDisposition({ attempt: 1 }).disposition, "RETRY_ONCE");
+  const open = { attempt: 2, contractPresent: true, escalationTrigger: "gate red", budgetRemaining: 3, inScope: true };
+  assert.equal(routeDisposition(open).level, "L3");
+});

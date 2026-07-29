@@ -188,8 +188,16 @@ export class VerificationLedger {
           errors.push({ seq: e.seq, error: "self approval recorded for item " + e.itemId });
         }
       }
-      if (e.kind === "CERTIFY" && !CERTIFIABLE_DISPOSITIONS.has(String(e.disposition))) {
-        errors.push({ seq: e.seq, error: "certification recorded with a refused disposition" });
+      if (e.kind === "CERTIFY") {
+        if (!CERTIFIABLE_DISPOSITIONS.has(String(e.disposition))) {
+          errors.push({ seq: e.seq, error: "certification recorded with a refused disposition" });
+        }
+        if (!this.hasKind("VERIFY", e.itemId, e.artifactHash)) {
+          errors.push({ seq: e.seq, error: "certification for " + e.itemId + " has no matching VERIFY event" });
+        }
+        if (!this.hasKind("APPROVE", e.itemId, e.artifactHash)) {
+          errors.push({ seq: e.seq, error: "certification for " + e.itemId + " has no matching APPROVE event" });
+        }
       }
     });
     return { ok: errors.length === 0, eventCount: this.events.length, errors };
@@ -251,7 +259,8 @@ export function routeDisposition(input) {
   } = input ?? {};
   if (priorSealedResult) return { level: "L0", disposition: "RESOLVED", reason: "reused a sealed prior result" };
   if (deterministicAvailable) return { level: "L1", disposition: "RESOLVED", reason: "deterministic command available" };
-  if (attempt <= MAX_L2_RETRIES) return { level: "L2", disposition: "RETRY_ONCE", reason: "one bounded retry permitted" };
+  if (attempt < 1) throw new MalformedEventError("attempt is 1-indexed and must be at least 1");
+  if (attempt <= MAX_L2_RETRIES) return { level: "L2", disposition: "RETRY_ONCE", reason: "one bounded retry permitted, attempts are 1-indexed" };
   if (canEnterL3({ contractPresent, escalationTrigger, budgetRemaining, inScope })) {
     return { level: "L3", disposition: "ESCALATE", reason: "contract, trigger, budget and scope all satisfied" };
   }

@@ -9,7 +9,7 @@ const PATTERNS = [
   { name: "bearer token literal", re: /\bBearer\s+[A-Za-z0-9._-]{25,}\b/ },
   { name: "oauth refresh token field", re: /"refresh_token"\s*:\s*"[^"]{10,}/ },
 ];
-const FORBIDDEN_PATHS = [/^\.env(\.local|\.production|\.development)?$/, /^data\/ledgers\/(?!.*\.example\.).*\.(csv|json)$/i, /token\.json$/, /client_secret/i];
+const FORBIDDEN_PATHS = [/^\.env$/, /^\.env\.(?!example$)[A-Za-z0-9_.-]+$/, /^data\/ledgers\/(?!.*\.example\.).*\.(csv|json)$/i, /token\.json$/, /client_secret/i];
 const findings = [];
 const files = tracked();
 for (const f of files) {
