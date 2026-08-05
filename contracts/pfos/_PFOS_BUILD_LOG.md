@@ -282,3 +282,30 @@ to supply Dv3 (their bills / loans / cards) through the app, so safe-to-spend ca
 
 Still server-free; the Stage-5 fork is unchanged. This makes real-data entry possible today
 without waiting on the D1/D2 decision.
+
+---
+
+## Settings (financial policy + macro) UI - completed 2026-08-06
+
+**Why.** Safe-to-spend reserves stay at zero until the owner declares them (the engine never
+invents a threshold), and the "until next income" horizon + confidence depend on a declared
+expected income. There was no UI to set any of this. The real-value net-worth view also needs
+an inflation figure. All server-free config on the Drive DB.
+
+### Work
+
+- `src/app/router.tsx` + `src/App.tsx` - new `/settings` route + NAV item + views entry.
+- `src/features/settings/SettingsView.tsx` - edits the versioned FinancialPolicy (minimum cash
+  buffer, essential-living-per-month) and an optional expected income (amount, day-of-month,
+  reliability -> confidence), plus the macro annual-inflation % (stored as bps). Save writes
+  policy + macro via a single mutation and shows a saved confirmation. Validation refuses an
+  out-of-range income day, a non-positive income amount, and negative inflation.
+
+### Verification
+
+- 3 new tests (save policy+macro, reject bad income day, clear income on uncheck). Full suite
+  263/263 across 28 files. Typecheck 0, lint 0, headers PASS (84 files). Harness 19/19.
+  AC04 floor 258 -> 261.
+
+Server-free; Stage-5 fork unchanged. Combined with the obligations manager, the owner can now
+fully configure safe-to-spend on real data with no server.

@@ -16,12 +16,14 @@ import { Reconcile } from '@/features/reconciliation/Reconcile';
 import { CommandCenter } from '@/features/safeToSpend/CommandCenter';
 import { DecideView } from '@/features/decisions/DecideView';
 import { ObligationsView } from '@/features/obligations/ObligationsView';
+import { SettingsView } from '@/features/settings/SettingsView';
 
 const NAV: { path: RoutePath; label: string }[] = [
   { path: '/home', label: 'Home' },
   { path: '/budget', label: 'Budget' },
   { path: '/decide', label: 'Decide' },
   { path: '/obligations', label: 'Obligations' },
+  { path: '/settings', label: 'Settings' },
   { path: '/reports', label: 'Reports' },
   { path: '/import', label: 'Import' },
   { path: '/reconcile', label: 'Reconcile' },
@@ -64,6 +66,7 @@ const views: Record<RoutePath, ReactNode> = {
   '/reconcile': <Reconcile />,
   '/decide': <DecideView />,
   '/obligations': <ObligationsView />,
+  '/settings': <SettingsView />,
 };
 
 export default function App() {
