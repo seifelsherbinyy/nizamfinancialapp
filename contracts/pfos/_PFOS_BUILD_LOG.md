@@ -253,3 +253,32 @@ and risk the wrong parsers; real SMS/statement formats Dv1/Dv2 are still require
 
 The server-free product is now demonstrable end to end with zero real data. Stage-5 fork below
 is unchanged and still needs the human D1/D2 decision.
+
+---
+
+## Obligations manager UI - completed 2026-08-06
+
+**Why.** The safe-to-spend engine and Command Center were only exercisable with sample data -
+there was no way to enter REAL obligations. This is the primary server-free path for the owner
+to supply Dv3 (their bills / loans / cards) through the app, so safe-to-spend can protect them.
+
+### Work
+
+- `src/app/router.tsx` + `src/App.tsx` - new `/obligations` route + NAV item + views entry.
+- `src/features/obligations/ObligationsView.tsx` - add / edit / delete obligations against the
+  Drive DB (pure client, no server). A modal form captures creditor, priority (P0-P3 with the
+  override policy shown), amount due, minimum, due + optional grace date, frequency, penalty,
+  autopay, a verification source (which maps to a default confidence so the owner never types a
+  raw probability), and an optional linked account (enables the statement horizon). The list is
+  shown in funding order (fundingSequence: most-harmful first). Ids via state/actions newId.
+- Validation refuses an empty creditor, a non-positive amount, a missing/invalid due date, or a
+  minimum greater than the amount due; a blank minimum defaults to the full amount.
+
+### Verification
+
+- 5 new tests (empty state, add+persist, reject no-amount, edit, delete). Full suite 260/260
+  across 27 files. Typecheck 0, lint 0, headers PASS (82 files). Harness 19/19. AC04 floor
+  253 -> 258.
+
+Still server-free; the Stage-5 fork is unchanged. This makes real-data entry possible today
+without waiting on the D1/D2 decision.

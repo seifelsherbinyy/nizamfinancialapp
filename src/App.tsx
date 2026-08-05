@@ -15,11 +15,13 @@ import { ImportWizard } from '@/features/import/ImportWizard';
 import { Reconcile } from '@/features/reconciliation/Reconcile';
 import { CommandCenter } from '@/features/safeToSpend/CommandCenter';
 import { DecideView } from '@/features/decisions/DecideView';
+import { ObligationsView } from '@/features/obligations/ObligationsView';
 
 const NAV: { path: RoutePath; label: string }[] = [
   { path: '/home', label: 'Home' },
   { path: '/budget', label: 'Budget' },
   { path: '/decide', label: 'Decide' },
+  { path: '/obligations', label: 'Obligations' },
   { path: '/reports', label: 'Reports' },
   { path: '/import', label: 'Import' },
   { path: '/reconcile', label: 'Reconcile' },
@@ -61,6 +63,7 @@ const views: Record<RoutePath, ReactNode> = {
   '/import': <ImportWizard />,
   '/reconcile': <Reconcile />,
   '/decide': <DecideView />,
+  '/obligations': <ObligationsView />,
 };
 
 export default function App() {
