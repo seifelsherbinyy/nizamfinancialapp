@@ -10,7 +10,9 @@ import Dexie, { type EntityTable } from 'dexie';
 import type { Account } from '@/features/accounts/accounts.types';
 import type { Category, CategoryGroup, MonthBudget } from '@/features/budget/budget.types';
 import type { Transaction } from '@/features/transactions/transaction.types';
-import { validateDb, type NizamDb, type Payee, type DbMeta } from '@/lib/db/schema';
+import { SCHEMA_VERSION, validateDb, type NizamDb, type Payee, type DbMeta } from '@/lib/db/schema';
+import type { Obligation } from '@/features/obligations/obligation.types';
+import { DEFAULT_POLICY, type FinancialPolicy } from '@/features/safeToSpend/policy.types';
 
 interface KvRow {
   key: string;
@@ -58,6 +60,10 @@ export const KV = {
   /** '1' when local edits have not been pushed to Drive yet. */
   dirty: 'dirty',
   meta: 'meta',
+  /** PFOS Stage 1: obligation registry, mirrored so the engine works offline. */
+  obligations: 'obligations',
+  /** PFOS Stage 1: version-controlled financial policy. */
+  policy: 'policy',
 } as const;
 
 export async function getKv<T>(cache: NizamCache, key: string): Promise<T | undefined> {
@@ -94,6 +100,8 @@ export async function writeDbToCache(cache: NizamCache, db: NizamDb): Promise<vo
         cache.transactions.bulkAdd(db.transactions),
       ]);
       await cache.kv.put({ key: KV.meta, value: db.meta });
+      await cache.kv.put({ key: KV.obligations, value: db.obligations });
+      await cache.kv.put({ key: KV.policy, value: db.policy });
     },
   );
 }
@@ -110,8 +118,10 @@ export async function readDbFromCache(cache: NizamCache): Promise<NizamDb | null
     cache.payees.toArray(),
     cache.transactions.toArray(),
   ]);
+  const obligations = (await getKv<Obligation[]>(cache, KV.obligations)) ?? [];
+  const policy = (await getKv<FinancialPolicy>(cache, KV.policy)) ?? { ...DEFAULT_POLICY };
   const db: NizamDb = {
-    schemaVersion: 1,
+    schemaVersion: SCHEMA_VERSION,
     meta,
     accounts: accounts.sort((a, b) => a.order - b.order),
     categoryGroups: categoryGroups.sort((a, b) => a.order - b.order),
@@ -119,6 +129,8 @@ export async function readDbFromCache(cache: NizamCache): Promise<NizamDb | null
     months: months.sort((a, b) => a.month.localeCompare(b.month)),
     payees,
     transactions: transactions.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)),
+    obligations: obligations.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.id.localeCompare(b.id)),
+    policy,
   };
   return validateDb(db);
 }

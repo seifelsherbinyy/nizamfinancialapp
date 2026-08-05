@@ -92,6 +92,46 @@ function mergeCollection<T>(
   return { result, conflicts };
 }
 
+interface SingletonMerge<T> {
+  result: T;
+  conflicts: ConflictEntry[];
+}
+
+/**
+ * Three-way merge for a SINGLETON object (one per database, no id) such as the
+ * financial policy. Same resolution order as a collection entity: an unopposed
+ * change wins, an identical change is not a conflict, and a genuine divergence
+ * resolves to local WITH an audit entry — a policy change must never be lost
+ * silently, because safe-to-spend reads it.
+ */
+function mergeSingleton<T>(
+  collection: string,
+  base: T,
+  local: T,
+  remote: T,
+  nowIso: string,
+): SingletonMerge<T> {
+  const localChanged = !deepEqual(base, local);
+  const remoteChanged = !deepEqual(base, remote);
+  if (!localChanged && remoteChanged) return { result: remote, conflicts: [] };
+  if (localChanged && remoteChanged && !deepEqual(local, remote)) {
+    return {
+      result: local,
+      conflicts: [
+        {
+          id: `cfl_${collection}_singleton_${nowIso}`,
+          at: nowIso,
+          collection,
+          entityId: collection,
+          resolution: 'local_wins',
+          note: 'both edited the policy — local version kept',
+        },
+      ],
+    };
+  }
+  return { result: local, conflicts: [] };
+}
+
 /**
  * Merge three versions of the database. Deterministic; collection-by-collection,
  * entity-by-entity. Returns the merged db plus audit entries for true conflicts.
@@ -104,6 +144,8 @@ export function merge3(base: NizamDb, local: NizamDb, remote: NizamDb, nowIso: s
   const months = mergeCollection('months', base.months, local.months, remote.months, nowIso, (m) => m.month);
   const payees = mergeCollection('payees', base.payees, local.payees, remote.payees, nowIso, byId);
   const transactions = mergeCollection('transactions', base.transactions, local.transactions, remote.transactions, nowIso, byId);
+  const obligations = mergeCollection('obligations', base.obligations, local.obligations, remote.obligations, nowIso, byId);
+  const policy = mergeSingleton('policy', base.policy, local.policy, remote.policy, nowIso);
 
   const newConflicts = [
     ...accounts.conflicts,
@@ -112,6 +154,8 @@ export function merge3(base: NizamDb, local: NizamDb, remote: NizamDb, nowIso: s
     ...months.conflicts,
     ...payees.conflicts,
     ...transactions.conflicts,
+    ...obligations.conflicts,
+    ...policy.conflicts,
   ];
 
   const merged: NizamDb = {
@@ -129,6 +173,8 @@ export function merge3(base: NizamDb, local: NizamDb, remote: NizamDb, nowIso: s
     months: months.result,
     payees: payees.result,
     transactions: transactions.result,
+    obligations: obligations.result,
+    policy: policy.result,
   };
   return { merged, conflicts: newConflicts };
 }

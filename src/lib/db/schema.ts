@@ -21,8 +21,15 @@ import type {
   Transaction,
   TransactionSplit,
 } from '@/features/transactions/transaction.types';
+import {
+  OBLIGATION_FREQUENCIES,
+  OBLIGATION_PRIORITIES,
+  VERIFICATION_SOURCES,
+  type Obligation,
+} from '@/features/obligations/obligation.types';
+import { DEFAULT_POLICY, type ExpectedInflow, type FinancialPolicy } from '@/features/safeToSpend/policy.types';
 
-export const SCHEMA_VERSION = 1 as const;
+export const SCHEMA_VERSION = 2 as const;
 
 /** Integer milliunits guard — floats are schema violations. */
 export const zMoney = z.number().int().finite();
@@ -131,6 +138,44 @@ export const zPayee: z.ZodType<Payee> = z.object({
   name: z.string().min(1),
 });
 
+/**
+ * Obligation validator — PFOS Stage 1 / Phase S1.1.
+ * Money stays integral; confidence is a 0..1 ratio; interest is integer basis points.
+ */
+export const zObligation: z.ZodType<Obligation> = z.object({
+  id: z.string().min(1),
+  creditor: z.string().min(1),
+  accountId: z.string().nullable(),
+  amountDue: zMoney.nonnegative(),
+  minimumDue: zMoney.nonnegative(),
+  dueDate: zIsoDate,
+  graceDate: zIsoDate.nullable(),
+  frequency: z.enum(OBLIGATION_FREQUENCIES),
+  priority: z.enum(OBLIGATION_PRIORITIES),
+  penalty: zMoney.nonnegative(),
+  interestBps: z.number().int().nonnegative(),
+  autopay: z.boolean(),
+  verificationSource: z.enum(VERIFICATION_SOURCES),
+  confidence: z.number().min(0).max(1),
+  protectedReserve: zMoney.nonnegative(),
+});
+
+const zExpectedInflow: z.ZodType<ExpectedInflow> = z.object({
+  amount: zMoney.nonnegative(),
+  dayOfMonth: z.number().int().min(1).max(31),
+  confidence: z.number().min(0).max(1),
+});
+
+/** Version-controlled financial policy — contract 02 section 2.2. */
+export const zPolicy: z.ZodType<FinancialPolicy> = z.object({
+  minimumLiquidityBuffer: zMoney.nonnegative(),
+  essentialLivingMonthly: zMoney.nonnegative(),
+  uncertaintyBps: z.number().int().nonnegative(),
+  stalenessBps: z.number().int().nonnegative(),
+  staleAfterDays: z.number().int().nonnegative(),
+  expectedInflow: zExpectedInflow.nullable(),
+});
+
 /** Audit entry for a sync conflict resolved by merge / last-write-wins. */
 export interface ConflictEntry {
   id: string;
@@ -176,6 +221,10 @@ export interface NizamDb {
   months: MonthBudget[];
   payees: Payee[];
   transactions: Transaction[];
+  /** PFOS Stage 1: future commitments safe-to-spend reserves against. */
+  obligations: Obligation[];
+  /** PFOS Stage 1: version-controlled buffers and reserve rates. */
+  policy: FinancialPolicy;
 }
 
 export const zNizamDb: z.ZodType<NizamDb> = z.object({
@@ -187,6 +236,8 @@ export const zNizamDb: z.ZodType<NizamDb> = z.object({
   months: z.array(zMonthBudget),
   payees: z.array(zPayee),
   transactions: z.array(zTransaction),
+  obligations: z.array(zObligation),
+  policy: zPolicy,
 });
 
 /** New empty database. */
@@ -207,6 +258,8 @@ export function createEmptyDb(nowIso: string): NizamDb {
     months: [],
     payees: [],
     transactions: [],
+    obligations: [],
+    policy: { ...DEFAULT_POLICY },
   };
 }
 

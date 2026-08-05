@@ -7,6 +7,7 @@
  * that validates against the CURRENT schema. Running it on current data is a no-op.
  */
 import { SCHEMA_VERSION, validateDb, type NizamDb } from '@/lib/db/schema';
+import { DEFAULT_POLICY } from '@/features/safeToSpend/policy.types';
 
 type RawDb = Record<string, unknown>;
 
@@ -124,6 +125,32 @@ function migrateV0toV1(raw: RawDb): RawDb {
 }
 
 /**
+ * v1 -> v2 (PFOS Stage 1): adds the obligation registry and the version-controlled
+ * financial policy. Purely additive — every existing collection is passed through
+ * untouched, so a v1 file loads with an empty obligation list and default policy
+ * and produces byte-identical budget numbers.
+ */
+function migrateV1toV2(raw: RawDb): RawDb {
+  const policy = asRecord(raw.policy);
+  const hasPolicy = Object.keys(policy).length > 0;
+  return {
+    ...raw,
+    schemaVersion: 2,
+    obligations: asArray(raw.obligations),
+    policy: hasPolicy
+      ? {
+          minimumLiquidityBuffer: int(policy.minimumLiquidityBuffer, DEFAULT_POLICY.minimumLiquidityBuffer),
+          essentialLivingMonthly: int(policy.essentialLivingMonthly, DEFAULT_POLICY.essentialLivingMonthly),
+          uncertaintyBps: int(policy.uncertaintyBps, DEFAULT_POLICY.uncertaintyBps),
+          stalenessBps: int(policy.stalenessBps, DEFAULT_POLICY.stalenessBps),
+          staleAfterDays: int(policy.staleAfterDays, DEFAULT_POLICY.staleAfterDays),
+          expectedInflow: policy.expectedInflow ?? null,
+        }
+      : { ...DEFAULT_POLICY },
+  };
+}
+
+/**
  * Migrate any historical raw JSON value to the current schema and validate it.
  * Forward-only; idempotent (current-version input passes through untouched).
  */
@@ -137,6 +164,9 @@ export function migrate(rawValue: unknown): NizamDb {
   }
   if (version < 1) {
     raw = migrateV0toV1(raw);
+  }
+  if (version < 2) {
+    raw = migrateV1toV2(raw);
   }
   return validateDb(raw);
 }

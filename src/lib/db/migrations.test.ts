@@ -1,8 +1,9 @@
 /**
- * NIZAM · migrations tests — v0 example shape -> v1, idempotent
+ * NIZAM · migrations tests — v0 example shape -> current schema, idempotent
  * Implemented by: KIRO Contract 2 / Phase 2.3
  */
 import { describe, it, expect } from 'vitest';
+import { SCHEMA_VERSION } from '@/lib/db/schema';
 import { migrate } from './migrations';
 import { createEmptyDb } from './schema';
 
@@ -21,9 +22,9 @@ const v0Example = {
 };
 
 describe('migrate', () => {
-  it('migrates the v0 example shape to a valid v1 db', () => {
+  it('migrates the v0 example shape to the current schema', () => {
     const db = migrate(v0Example);
-    expect(db.schemaVersion).toBe(1);
+    expect(db.schemaVersion).toBe(SCHEMA_VERSION);
     expect(db.accounts[0]?.type).toBe('CIB_DEBIT');
     expect(db.accounts[0]?.clearedBalance).toBe(0);
     expect(db.categoryGroups[0]?.hidden).toBe(false);

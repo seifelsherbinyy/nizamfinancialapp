@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { FakeDrive } from '../../../tests/helpers/fakeDriveClient';
 import { ensureDb, loadDb, saveDb, pruneSnapshots, DB_FILE_NAME, SNAPSHOT_RETAIN } from './driveDb';
-import { createEmptyDb } from '@/lib/db/schema';
+import { createEmptyDb, SCHEMA_VERSION } from '@/lib/db/schema';
 
 const NOW = '2026-07-29T10:00:00.000Z';
 const empty = () => createEmptyDb(NOW);
@@ -16,7 +16,7 @@ describe('ensureDb', () => {
     const { handle, db } = await ensureDb(drive.client(), empty);
     expect(handle.fileId).toBeTruthy();
     expect(handle.folderId).toBeTruthy();
-    expect(db.schemaVersion).toBe(1);
+    expect(db.schemaVersion).toBe(SCHEMA_VERSION);
     const files = [...drive.files.values()];
     expect(files.some((f) => f.name === 'NIZAM')).toBe(true);
     expect(files.some((f) => f.name === DB_FILE_NAME)).toBe(true);
