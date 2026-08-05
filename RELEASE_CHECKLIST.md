@@ -39,6 +39,25 @@ go from the owner (steering: never push until the user provides the remote).
 - [x] Tagged `v0.1.0`
 - [x] Pre-push secret scan clean (153 tracked files, zero findings)
 
+## Released — 2026-08-05 (PFOS contract ingestion and analysis)
+- [x] Owner granted explicit push authority ("commit you have my full authority on this", 2026-08-05)
+- [x] Pre-push secret gate clean: 166 tracked files, zero findings; no secret VALUE appears in
+  any tracked file; `.env.local`, `.secrets/*` (client json, token cache, manifest) all untracked
+- [x] `npm run verify:all` — **19 of 19** acceptance checks pass (adds AC08b, ingestion tooling
+  stays isolated from the application; negative-tested on all five of its conditions)
+- [x] Test suite green — 135 tests across 16 files (floor 110); no `src/` file modified by this change
+- [x] Four PFOS product contracts ingested byte-for-byte with SHA-256 provenance
+  (`contracts/pfos/_INGESTION_MANIFEST.json`); re-verified against both the working tree and the
+  committed blobs after `.gitattributes` pinned them against end-of-line conversion
+- [x] Contracts 05-08 and any prerequisite/readiness/credential document proven ABSENT from the
+  drive account (three independent sweeps plus nineteen keyword sweeps) — recorded, not worked around
+- [x] Pushed `master` to `origin` at commit `9f5ac27`
+
+### Note on the 0.1.0 section above
+It records 123 tests and 17 checks — the true figures at the 0.1.0 tag. The tree now measures
+135 tests and 19 checks. The older numbers are left intact on purpose: that section is a dated
+release record, not a live dashboard.
+
 ## Still waiting on the owner
 - [ ] Google **Web application** OAuth client id + browser API key (U1) and optional
   folder id (U2) in `.env.local` — needed for live Drive sign-in, round-trip, and
