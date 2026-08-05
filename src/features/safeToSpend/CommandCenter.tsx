@@ -22,6 +22,7 @@ import {
   type ObligationStatus,
 } from '@/features/obligations/obligations.logic';
 import { netWorth } from '@/features/netWorth/netWorth';
+import { applySampleData } from '@/features/demo/sampleData';
 import { MoneyCell } from '@/components/MoneyCell';
 import type { RagState } from '@/styles/theme';
 
@@ -56,6 +57,7 @@ function pctText(bps: number): string {
 
 export function CommandCenter() {
   const db = useNizamStore((s) => s.db);
+  const mutate = useNizamStore((s) => s.mutate);
   const asOf = today();
 
   const horizons = useMemo<SafeToSpendResult[]>(
@@ -78,6 +80,32 @@ export function CommandCenter() {
   const nw = useMemo(() => (db ? netWorth(db) : null), [db]);
 
   if (!db) return <p className="muted">Loading...</p>;
+
+  // Empty portfolio: offer clearly-labelled sample data (never shown once real accounts exist,
+  // so it can not overwrite a real ledger).
+  if (db.accounts.length === 0) {
+    return (
+      <section aria-label="Command Center">
+        <div className="month-nav">
+          <h2>Command Center</h2>
+        </div>
+        <div className="card">
+          <p>
+            No accounts yet. Load a fully-worked <strong>sample portfolio</strong> to explore
+            safe-to-spend, obligation protection, the decision engine, and multi-currency net
+            worth with demonstration data.
+          </p>
+          <button
+            className="btn"
+            onClick={() => mutate((draft) => applySampleData(draft, new Date().toISOString()))}
+          >
+            Load sample data
+          </button>
+          <p className="muted">Sample data only - add your own accounts to replace it.</p>
+        </div>
+      </section>
+    );
+  }
 
   // Hero window: prefer the next-7-days view, else the first available window.
   const hero = horizons.find((r) => r.horizon.id === '7d') ?? horizons[0];

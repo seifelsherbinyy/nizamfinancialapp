@@ -5,9 +5,10 @@
  */
 import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { CommandCenter } from './CommandCenter';
 import { bootStore, fixtureDb } from '../../../tests/helpers/fixtures';
+import { createEmptyDb } from '@/lib/db/schema';
 import { addDays } from '@/features/obligations/obligations.logic';
 import type { Obligation } from '@/features/obligations/obligation.types';
 
@@ -67,6 +68,17 @@ describe('CommandCenter', () => {
     render(<CommandCenter />);
 
     expect(screen.getByRole('alert').textContent).toMatch(/over-committed/i);
+  });
+
+  it('offers sample data on an empty portfolio and populates the view on load', () => {
+    bootStore(createEmptyDb(new Date().toISOString()));
+    render(<CommandCenter />);
+    const load = screen.getByRole('button', { name: /load sample data/i });
+    fireEvent.click(load);
+    // The empty state is gone and the worked portfolio now renders.
+    expect(screen.getByRole('status', { name: /safe to spend/i })).toBeInTheDocument();
+    expect(screen.getByText('Landlord')).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: /net worth views/i })).toBeInTheDocument();
   });
 
   it('invites the owner to add obligations when none exist', () => {

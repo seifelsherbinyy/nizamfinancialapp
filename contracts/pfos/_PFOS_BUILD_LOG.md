@@ -217,3 +217,39 @@ Stage-5 fork.
 
 The server-free product is now complete end to end (engines + UI). The Stage-5 fork below is
 unchanged and still needs the human D1/D2 decision.
+
+---
+
+## Living sample dataset (demo) - completed 2026-08-06
+
+**Why.** The server-free product (Stages 1-4 engines + UI) can be exercised without the owner's
+real data (Dv3) by embedding a fully-worked SAMPLE portfolio. This lets the whole product be
+seen and validated end to end today, and de-risks the eventual real-data load. It does NOT
+unblock Stages 5-8 - those are gated on the D1/D2 architecture decision and contract 05, not on
+data - so no ingestion/server/LLM code was written against mocks (which would presuppose D1=B/C
+and risk the wrong parsers; real SMS/statement formats Dv1/Dv2 are still required there).
+
+### Work
+
+- `src/features/demo/sampleData.ts` - `buildSampleDb(nowIso)` (deterministic; relative dates so
+  the demo is evergreen) + `applySampleData(draft, nowIso)`. Rich, clearly-labelled SAMPLE data:
+  3 accounts (debit / credit / tracking), fresh transactions + one pending, obligations across
+  ALL four tiers (P0-P3) incl. one credit-linked (statement horizon), a policy with buffers and
+  a reliable expected salary (unlocks the "until income" horizon), 5 multi-currency assets
+  (financial + real) including a DELIBERATELY unrated currency (SAR, no FX rate) to exercise the
+  unrated flag, a USD->EGP integer FX rate, and an inflation macro for the real-value view.
+- `src/features/safeToSpend/CommandCenter.tsx` - empty-portfolio onboarding: a "Load sample
+  data" action shown ONLY when there are no accounts, so it can never overwrite a real ledger.
+- `src/features/demo/sampleData.test.ts` - COVERAGE guarantee: the sample validates
+  (`validateDb`) and is rich (accounts, all 4 tiers, multiple currencies), all six horizons
+  resolve, net worth flags SAR (never zeroed), and every discrete state is provably reachable -
+  all four obligation statuses, a safe-to-spend deficit, and multiple decision recommendations.
+
+### Verification
+
+- 8 new tests (7 coverage + 1 Command Center empty-state -> load -> populated). Full suite
+  255/255 across 26 files. Typecheck 0, lint 0, headers PASS (80 files). Harness 19/19.
+  AC04 floor 245 -> 253.
+
+The server-free product is now demonstrable end to end with zero real data. Stage-5 fork below
+is unchanged and still needs the human D1/D2 decision.
