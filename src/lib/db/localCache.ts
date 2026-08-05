@@ -13,6 +13,7 @@ import type { Transaction } from '@/features/transactions/transaction.types';
 import { SCHEMA_VERSION, validateDb, type NizamDb, type Payee, type DbMeta } from '@/lib/db/schema';
 import type { Obligation } from '@/features/obligations/obligation.types';
 import { DEFAULT_POLICY, type FinancialPolicy } from '@/features/safeToSpend/policy.types';
+import type { DecisionRecord } from '@/features/decisions/decisionRecord.types';
 
 interface KvRow {
   key: string;
@@ -64,6 +65,8 @@ export const KV = {
   obligations: 'obligations',
   /** PFOS Stage 1: version-controlled financial policy. */
   policy: 'policy',
+  /** PFOS Stage 3: append-only decision outcome registry. */
+  decisions: 'decisions',
 } as const;
 
 export async function getKv<T>(cache: NizamCache, key: string): Promise<T | undefined> {
@@ -102,6 +105,7 @@ export async function writeDbToCache(cache: NizamCache, db: NizamDb): Promise<vo
       await cache.kv.put({ key: KV.meta, value: db.meta });
       await cache.kv.put({ key: KV.obligations, value: db.obligations });
       await cache.kv.put({ key: KV.policy, value: db.policy });
+      await cache.kv.put({ key: KV.decisions, value: db.decisions });
     },
   );
 }
@@ -120,6 +124,7 @@ export async function readDbFromCache(cache: NizamCache): Promise<NizamDb | null
   ]);
   const obligations = (await getKv<Obligation[]>(cache, KV.obligations)) ?? [];
   const policy = (await getKv<FinancialPolicy>(cache, KV.policy)) ?? { ...DEFAULT_POLICY };
+  const decisions = (await getKv<DecisionRecord[]>(cache, KV.decisions)) ?? [];
   const db: NizamDb = {
     schemaVersion: SCHEMA_VERSION,
     meta,
@@ -131,6 +136,7 @@ export async function readDbFromCache(cache: NizamCache): Promise<NizamDb | null
     transactions: transactions.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)),
     obligations: obligations.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.id.localeCompare(b.id)),
     policy,
+    decisions: decisions.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)),
   };
   return validateDb(db);
 }

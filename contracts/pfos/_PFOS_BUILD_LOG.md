@@ -89,9 +89,45 @@ The one-year effect is a directional/reversibility statement, not a computed net
 path — full deterministic forecasting is Stage 3. LLM-judgment dimensions of §4.2
 (justification quality, ROI, behavioural context) are deferred to the Stage 7 LLM tier.
 
+## Stage 3 — Deterministic forecasting & Decision Outcome Registry (server-free) · COMPLETE
+
+| Phase | Deliverable | Source (ingested) | Status |
+| ----- | ----------- | ----------------- | ------ |
+| S3.1 | Decision Outcome Registry (append-only, immutable core, prohibition guard) | contract 03 §12 | done |
+| S3.2 | Deterministic forecast engine (cash-flow paths + scenarios) | contract 03 §6 | done |
+
+### What landed
+
+- src/features/decisions/decisionRecord.types.ts — the §12 DecisionRecord (question,
+  recommendation, alternatives, policy version, data-snapshot id, frozen forecast, confidence,
+  user action, override, review dates, append-only outcomes, net-benefit estimate, learning
+  proposal); the SIX PROHIBITED self-modification kinds + two allowed kinds as data.
+- src/features/decisions/decisionRegistry.ts — recordDecision (freezes the card's forecast +
+  confidence), reviewDecision (APPENDS an outcome, computes prediction error = actual −
+  expected, and enforces byte-identical immutable core), guardLearningProposal (rejects the
+  six prohibited kinds outright, requires approval for hard-policy changes), proposeLearning
+  (a prohibited proposal throws — it can never even be recorded), matureDecisions.
+- src/features/forecast/forecast.ts — six horizons (§6.1); deterministic cash-balance path
+  built from scheduled events (expected income, pending in/out, obligations on due date);
+  three scenarios (baseline / downside=income-delay / upside=feared-costs-miss) produced by
+  toggling ONLY the uncertain inputs — no invented magnitudes; ending/min balance, shortfall,
+  deterministic shortfall-probability, emergency-buffer days, main drivers; reconciles to
+  safe-to-spend's liquid-now at H=today. Monte Carlo / probabilistic ranges defer to the server.
+
+### Integration
+
+- SCHEMA_VERSION 2 → 3; migrateV2toV3 additive (seeds decisions: []); Drive sync merges
+  decisions by id; local cache persists/restores them (kv table). Full migration/schema
+  regression suite still green.
+
+### Verification
+
+- 22 new tests (10 registry incl. immutability + all six prohibitions; 12 forecast, all paths
+  hand-computed). Full suite 228/228 across 22 files. Typecheck 0, lint 0. Harness 19/19
+  (AC04 floor 200 → 220).
+
 ### Not started (need decisions / a server — see roadmap)
 
-- Stage 3 (deterministic forecasting + Decision Outcome Registry) and Stage 4 (multi-currency
-  + real net worth) are server-free and buildable next.
+- Stage 4 (multi-currency + real net worth) is server-free and buildable next.
 - Stage 5 is the D1/D2 storage + hosting decision; Stage 6 (ingestion) and Stage 7 (LLM tier,
   governed by the not-yet-written contract 05) sit behind it.

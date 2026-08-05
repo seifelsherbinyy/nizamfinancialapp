@@ -28,8 +28,15 @@ import {
   type Obligation,
 } from '@/features/obligations/obligation.types';
 import { DEFAULT_POLICY, type ExpectedInflow, type FinancialPolicy } from '@/features/safeToSpend/policy.types';
+import { RECOMMENDATIONS } from '@/features/decisions/decision.types';
+import {
+  DECISION_ACTIONS,
+  OUTCOME_ATTRIBUTIONS,
+  PROPOSAL_KINDS,
+  type DecisionRecord,
+} from '@/features/decisions/decisionRecord.types';
 
-export const SCHEMA_VERSION = 2 as const;
+export const SCHEMA_VERSION = 3 as const;
 
 /** Integer milliunits guard — floats are schema violations. */
 export const zMoney = z.number().int().finite();
@@ -176,6 +183,45 @@ export const zPolicy: z.ZodType<FinancialPolicy> = z.object({
   expectedInflow: zExpectedInflow.nullable(),
 });
 
+/** PFOS Stage 3: the append-only decision record — contract 03 section 12. */
+const zConfidenceBand = z.enum(['strong', 'evidenced', 'provisional', 'insufficient']);
+const zDecisionOutcome = z.object({
+  reviewedAt: zIsoDate,
+  actualNetEffect: zMoney,
+  expectedNetEffect: zMoney,
+  predictionError: zMoney,
+  attribution: z.enum(OUTCOME_ATTRIBUTIONS),
+  note: z.string(),
+});
+export const zDecisionRecord: z.ZodType<DecisionRecord> = z.object({
+  id: z.string().min(1),
+  createdAt: z.string().min(1),
+  question: z.string(),
+  recommendation: z.enum(RECOMMENDATIONS),
+  alternatives: z.array(z.string()),
+  policyVersion: z.number().int().nonnegative(),
+  dataSnapshotId: z.string(),
+  forecast: z.object({
+    safeToSpendAtDecision: zMoney,
+    horizonImpacts: z.object({
+      next_day: z.string(),
+      next_week: z.string(),
+      next_month: z.string(),
+      next_year: z.string(),
+    }),
+  }),
+  confidenceBps: z.number().int().min(0).max(10000),
+  confidenceBand: zConfidenceBand,
+  userAction: z.enum(DECISION_ACTIONS),
+  override: z.string().nullable(),
+  reviewDates: z.array(zIsoDate),
+  outcomes: z.array(zDecisionOutcome),
+  netBenefitEstimate: zMoney.nullable(),
+  learningProposal: z
+    .object({ kind: z.enum(PROPOSAL_KINDS), description: z.string(), isHardPolicyChange: z.boolean() })
+    .nullable(),
+});
+
 /** Audit entry for a sync conflict resolved by merge / last-write-wins. */
 export interface ConflictEntry {
   id: string;
@@ -225,6 +271,8 @@ export interface NizamDb {
   obligations: Obligation[];
   /** PFOS Stage 1: version-controlled buffers and reserve rates. */
   policy: FinancialPolicy;
+  /** PFOS Stage 3: append-only decision outcome registry — contract 03 section 12. */
+  decisions: DecisionRecord[];
 }
 
 export const zNizamDb: z.ZodType<NizamDb> = z.object({
@@ -238,6 +286,7 @@ export const zNizamDb: z.ZodType<NizamDb> = z.object({
   transactions: z.array(zTransaction),
   obligations: z.array(zObligation),
   policy: zPolicy,
+  decisions: z.array(zDecisionRecord),
 });
 
 /** New empty database. */
@@ -260,6 +309,7 @@ export function createEmptyDb(nowIso: string): NizamDb {
     transactions: [],
     obligations: [],
     policy: { ...DEFAULT_POLICY },
+    decisions: [],
   };
 }
 

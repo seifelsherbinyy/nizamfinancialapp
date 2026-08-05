@@ -151,6 +151,18 @@ function migrateV1toV2(raw: RawDb): RawDb {
 }
 
 /**
+ * v2 -> v3 (PFOS Stage 3): adds the append-only decision outcome registry. Purely
+ * additive — a v2 file loads with an empty decision list and unchanged everything else.
+ */
+function migrateV2toV3(raw: RawDb): RawDb {
+  return {
+    ...raw,
+    schemaVersion: 3,
+    decisions: asArray(raw.decisions),
+  };
+}
+
+/**
  * Migrate any historical raw JSON value to the current schema and validate it.
  * Forward-only; idempotent (current-version input passes through untouched).
  */
@@ -167,6 +179,9 @@ export function migrate(rawValue: unknown): NizamDb {
   }
   if (version < 2) {
     raw = migrateV1toV2(raw);
+  }
+  if (version < 3) {
+    raw = migrateV2toV3(raw);
   }
   return validateDb(raw);
 }

@@ -146,6 +146,7 @@ export function merge3(base: NizamDb, local: NizamDb, remote: NizamDb, nowIso: s
   const transactions = mergeCollection('transactions', base.transactions, local.transactions, remote.transactions, nowIso, byId);
   const obligations = mergeCollection('obligations', base.obligations, local.obligations, remote.obligations, nowIso, byId);
   const policy = mergeSingleton('policy', base.policy, local.policy, remote.policy, nowIso);
+  const decisions = mergeCollection('decisions', base.decisions, local.decisions, remote.decisions, nowIso, byId);
 
   const newConflicts = [
     ...accounts.conflicts,
@@ -156,6 +157,7 @@ export function merge3(base: NizamDb, local: NizamDb, remote: NizamDb, nowIso: s
     ...transactions.conflicts,
     ...obligations.conflicts,
     ...policy.conflicts,
+    ...decisions.conflicts,
   ];
 
   const merged: NizamDb = {
@@ -175,6 +177,7 @@ export function merge3(base: NizamDb, local: NizamDb, remote: NizamDb, nowIso: s
     transactions: transactions.result,
     obligations: obligations.result,
     policy: policy.result,
+    decisions: decisions.result,
   };
   return { merged, conflicts: newConflicts };
 }
