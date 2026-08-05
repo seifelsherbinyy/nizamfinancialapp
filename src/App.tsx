@@ -13,9 +13,13 @@ import { Register } from '@/features/transactions/Register';
 import { Reports } from '@/features/reports/Reports';
 import { ImportWizard } from '@/features/import/ImportWizard';
 import { Reconcile } from '@/features/reconciliation/Reconcile';
+import { CommandCenter } from '@/features/safeToSpend/CommandCenter';
+import { DecideView } from '@/features/decisions/DecideView';
 
 const NAV: { path: RoutePath; label: string }[] = [
+  { path: '/home', label: 'Home' },
   { path: '/budget', label: 'Budget' },
+  { path: '/decide', label: 'Decide' },
   { path: '/reports', label: 'Reports' },
   { path: '/import', label: 'Import' },
   { path: '/reconcile', label: 'Reconcile' },
@@ -50,11 +54,13 @@ function SyncBadge() {
 }
 
 const views: Record<RoutePath, ReactNode> = {
+  '/home': <CommandCenter />,
   '/budget': <BudgetView />,
   '/accounts': <Register />,
   '/reports': <Reports />,
   '/import': <ImportWizard />,
   '/reconcile': <Reconcile />,
+  '/decide': <DecideView />,
 };
 
 export default function App() {

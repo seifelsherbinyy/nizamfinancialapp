@@ -174,3 +174,46 @@ engines. This completes the server-free product.
 - Stage 6 (ingestion tier) needs Path B/C + credentials; Stage 7 (LLM tier) needs the
   not-yet-written contract 05 or an approved interim orchestration policy; Stage 8 (behavioural)
   is last. NONE of these start until the fork is chosen.
+
+---
+
+## Stage 1-2 UI surfaces (Command Center + Decide) - completed 2026-08-06
+
+**Why this addendum.** Stages 1-4 shipped the ENGINES (obligations, safe-to-spend, decision
+cards, forecast, decision registry, multi-currency net worth) as headless pure modules with
+full test coverage. The roadmap, however, also specifies the server-free UI for Stages 1-2 -
+"a new Command Center / Home route (04 A2)" and "the 11-line Decision Card rendered in the web
+app + a Decide route" - which had not yet been built. That UI needs no server, no secret, and
+no human decision, so it was completed to genuinely finish the server-free product before the
+Stage-5 fork.
+
+### Work
+
+- `src/app/router.tsx` - added `/home` and `/decide` to the `RoutePath` union + known list;
+  DEFAULT_ROUTE now `/home` (contract 04 A2: the Command Center is the primary home). The
+  budget grid and every existing route are untouched (C-4: safe-to-spend is a NEW figure beside
+  Ready-to-Assign, never a rename).
+- `src/features/safeToSpend/CommandCenter.tsx` - the Home route. Presentation only; renders
+  `safeToSpendAllHorizons` (hero = next-7-days window + per-day allowance + confidence band +
+  primary risk + what-would-improve; a deficit surfaces a red alert), `obligationFundingReport`
+  (RAG-status table + worst-status badge), and `netWorth` (nominal / liquid / liquidation +
+  component breakdown; unrated currencies flagged, never silently zeroed). No money math here.
+- `src/features/decisions/DecideView.tsx` - the Decide route. A purchase-request form
+  (price, cash/credit, urgency, reversibility, alternative price, purpose) that feeds
+  `decidePurchase` and renders the 11-line Decision Card live: recommendation banner, reason,
+  the five time-horizon effects, affordability line, evidence, alternative, confidence +
+  missing-info, and the required next step.
+- `src/App.tsx` - imports + NAV (Home, Decide) + exhaustive `views` record over all 7 routes.
+
+### Verification
+
+- 6 new component tests (CommandCenter: funded + deficit + empty-obligations paths; DecideView:
+  price prompt, unqualified approve when affordable, qualified recommendation when far beyond
+  cash). Full suite 247/247 across 25 files. Typecheck 0, lint 0, headers PASS (78 files).
+  Harness 19/19. AC04 floor 235 -> 245.
+- Test note: an unaffordable purchase yields `approve_with_cap` (approve up to the affordable
+  cap), a deliberate tested engine behaviour - so the UI test asserts a *qualified* rather than
+  a flatly negative recommendation.
+
+The server-free product is now complete end to end (engines + UI). The Stage-5 fork below is
+unchanged and still needs the human D1/D2 decision.

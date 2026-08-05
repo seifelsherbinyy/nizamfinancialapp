@@ -9,9 +9,16 @@
 /* eslint-disable react-refresh/only-export-components -- router exports hooks + helpers by design */
 import { useEffect, useState, type ReactNode } from 'react';
 
-export type RoutePath = '/budget' | '/accounts' | '/reports' | '/import' | '/reconcile';
+export type RoutePath =
+  | '/home'
+  | '/budget'
+  | '/accounts'
+  | '/reports'
+  | '/import'
+  | '/reconcile'
+  | '/decide';
 
-export const DEFAULT_ROUTE: RoutePath = '/budget';
+export const DEFAULT_ROUTE: RoutePath = '/home';
 
 export interface ParsedRoute {
   /** Normalized top-level path, e.g. '/accounts' */
@@ -25,7 +32,15 @@ export function parseHash(hash: string): ParsedRoute {
   const raw = hash.replace(/^#/, '') || DEFAULT_ROUTE;
   const segments = raw.split('/').filter(Boolean);
   const head = `/${segments[0] ?? ''}`;
-  const known: RoutePath[] = ['/budget', '/accounts', '/reports', '/import', '/reconcile'];
+  const known: RoutePath[] = [
+    '/home',
+    '/budget',
+    '/accounts',
+    '/reports',
+    '/import',
+    '/reconcile',
+    '/decide',
+  ];
   const path = (known as string[]).includes(head) ? (head as RoutePath) : DEFAULT_ROUTE;
   const param = segments[1] ?? null;
   return { path, param };
