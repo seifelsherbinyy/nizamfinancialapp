@@ -52,7 +52,46 @@ The highest-value stage that needs no server: it turns raw balances into a defen
 - Acceptance harness 19/19 (AC04 floor ratcheted 110 → 185). No new denylisted terms,
   money stays integral, Drive scope + ingestion isolation intact.
 
+## Stage 2 — Purchase Decision Cards (server-free) · COMPLETE
+
+The second headline feature ("decide before you spend"). A DETERMINISTIC policy gate
+over the Stage-1 outputs — no LLM (contract 03 §1: the model never sources numbers).
+
+| Phase | Deliverable | Source (ingested) | Status |
+| ----- | ----------- | ----------------- | ------ |
+| S2.1 | Decision card schema (7 states, 11-line order, evidence-package fold) | contract 03 §4.1/§4.3/§4.4 + JSON schema | done |
+| S2.2 | Decision policy gate + card builder | contract 03 §4.2/§4.3; §1 (no-LLM-numbers) | done |
+
+### What landed
+
+- src/features/decisions/decision.types.ts — PurchaseRequest (contract §4.1 inputs),
+  the seven Recommendation states (§4.3), toEvidenceRecommendation folding cap+condition
+  into the JSON schema's approve_with_conditions, and the eleven-field DecisionCard
+  (§4.4 order) plus the four-key HorizonImpacts and the Affordability numbers.
+- src/features/decisions/decision.logic.ts — decidePurchase simulates the purchase as a
+  single uncleared outflow (credit defers it to the next statement date) and re-runs the
+  tested Stage-1 engines, so the decision is exactly as trustworthy as safe-to-spend. The
+  ladder is ordered most-protective-first: financially_blocked (worsens any P0/P1 status)
+  -> approve (covered in hand) -> approve_with_condition (needs expected income) ->
+  alternative (cheaper option fits) -> delay (affordable over 90 days) -> approve_with_cap
+  (only part fits) -> reject. Every branch compares the price to a computed safe-to-spend
+  figure — no invented thresholds.
+
+### Verification
+
+- 13 new tests (one per recommendation state + card conformance + the evidence fold), all
+  values hand-computed against a zero-reserve fixture. Full suite 206/206 across 20 files.
+  Typecheck 0, lint 0. Harness 19/19 (AC04 floor 185 -> 200).
+
+### Honest scope note
+
+The one-year effect is a directional/reversibility statement, not a computed net-worth
+path — full deterministic forecasting is Stage 3. LLM-judgment dimensions of §4.2
+(justification quality, ROI, behavioural context) are deferred to the Stage 7 LLM tier.
+
 ### Not started (need decisions / a server — see roadmap)
 
-- Stage 2+ (forecasting, decision cards, learning), Telegram/Hermes/OpenRouter surface
-  (governed by the not-yet-written contract 05), and the D1/D2 storage + hosting choice.
+- Stage 3 (deterministic forecasting + Decision Outcome Registry) and Stage 4 (multi-currency
+  + real net worth) are server-free and buildable next.
+- Stage 5 is the D1/D2 storage + hosting decision; Stage 6 (ingestion) and Stage 7 (LLM tier,
+  governed by the not-yet-written contract 05) sit behind it.
