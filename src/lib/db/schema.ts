@@ -35,8 +35,9 @@ import {
   PROPOSAL_KINDS,
   type DecisionRecord,
 } from '@/features/decisions/decisionRecord.types';
+import { ASSET_KINDS, DEFAULT_MACRO, type Asset, type FxRate, type MacroContext } from '@/features/netWorth/netWorth.types';
 
-export const SCHEMA_VERSION = 3 as const;
+export const SCHEMA_VERSION = 4 as const;
 
 /** Integer milliunits guard — floats are schema violations. */
 export const zMoney = z.number().int().finite();
@@ -222,6 +223,32 @@ export const zDecisionRecord: z.ZodType<DecisionRecord> = z.object({
     .nullable(),
 });
 
+/** PFOS Stage 4: net-worth entities — contract 01 section 6, contract 03 section 8. */
+export const zAsset: z.ZodType<Asset> = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  kind: z.enum(ASSET_KINDS),
+  currency: z.string().min(1),
+  value: zMoney.nonnegative(),
+  liquid: z.boolean(),
+  liquidationDiscountBps: z.number().int().min(0).max(10000),
+  valuationSource: z.string(),
+  valuationAsOf: zIsoDate,
+});
+export const zFxRate: z.ZodType<FxRate> = z.object({
+  currency: z.string().min(1),
+  perUnitNum: z.number().int(),
+  perUnitDen: z.number().int().positive(),
+  source: z.string(),
+  asOf: zIsoDate,
+});
+export const zMacro: z.ZodType<MacroContext> = z.object({
+  referenceCurrency: z.string().min(1),
+  annualInflationBps: z.number().int().nonnegative(),
+  inflationSource: z.string(),
+  inflationAsOf: zIsoDate,
+});
+
 /** Audit entry for a sync conflict resolved by merge / last-write-wins. */
 export interface ConflictEntry {
   id: string;
@@ -273,6 +300,12 @@ export interface NizamDb {
   policy: FinancialPolicy;
   /** PFOS Stage 3: append-only decision outcome registry — contract 03 section 12. */
   decisions: DecisionRecord[];
+  /** PFOS Stage 4: valued assets (financial + real) for the net-worth engine. */
+  assets: Asset[];
+  /** PFOS Stage 4: currency conversion table (integer ratios to EGP). */
+  fxRates: FxRate[];
+  /** PFOS Stage 4: macro context (reference currency, inflation) for real net worth. */
+  macro: MacroContext;
 }
 
 export const zNizamDb: z.ZodType<NizamDb> = z.object({
@@ -287,6 +320,9 @@ export const zNizamDb: z.ZodType<NizamDb> = z.object({
   obligations: z.array(zObligation),
   policy: zPolicy,
   decisions: z.array(zDecisionRecord),
+  assets: z.array(zAsset),
+  fxRates: z.array(zFxRate),
+  macro: zMacro,
 });
 
 /** New empty database. */
@@ -310,6 +346,9 @@ export function createEmptyDb(nowIso: string): NizamDb {
     obligations: [],
     policy: { ...DEFAULT_POLICY },
     decisions: [],
+    assets: [],
+    fxRates: [],
+    macro: { ...DEFAULT_MACRO },
   };
 }
 

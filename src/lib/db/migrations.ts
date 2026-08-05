@@ -163,6 +163,30 @@ function migrateV2toV3(raw: RawDb): RawDb {
 }
 
 /**
+ * v3 -> v4 (PFOS Stage 4): adds net-worth entities (assets, fx rates, macro). Purely
+ * additive — a v3 file loads with empty asset/fx lists and a zeroed macro context, so
+ * every existing number (budget, safe-to-spend, forecast) is byte-identical.
+ */
+function migrateV3toV4(raw: RawDb): RawDb {
+  const macro = asRecord(raw.macro);
+  const hasMacro = Object.keys(macro).length > 0;
+  return {
+    ...raw,
+    schemaVersion: 4,
+    assets: asArray(raw.assets),
+    fxRates: asArray(raw.fxRates),
+    macro: hasMacro
+      ? {
+          referenceCurrency: str(macro.referenceCurrency, 'EGP'),
+          annualInflationBps: int(macro.annualInflationBps, 0),
+          inflationSource: str(macro.inflationSource, 'unset'),
+          inflationAsOf: str(macro.inflationAsOf, '1970-01-01'),
+        }
+      : { referenceCurrency: 'EGP', annualInflationBps: 0, inflationSource: 'unset', inflationAsOf: '1970-01-01' },
+  };
+}
+
+/**
  * Migrate any historical raw JSON value to the current schema and validate it.
  * Forward-only; idempotent (current-version input passes through untouched).
  */
@@ -182,6 +206,9 @@ export function migrate(rawValue: unknown): NizamDb {
   }
   if (version < 3) {
     raw = migrateV2toV3(raw);
+  }
+  if (version < 4) {
+    raw = migrateV3toV4(raw);
   }
   return validateDb(raw);
 }

@@ -14,6 +14,7 @@ import { SCHEMA_VERSION, validateDb, type NizamDb, type Payee, type DbMeta } fro
 import type { Obligation } from '@/features/obligations/obligation.types';
 import { DEFAULT_POLICY, type FinancialPolicy } from '@/features/safeToSpend/policy.types';
 import type { DecisionRecord } from '@/features/decisions/decisionRecord.types';
+import { DEFAULT_MACRO, type Asset, type FxRate, type MacroContext } from '@/features/netWorth/netWorth.types';
 
 interface KvRow {
   key: string;
@@ -67,6 +68,10 @@ export const KV = {
   policy: 'policy',
   /** PFOS Stage 3: append-only decision outcome registry. */
   decisions: 'decisions',
+  /** PFOS Stage 4: net-worth entities. */
+  assets: 'assets',
+  fxRates: 'fxRates',
+  macro: 'macro',
 } as const;
 
 export async function getKv<T>(cache: NizamCache, key: string): Promise<T | undefined> {
@@ -106,6 +111,9 @@ export async function writeDbToCache(cache: NizamCache, db: NizamDb): Promise<vo
       await cache.kv.put({ key: KV.obligations, value: db.obligations });
       await cache.kv.put({ key: KV.policy, value: db.policy });
       await cache.kv.put({ key: KV.decisions, value: db.decisions });
+      await cache.kv.put({ key: KV.assets, value: db.assets });
+      await cache.kv.put({ key: KV.fxRates, value: db.fxRates });
+      await cache.kv.put({ key: KV.macro, value: db.macro });
     },
   );
 }
@@ -125,6 +133,9 @@ export async function readDbFromCache(cache: NizamCache): Promise<NizamDb | null
   const obligations = (await getKv<Obligation[]>(cache, KV.obligations)) ?? [];
   const policy = (await getKv<FinancialPolicy>(cache, KV.policy)) ?? { ...DEFAULT_POLICY };
   const decisions = (await getKv<DecisionRecord[]>(cache, KV.decisions)) ?? [];
+  const assets = (await getKv<Asset[]>(cache, KV.assets)) ?? [];
+  const fxRates = (await getKv<FxRate[]>(cache, KV.fxRates)) ?? [];
+  const macro = (await getKv<MacroContext>(cache, KV.macro)) ?? { ...DEFAULT_MACRO };
   const db: NizamDb = {
     schemaVersion: SCHEMA_VERSION,
     meta,
@@ -137,6 +148,9 @@ export async function readDbFromCache(cache: NizamCache): Promise<NizamDb | null
     obligations: obligations.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.id.localeCompare(b.id)),
     policy,
     decisions: decisions.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)),
+    assets: assets.sort((a, b) => a.id.localeCompare(b.id)),
+    fxRates: fxRates.sort((a, b) => a.currency.localeCompare(b.currency)),
+    macro,
   };
   return validateDb(db);
 }

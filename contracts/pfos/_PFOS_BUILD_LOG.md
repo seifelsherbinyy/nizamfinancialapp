@@ -126,8 +126,51 @@ path — full deterministic forecasting is Stage 3. LLM-judgment dimensions of �
   hand-computed). Full suite 228/228 across 22 files. Typecheck 0, lint 0. Harness 19/19
   (AC04 floor 200 → 220).
 
-### Not started (need decisions / a server — see roadmap)
+## Stage 4 — Multi-currency & real net worth (server-free, additive) · COMPLETE
 
-- Stage 4 (multi-currency + real net worth) is server-free and buildable next.
-- Stage 5 is the D1/D2 storage + hosting decision; Stage 6 (ingestion) and Stage 7 (LLM tier,
-  governed by the not-yet-written contract 05) sit behind it.
+Resolves Conflict C-3. Deliberately ADDITIVE — accounts, transactions and the budget engine
+are untouched, so a single-currency EGP database produces byte-identical numbers (the
+regression bar). Foreign cash is modelled as a liquid asset rather than a foreign account.
+
+| Phase | Deliverable | Source (ingested) | Status |
+| ----- | ----------- | ----------------- | ------ |
+| S4.1 | Net-worth schema (assets, FX rates, macro) | contract 01 §6; contract 03 §8.3 | done |
+| S4.2 | Net-worth engine (views, FX, real value) | contract 01 §6; contract 03 §8.1/8.2/8.4 | done |
+
+### What landed
+
+- src/features/netWorth/netWorth.types.ts — Asset (financial/real, own currency, liquidation
+  haircut, valuation source+time), FxRate (integer ratio to EGP with source+time — no float
+  drift), MacroContext (reference currency, annual inflation bps). Intangible capital is
+  deliberately excluded from book net worth (contract 03 §8.4).
+- src/features/netWorth/netWorth.ts — toEgp/fromEgp/convert (through the EGP base, via
+  mulRatio); netWorth() returning the nominal / liquid / liquidation views with an
+  explainability component breakdown and an unrated-currency list (missing rates are flagged,
+  never silently zeroed); realValue() deflating by whole years of inflation via integer ratios;
+  realNetWorth().
+
+### Integration
+
+- SCHEMA_VERSION 3 → 4; migrateV3toV4 additive (empty assets/fx, zeroed macro); Drive sync
+  merges assets by id, fx by currency, macro as an audited singleton; local cache persists all
+  three. Budget / safe-to-spend / forecast numbers unchanged.
+
+### Verification
+
+- 13 new tests incl. the EGP-only regression (nominal reduces to cash − credit − obligations),
+  exact FX rounding, liquidation haircuts, reference-currency expression, and unrated-currency
+  flagging. Full suite 241/241 across 23 files. Typecheck 0, lint 0. Harness 19/19
+  (AC04 floor 220 → 235).
+
+### Honest scope note
+
+Per-transaction multi-currency SPENDING and a live macro/FX API are deferred (higher
+regression risk / a server concern). Projected & decision net worth compose from the Stage-2/3
+engines. This completes the server-free product.
+
+### The fork (Stage 5) — needs a human decision, no more server-free code
+
+- Stage 5 = D1 (database location) + D2 (server/bot) choice — see docs/PFOS_HUMAN_DELIVERABLES.md.
+- Stage 6 (ingestion tier) needs Path B/C + credentials; Stage 7 (LLM tier) needs the
+  not-yet-written contract 05 or an approved interim orchestration policy; Stage 8 (behavioural)
+  is last. NONE of these start until the fork is chosen.
