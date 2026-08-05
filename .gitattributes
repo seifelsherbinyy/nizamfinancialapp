@@ -1,0 +1,5 @@
+# Preserve the ingested PFOS contracts and their manifest byte-for-byte.
+# Their SHA-256 checksums (contracts/pfos/_INGESTION_MANIFEST.json) are computed over
+# the exact bytes received from the drive, so end-of-line conversion must never touch
+# them or the provenance would no longer verify on checkout.
+contracts/pfos/** -text

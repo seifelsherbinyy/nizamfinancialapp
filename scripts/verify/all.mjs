@@ -14,6 +14,7 @@ const CHECKS = [
   { id: "AC01", label: "no placeholders remain in src", cmd: [node, ["scripts/verify/placeholders.mjs"]] },
   { id: "AC07", label: "money stays integral", cmd: [node, ["scripts/verify/money-invariant.mjs"]] },
   { id: "AC08", label: "drive scope is per file only", cmd: [node, ["scripts/verify/drive-scope.mjs"]] },
+  { id: "AC08b", label: "ingestion tooling stays isolated", cmd: [node, ["scripts/verify/ingest-isolation.mjs"]] },
   { id: "AC09", label: "no secrets or real ledgers tracked", cmd: [node, ["scripts/verify/secret-scan.mjs"]] },
   { id: "AC11", label: "no organization specific terms", cmd: [node, ["scripts/verify/generic-only.mjs"]] },
   { id: "AC02", label: "typescript reports zero errors", cmd: ["npm", ["run", "typecheck"]] },

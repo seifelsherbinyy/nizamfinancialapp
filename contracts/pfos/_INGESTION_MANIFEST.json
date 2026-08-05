@@ -1,0 +1,67 @@
+{
+  "tool": "scripts/ingest/pfos-drive-pull.mjs",
+  "ingested_at": "2026-08-05T13:05:30.035Z",
+  "source_folder": {
+    "id": "1w4ekuw9rSXktm2NO8rJL65YXUA--W0Tm",
+    "name": "01_Product_Blueprints",
+    "modified": "2026-08-04T20:59:47.135Z"
+  },
+  "scope_used": "https://www.googleapis.com/auth/drive.readonly",
+  "scope_note": "Read only scope is used by this local tool only. The shipped application keeps the per file scope.",
+  "file_count": 4,
+  "not_ingested": [],
+  "files": [
+    {
+      "source_name": "01_PFOS_Product_Constitution_and_Problem_Solution_Logic.md",
+      "source_id": "1CrB356VDxA_-ONUJM4cOK6sd057CFejf",
+      "source_mime": "text/markdown",
+      "source_modified": "2026-08-04T20:59:56.649Z",
+      "source_version": "2",
+      "exported_as": "verbatim bytes",
+      "dest": "contracts/pfos/01_PFOS_Product_Constitution_and_Problem_Solution_Logic.md",
+      "bytes": 17299,
+      "sha256": "2763df52cce0648b5237f6c0eaa6870397d78717e20d0df49e2765d2046a7b89",
+      "unchanged_from_previous_ingest": false,
+      "previous_sha256": null
+    },
+    {
+      "source_name": "02_PFOS_Data_Architecture_Integrations_and_Security.md",
+      "source_id": "143M5S2y7Ub45zoVhs4cWvlVbEV8svbSe",
+      "source_mime": "text/markdown",
+      "source_modified": "2026-08-04T21:00:02.739Z",
+      "source_version": "2",
+      "exported_as": "verbatim bytes",
+      "dest": "contracts/pfos/02_PFOS_Data_Architecture_Integrations_and_Security.md",
+      "bytes": 18170,
+      "sha256": "47e381d37f1850d1de8d51fbc4ecc0cd34baea8c14229018b4886adaf4499d53",
+      "unchanged_from_previous_ingest": false,
+      "previous_sha256": null
+    },
+    {
+      "source_name": "03_PFOS_Financial_Intelligence_Decision_Forecasting_and_Learning.md",
+      "source_id": "1EfrYUo8g-rCOjmhS38B79dN1XbxbKvA_",
+      "source_mime": "text/markdown",
+      "source_modified": "2026-08-04T21:00:09.160Z",
+      "source_version": "2",
+      "exported_as": "verbatim bytes",
+      "dest": "contracts/pfos/03_PFOS_Financial_Intelligence_Decision_Forecasting_and_Learning.md",
+      "bytes": 16201,
+      "sha256": "098ac967ba387038872600af6df7f3616dedb351659649bdfceae9aa653ff519",
+      "unchanged_from_previous_ingest": false,
+      "previous_sha256": null
+    },
+    {
+      "source_name": "04_PFOS_UX_UI_User_Journeys_Research_and_Delivery_Roadmap.md",
+      "source_id": "14Hr9pG-OlGry7f-UV7ilh4h7SmEcQ_l5",
+      "source_mime": "text/markdown",
+      "source_modified": "2026-08-04T21:00:15.230Z",
+      "source_version": "2",
+      "exported_as": "verbatim bytes",
+      "dest": "contracts/pfos/04_PFOS_UX_UI_User_Journeys_Research_and_Delivery_Roadmap.md",
+      "bytes": 17072,
+      "sha256": "f86c6141744506196b6049f76888c3f0a8474ce0d4354f7979b2b0d6aa0866a8",
+      "unchanged_from_previous_ingest": false,
+      "previous_sha256": null
+    }
+  ]
+}
