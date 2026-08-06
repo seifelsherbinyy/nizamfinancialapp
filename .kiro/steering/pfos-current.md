@@ -55,3 +55,5 @@ integer-money implementation that must stay bit-identical.
 spec/design -> implement -> `npm run typecheck` -> `npm run lint` -> `npm run test` ->
 `npm run verify:all -- --all` (19/19) -> tick the spec `tasks.md` -> append a section to
 `contracts/pfos/_PFOS_BUILD_LOG.md` -> commit -> push to `master`.
+
+> Master handoff / full-stack build context for the IDE agent: `docs/KIRO_HANDOFF.md` (read after this file).
