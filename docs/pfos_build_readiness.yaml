@@ -1,0 +1,245 @@
+# PFOS Build Readiness - machine-readable provisioning manifest.
+# Companion to docs/PFOS_BUILD_READINESS.md. A human or an agent can walk this top to bottom.
+# HARD RULE (contract 02 section 9): secrets live in .env.local / .secrets / VPS secret store -
+# never the repo, never Google Drive. Drive holds ENCRYPTED DATA only.
+#
+# homes:
+#   env_local        -> .env.local            (browser SPA public config, VITE_*, gitignored)
+#   secrets_dir       -> .secrets/            (local dev tokens, gitignored)
+#   vps_secret_store -> server env / vault    (production server secrets)
+#   drive             -> Google Drive          (DATA only: encrypted nizam_db.json + statements)
+#
+# profiles:
+#   A       -> Drive-only, server-free (the current finished build). Needs only items gate: now.
+#   server -> Profile B/C, always-on backend. Gated on decisions D1/D2 (+ contract 05 for LLM).
+
+meta:
+  date: 2026-08-06
+  authoritative_decision_doc: docs/PFOS_HUMAN_DELIVERABLES.md
+  architecture_decision: D1   # A=Drive-only | B=VPS SQLite | C=hybrid  -- UNDECIDED
+  server_decision: D2         # always-on bot+server yes/no             -- UNDECIDED
+  current_local_state:        # observed in .env.local (gitignored) on 2026-08-06
+    - VITE_GOOGLE_CLIENT_ID is FILLED  -> VERIFY it is a Web-application client (the on-file ingest credential is a Desktop client, the wrong type for the SPA)
+    - VITE_GOOGLE_API_KEY is EMPTY     -> this is the concrete remaining fetch for Profile A
+    - VITE_NIZAM_DRIVE_FOLDER_ID is EMPTY (optional; app auto-creates a folder)
+
+integrations:
+
+  - id: google_web_oauth
+    status: IN_PROGRESS   # client id present in .env.local; VERIFY it is a Web (not Desktop) client
+    profile: A
+    gate: now
+    purpose: Live Drive-as-database sign-in for the browser app.
+    primary_url: https://console.cloud.google.com/apis/credentials
+    fallback_urls:
+      - https://console.cloud.google.com/apis/library
+      - https://console.cloud.google.com/apis/credentials/consent
+    required: oauth_client_id   # type=Web application; NO client secret for the SPA
+    home: env_local
+    env_key: VITE_GOOGLE_CLIENT_ID
+    steps:
+      - Enable Drive API and Picker API in the project.
+      - Configure the OAuth consent screen (External, scope drive.file only, add yourself as a test user).
+      - Create an OAuth 2.0 Client ID of type "Web application".
+      - Add your origins (http://localhost:5173 and the deploy URL) to Authorized JavaScript origins.
+      - Paste the client id into .env.local as VITE_GOOGLE_CLIENT_ID.
+    verification:
+      - Run the app and click Connect Google Drive.
+      - Confirm the consent shows ONLY the drive.file permission (specific files the app creates).
+    failure_recovery:
+      - Delete the client id in the console, create a new one, replace in .env.local, re-consent.
+
+  - id: google_browser_api_key
+    status: NOT_STARTED
+    profile: A
+    gate: now
+    purpose: One-time ledger import via the Google Picker.
+    primary_url: https://console.cloud.google.com/apis/credentials
+    fallback_urls:
+      - https://console.cloud.google.com/apis/library/drive.googleapis.com
+    required: browser_api_key
+    home: env_local
+    env_key: VITE_GOOGLE_API_KEY
+    steps:
+      - Create an API key in the same project.
+      - Restrict it by HTTP referrer to your origins.
+      - Restrict it to the Drive API and Picker API only.
+      - Paste it into .env.local as VITE_GOOGLE_API_KEY.
+    verification:
+      - Open the Picker in the app; confirm it lists your Drive without error.
+    failure_recovery:
+      - Regenerate the key, update .env.local.
+
+  - id: google_drive_folder
+    status: NOT_STARTED
+    profile: A
+    gate: now_optional
+    purpose: Pin nizam_db.json to a chosen folder (else the app creates a NIZAM folder).
+    primary_url: https://drive.google.com/drive/my-drive
+    required: drive_folder_id
+    home: env_local
+    env_key: VITE_NIZAM_DRIVE_FOLDER_ID
+    verification:
+      - The app finds/creates nizam_db.json in that folder on first sync.
+
+  - id: google_desktop_oauth_ingest
+    status: ON_FILE
+    profile: A
+    gate: dev_only
+    purpose: Local read-only tool that pulled contracts 01-04 from your Drive folder.
+    primary_url: https://console.cloud.google.com/apis/credentials
+    required: desktop_client_json   # installed-app; "secret" is NOT confidential (public client + loopback)
+    home: secrets_dir
+    path: .secrets/google-oauth-desktop.client.json
+    verification:
+      - node scripts/ingest/pfos-drive-pull.mjs   # lists the folder read-only over loopback
+    failure_recovery:
+      - node scripts/ingest/pfos-drive-pull.mjs --revoke   # revoke when contracts are stable
+
+  - id: openrouter
+    status: BLOCKED
+    profile: server
+    gate: contract_05_and_D2
+    purpose: LLM routing for classification, reasoning, narrative forecasting.
+    primary_url: https://openrouter.ai/settings/keys
+    fallback_urls:
+      - https://openrouter.ai/settings
+      - https://openrouter.ai/models
+      - https://openrouter.ai/docs
+    required: api_key   # PLUS a hard monthly spend cap
+    home: vps_secret_store
+    blocked_by:
+      - Contract 05 (agent/tooling/credential surface) does not exist (decision D6).
+      - No server tier yet (decision D2).
+    verification:
+      - GET /models returns a list.
+      - A small completion request succeeds.
+      - Data retention is OFF (contract 02 section 12.6).
+    failure_recovery:
+      - Revoke the key, issue a new one, update the server secret, re-verify.
+
+  - id: telegram_bot
+    status: BLOCKED
+    profile: server
+    gate: D2
+    purpose: Chat interface for briefs and decision prompts.
+    primary_url: https://t.me/BotFather
+    fallback_urls:
+      - https://core.telegram.org/bots/api
+    required: bot_token
+    home: vps_secret_store
+    verification:
+      - GET https://api.telegram.org/bot<TOKEN>/getMe returns the bot.
+    failure_recovery:
+      - /revoke in BotFather, reissue, update the server secret.
+
+  - id: telegram_user_allowlist
+    status: BLOCKED
+    profile: server
+    gate: D2
+    purpose: Primary auth for the bot (contract 02 section 9 allowlist).
+    primary_url: https://t.me/userinfobot
+    fallback_urls:
+      - https://t.me/RawDataBot
+    required: telegram_user_id
+    home: server_config
+
+  - id: gmail_api
+    status: BLOCKED
+    profile: server
+    gate: D2
+    purpose: Email-relay ingestion from a dedicated restricted label.
+    primary_url: https://console.cloud.google.com/apis/library/gmail.googleapis.com
+    fallback_urls:
+      - https://developers.google.com/gmail/api
+    required: restricted_oauth_grant   # minimal scope, one label/query only (02 section 3.2)
+    home: vps_secret_store
+    setup:
+      - Create Gmail labels PFOS, PFOS/Bank SMS, PFOS/Statements.
+    verification:
+      - List messages under the label only; confirm no access outside it.
+    failure_recovery:
+      - Revoke the grant in Google Account permissions, re-consent minimal scope.
+
+  - id: sms_shortcuts_webhook
+    status: BLOCKED
+    profile: server
+    gate: D2
+    purpose: Forward bank SMS to the server over a signed request.
+    primary_url: https://support.apple.com/guide/shortcuts/welcome/ios
+    required: shared_webhook_secret
+    home: vps_secret_store
+    prereq_data: Dv1 (sanitized real SMS formats) - deterministic parsers built first.
+    verification:
+      - A signed test post is accepted; an unsigned or replayed one is rejected.
+    failure_recovery:
+      - Regenerate the shared secret on both ends.
+
+  - id: vps_host
+    status: BLOCKED
+    profile: server
+    gate: D1_B_or_C
+    purpose: Always-on host for ingestion, bot, and LLM; encrypted offsite backups.
+    primary_url: https://console.hetzner.cloud
+    fallback_urls:
+      - https://www.customercontrolpanel.de
+      - https://my.contabo.com
+    required: [ssh_keypair, host_credentials, backup_encryption_key]
+    home: vps_secret_store   # backup key stored SEPARATELY from the backups
+    verification:
+      - Box hardened (TLS, firewall, redacted logs).
+      - A RESTORE drill is proven, not just a backup created (02 section 10).
+    failure_recovery:
+      - Rotate SSH keys and API tokens on a schedule (02 section 9).
+
+  - id: domain_cloudflare
+    status: BLOCKED
+    profile: server
+    gate: D2
+    purpose: Public TLS endpoint for the server tier.
+    primary_url: https://dash.cloudflare.com
+    required: dns_api_token   # optional
+    home: deploy_secret_store
+
+  - id: macro_fx_source
+    status: OPTIONAL
+    profile: A
+    gate: D3
+    purpose: Automate EGP inflation + FX for the real-net-worth view.
+    required: api_key   # ONLY if the chosen source needs one
+    home: env_local_or_server
+    note: Today inflation and FX are entered MANUALLY in /settings and /networth - no key required.
+
+  - id: whoop
+    status: DEFERRED
+    profile: behavioral
+    gate: D7_consent_stage_8
+    purpose: Optional behavioral/recovery context.
+    primary_url: https://developer.whoop.com
+    fallback_urls:
+      - https://app.whoop.com
+    required: [oauth_client, token]
+    home: separate_encrypted_namespace   # 02 section 2.5; EXCLUDED from net worth (03 section 8.4)
+    note: Default is NO linkage. Requires explicit revocable consent (D7). Do not fetch until Stage 8.
+
+  - id: github_pat
+    status: OPTIONAL
+    profile: dev
+    gate: optional
+    purpose: Token-auth push or CI only - normal HTTPS push already works.
+    primary_url: https://github.com/settings/personal-access-tokens
+    required: fine_grained_pat   # repo-scoped, contents:read/write only
+    home: local_git_credential_or_ci_secret
+
+no_credential_steps:   # frameworks / references / one-off setup - not keys
+  - google_cloud_project: https://console.cloud.google.com
+  - enable_drive_api: https://console.cloud.google.com/apis/library/drive.googleapis.com
+  - oauth_consent_screen: https://console.cloud.google.com/apis/credentials/consent
+  - sqlite_docs: https://sqlite.org/docs.html         # only under D1=B/C (conflicts with Drive-JSON)
+  - fastapi_docs: https://fastapi.tiangolo.com        # server tier only
+  - docker_docs: https://docs.docker.com              # server tier only
+  - openrouter_pricing: https://openrouter.ai/models  # reference only
+
+dropped:
+  - id: hermes
+    reason: Ambiguous project name; not a PFOS dependency in this repo. Name a specific repo/URL to add a row.
