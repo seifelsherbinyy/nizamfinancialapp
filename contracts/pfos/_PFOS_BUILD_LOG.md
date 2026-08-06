@@ -419,3 +419,64 @@ the authoritative LLM-tier specification - the surface contracts 05 (orchestrati
   one piece buildable ahead of the server decision.
 - Public-repo note: these contracts contain the owner's LLM budget and AKI workload intensity (no keys/
   secrets), consistent with the already-public contracts 01-04.
+
+---
+
+## M2 - OpenRouter Phase-1 benchmark harness (2026-08-06)
+
+Built the offline, deterministic, no-network, no-key benchmark harness identified in
+`docs/PFOS_OPENROUTER_ARCHITECTURE.md` as the one LLM-tier piece buildable ahead of the D1/D2 server
+decision. It is a standalone tested module under `src/features/benchmark/` and is deliberately NOT
+imported by the app router (stays out of the bundle; AC05/AC06). The live OpenRouter caller is module
+M6 (server/key-gated) and is NOT built here - the runner reaches the model only through an injected
+`ModelCaller` port, of which only a deterministic mock is provided.
+
+### Files (7 modules + 5 test files)
+
+- `benchmark.types.ts` - the nine categories + per-category minimums (`CATEGORY_MINIMUMS`,
+  `BENCHMARK_MINIMUM_CASES = 210`), `BenchmarkCase`, the `ExpectedAnswer` discriminated union
+  (extraction / label / boolean / explanation / tool_call / refusal), `ModelResponse`, `CaseScore`.
+- `dataset.ts` - `buildEvalSet()` generates 219 deterministic cases (sms 52, classification 32,
+  dedup 26, safe-to-spend 26, purchase-decision 26 with a binding recommendation, forecast 21,
+  tool-call 16, multilingual 10 Arabic/mixed, adversarial 10 prompt-injection fixtures). SMS/statement
+  inputs are SANITIZED synthetic templates - human deliverable Dv1 (real bank SMS formats) augments or
+  replaces them. `validateEvalSet()` enforces total >= 210, per-category minimums, and unique ids.
+- `scoring.ts` - pure `scoreCase(case, response)` per category: extraction critical-field accuracy,
+  label/boolean exact match, explanation evidence-coverage + binding-recommendation guard, tool-call
+  correct-tool/args, and the adversarial refusal gate. A case passes only when its metric is exact AND
+  it commits zero hard-rule violations.
+- `eligibility.ts` - aggregates `CaseScore[]` into L0/L1/L2 per the Phase-1 gates (L0 extraction
+  critical-field accuracy >= 0.99; L1 schema validity >= 0.99 + zero hard-rule violations + evidence
+  coverage >= 0.90; L2 zero violations + calibrated + reviewer disagreement <= 15% + adversarial and
+  purchase-decision pass rates == 1). A P0 breach, an unauthorized tool action, or a fabricated
+  financial figure DISQUALIFIES the model (all levels false) - no reputation is granted before a
+  passing run.
+- `cost.ts` - the cost formula over the 30-day reference token mix (`REFERENCE_USAGE_30D`; cache-read
+  ~93% of spend) + `projectMonthlyCost(price, hoursPerWeek)` scaling by `hoursPerWeek / 56`. Missing
+  cache-write price falls back to the (higher) prompt price - conservative, never under-stated. USD
+  prices use `*UsdPerMillion` field names and totals use `costUsd` (money-core invariant: no
+  money-named fields, no parseFloat/toFixed). Verified reproductions at 7 h/week (asserted in tests):
+  GLM = USD 29.83, MiMo = USD 4.71, Grok = USD 185.73, Kimi = USD 233.94.
+- `pricing.ts` - the frozen Phase-1 pricing table (four rostered models), `isStale`/TTL (7 days),
+  `loadPricing` (I/O-free: uses an injected snapshot or the frozen table), and the `PricingSource`
+  live-fetch port that this harness never invokes.
+- `runner.ts` - the `ModelCaller` port, a deterministic `mockCaller` (perfect happy-path derived from
+  each case's expected answer), a `configurableCaller` for imperfect-behavior tests, `runBenchmark`,
+  `renderReport` (Markdown), and `serializeOutputs` emitting the five contract-09 artifacts
+  (benchmark_results.json, model_eligibility_registry.json, pricing_snapshot.json,
+  cost_projection.json, benchmark_report.md).
+
+### Verification
+
+- `tsc --noEmit` clean; `eslint --max-warnings 0` clean.
+- 48 new tests (dataset 6, scoring 17, eligibility 5, cost 13, runner 7). Suite 271 -> 319 / 36 files.
+- AC04 floor ratcheted 269 -> 317. AC08/AC08b/AC10/AC11 verified on the new module (no Drive scope, no
+  scripts/ import, headers present, no organization-specific terms).
+
+### What this does NOT do (still gated)
+
+- No live LLM call, no network, no key usage. The live OpenRouter adapter (M6), the pricing service
+  (M1), the classifier/router (M3/M4), escalation orchestrator (M5), telemetry (M7), and governance
+  (M8) remain Stage-7 server-tier, gated on D1 (DB location) + D2 (server/bot) + K4 (OpenRouter key +
+  spend cap). M2 is the last legitimately-buildable server-free/offline piece; the server-free surface
+  is now exhausted.
