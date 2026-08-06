@@ -65,6 +65,8 @@
 - [ ] 8.4 `ops/nizamcore-patches/README.md`: apply order, expected test deltas, how to verify
 
 ## Phase 9 - Close out
+- [ ] 9.0 Add a harness check: no deployment particular in `ops/**` or any fixture (steering §0b) - no bare
+      domain, IP, Drive id, numeric Telegram id, or real monetary figure. Must fail closed.
 - [ ] 9.1 Raise the `AC04 --min` floor to the new test count
 - [ ] 9.2 Gate passes all checks; commit and push each green increment
 - [ ] 9.3 `ops/GATE_REGISTER.md` complete: every human step with exact commands and a verification line
@@ -76,7 +78,6 @@
 - [ ] No secret in any tracked file; `ops/` holds placeholders only
 
 ## Waiting on user input (do NOT attempt - steering §2)
-- [ ] G7 make both repos private (D0) - recommended FIRST, blocks nothing else technically
 - [ ] G1 provision + harden the VPS
 - [ ] G2 DNS for the two hostnames
 - [ ] G3 create the two bots in BotFather

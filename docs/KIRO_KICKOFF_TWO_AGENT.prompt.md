@@ -26,10 +26,11 @@ shared/text artifact, and you emit a patch series for the life side.
 
 AUTONOMY CONTRACT
 - Work tasks.md top to bottom. Do NOT ask permission between tasks or phases. Just proceed.
+- The steering file is signed off and IN FORCE. Task 0.1 is already satisfied; start at 0.2.
 - After EVERY phase: run the gate, tick the boxes, append to contracts/pfos/_PFOS_BUILD_LOG.md, commit, push.
 - If a gate is red: diagnose, fix, re-run. Never advance on red. Never weaken or skip a check to make it pass.
-- Stop ONLY for: (a) an unsigned steering file at task 0.1, (b) a genuine human gate G1-G8, or
-  (c) three consecutive failed attempts at the same fix - then report precisely what you tried.
+- Stop ONLY for: (a) a genuine human gate (G1-G6, G8), or (b) three consecutive failed attempts at the
+  same fix - then report precisely what you tried. Note G7 (repo privatization) is CLOSED as WONT-DO.
 - "It needs the VPS" is NOT a reason to stop. Build it behind an injected port with a deterministic mock,
   test the mock path, record the live step in ops/GATE_REGISTER.md, and move on. That is the whole method.
 
@@ -38,6 +39,9 @@ HARD RULES
   dev machine using the existing dev key (steering section 3). If it is absent, use recorded fixtures and
   mark the registry provisional.
 - Never invent, print, commit, or guess a secret. ops/ carries <ANGLE_BRACKET> placeholders only.
+- The repo is PUBLIC by owner decision. No tracked file may hold a deployment particular: no real domain,
+  IP, Drive id, numeric Telegram id, bot username, or real monetary figure. Synthetic fixtures only.
+  Add the fail-closed harness check for this (task 9.0).
 - One money implementation. Reuse src/lib/money and the Stage 1-4 engines verbatim. Never write a second one.
 - Do not clone, modify, or push nizamcore. Emit ops/nizamcore-patches/*.patch instead.
 - Every gate you add gets a NEGATIVE test that proves it fires. A check only ever seen passing is not evidence.
@@ -74,7 +78,9 @@ Four things would otherwise stop Kiro on the first turn, and each is handled abo
 3. **An unsettled decision gated the first line of code.** Steering now rules: finance server is Node/TypeScript
    so the 333 existing tests and the single money core are reused; life stays Python because its 55 tests already
    are. Contract 02's "Python + FastAPI" is overridden for the finance agent only, with the reason recorded.
-4. **"Until full completion" is unreachable as literally stated.** Provisioning, DNS, BotFather, key minting,
+4. **The repo is public, so the invariant moved.** Owner-authorized. The design may be public; a deployment
+   particular may not. Enforced by a fail-closed harness check rather than by repository visibility.
+5. **"Until full completion" is unreachable as literally stated.** Provisioning, DNS, BotFather, key minting,
    OAuth consent, and webhook registration are irreducibly human. So DONE is redefined as **offline-complete**:
    everything behind mocked ports, with the human remainder enumerated as a gate register. Without that
    redefinition the agent either stalls or fabricates progress.
@@ -88,6 +94,6 @@ Two further notes:
 
 ## Before you paste
 
-- Read `.kiro/steering/two-agent-vps.md` and either sign it off or edit it. It is marked DRAFT and task 0.1
-  makes Kiro stop until you do. That is deliberate: it changes policy, so it needs your decision, not mine.
-- The one thing worth doing first, independent of Kiro: **make both repos private** (G7).
+Nothing. The steering is signed off, G7 is closed, and the gate is green at 19/19. Paste and let it run.
+
+If you later disagree with a line in `.kiro/steering/two-agent-vps.md`, edit it and tell Kiro to re-read it.

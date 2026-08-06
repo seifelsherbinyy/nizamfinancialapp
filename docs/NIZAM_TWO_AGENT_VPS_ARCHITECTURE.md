@@ -367,7 +367,7 @@ shred -u /tmp/finance-<ts>.db                                                   
 
 ### 2.5 Security risks found (ranked)
 
-1. **P0 - both repos are PUBLIC.** A mental-health + financial personal-OS must not have its architecture, folder ids, and issue history world-readable. **Make both private before any real data flows** (D0).
+1. **ACCEPTED RISK - both repos stay PUBLIC** (owner decision 2026-08-06; D0 closed as WONT-DO). This is a sound posture for self-hosted finance software, but it converts one soft rule into a hard invariant: **the repo may hold the design, never a deployment particular.** No real domain, IP, Drive id, numeric Telegram id, bot username, or real monetary figure in any tracked file or fixture - all runtime-injected, enforced by a fail-closed harness check. Threat model: the attacker knows the architecture exactly and still cannot reach the system.
 2. **P1 - real Drive folder id committed** in public `nizamcore` (5 files). Low direct harm (still needs auth) but it's reconnaissance. Scrub on privatize, or rotate the folder.
 3. **P1 - no at-rest encryption on the Drive `nizam_db.json` payload yet** (flagged in `PFOS_SECRETS_PLAN.md` §2 as a gap). Close before real financial data syncs.
 4. **P2 - LLM stub means no prompt-injection surface tested yet** in the life agent; when you wire the model, the PFOS adversarial eval cases (10 in the ≥210 set) must cover both agents.
@@ -566,7 +566,7 @@ Each is objective and, per your standing rule, **VALIDATE-not-infer** - open the
 ---
 
 ## Appendix A - decisions this doc assumes (confirm or override)
-- **D0** privatize both repos - **strongly recommended, blocking.**
+- **D0** privatize both repos - **CLOSED as WONT-DO** (owner-authorized public). Replaced by the no-deployment-particulars invariant.
 - **D1/D2** VPS + SQLite on OVHcloud (from `PFOS_SECRETS_PLAN.md`) - consistent with this design.
 - **K4** OpenRouter finance cap $5/week - encoded in `modelPolicy.ts`, reused here.
 - **Server runtime** SETTLED: life = Python/FastAPI, finance = Node/TypeScript. One money implementation only (the TypeScript one). Overrides contract 02's language choice for the finance agent; closes the open decision in `pfos-current.md`.

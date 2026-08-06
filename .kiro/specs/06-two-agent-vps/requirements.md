@@ -54,6 +54,11 @@ plus the text artifacts and the gate register needed to hand the remainder to a 
 - **R19** WHEN a model call is issued, THEN the request SHALL carry the provider privacy policy, and no prompt
   text SHALL be written to any log.
 
+### Public-repository posture (steering §0b)
+- **R24** WHERE the repository is public, THEN no tracked file SHALL contain a deployment particular (a real
+  domain, IP, Drive identifier, numeric Telegram user id, bot username, or real monetary figure), AND a
+  harness check SHALL fail closed if one appears.
+
 ### Operations (Contract 12)
 - **R20** WHEN a backup runs, THEN it SHALL produce a transactionally consistent snapshot, encrypt it to a public
   key whose private half is not present on the host, and shred the plaintext.
@@ -64,8 +69,8 @@ plus the text artifacts and the gate register needed to hand the remainder to a 
   the exact steps, and SHALL NOT be attempted or reported as done.
 
 ## Out of scope
-Provisioning, DNS, bot creation, key minting, OAuth consent, webhook registration, repo privatization, age
-keypair generation. All are gate-register entries.
+Provisioning, DNS, bot creation, key minting, OAuth consent, webhook registration, age keypair generation.
+All are gate-register entries. Repo privatization is closed as WONT-DO (steering §0b).
 
 ## Definition of DONE (offline-complete)
 All phases ticked; the acceptance gate passes with a ratcheted test floor; every gated item enumerated in

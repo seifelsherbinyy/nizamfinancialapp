@@ -1,6 +1,6 @@
 # Two-Agent VPS tier (AUTHORITATIVE for the server/agent/bot area)
 
-**Status:** DRAFT - requires owner sign-off before Kiro acts on it (see §0).
+**Status:** IN FORCE (owner-authorized 2026-08-06). Override any line you disagree with; it is method, not policy about your data.
 **Precedence:** for the **server / agent / bot / ingestion / deployment** area ONLY, this file wins over
 `pfos-current.md`. Everywhere else `pfos-current.md` still wins. `money-rules.md` and `drive-db.md` are
 never overridden by anything.
@@ -18,6 +18,29 @@ never overridden by anything.
    resolves it with an explicit dev-key carve-out.
 3. **An unsettled decision gates everything.** "Open decision to settle first: the server runtime -
    Node/TypeScript ... or Python/FastAPI." §1 settles it.
+
+## 0b. SETTLED: both repos stay PUBLIC (owner decision, 2026-08-06)
+
+The owner has authorized keeping `nizamcore` and `nizamfinancialapp` public. D0/G7 is **closed as
+WONT-DO**; do not re-raise it. This is a normal posture for self-hosted finance software.
+
+**The one rule it changes - treat it as an invariant:** the repository may contain the *design*, but
+never a *deployment particular*. Nothing in a tracked file may reveal how to reach or impersonate the
+running system. Specifically, these NEVER appear in a tracked file, not even as an example:
+
+- real hostnames or domains (use `<domain>`, `life.<domain>`, `money.<domain>`)
+- the secret webhook path segments (generated at deploy time; they live only in the VPS env)
+- bot usernames, bot ids, or numeric Telegram user ids (use `<BOT_A_TOKEN>`, `<ALLOWED_USER_ID>`)
+- Google Drive folder ids, file ids, or account addresses
+- server IP addresses, SSH ports, or the age public key
+- any real amount, balance, account identifier, payee, or journal excerpt in a fixture
+
+Fixtures and eval cases use synthetic data only. The threat model becomes: an attacker knows the
+architecture exactly, and still cannot reach the system because every particular is runtime-injected.
+That is the same posture as any open-source self-hosted app, and it is sound.
+
+Consequence for `ops/`: it is a set of **templates**. A reader can see the shape of the compose file and
+the Caddyfile; they cannot learn a single value that would let them talk to the deployment.
 
 ## 1. SETTLED: server runtime per agent (do not re-open)
 
@@ -52,7 +75,8 @@ The wall is no longer "do not build the area". It is now a **network + secret bo
 **GATED - STOP and record, never attempt (these need a human):**
 - G1 Provision/harden the VPS; G2 DNS records; G3 create the two bots in BotFather; G4 mint the two
   runtime OpenRouter keys + weekly caps; G5 the Google OAuth consent click; G6 `setWebhook` registration;
-  G7 make both repos private (D0); G8 generate the age keypair and move the private key off the box.
+  G8 generate the age keypair and move the private key off the box.
+  (**G7 repo-privatization is CLOSED as WONT-DO** per §0b - do not re-raise it.)
 - Any outbound network call from a **server** process.
 - Any use of a **production** secret.
 
@@ -118,3 +142,6 @@ applied later in a separate Kiro session opened on `nizamcore`.
 - Tests ratchet **up only**: raise the `AC04 --min` floor in `scripts/verify/all.mjs` as tests grow.
 - New `src/`+`tests/` files declare their owning contract and phase in the first 20 lines (**AC10**).
 - `ops/` holds **templates with placeholders only**; `<ANGLE_BRACKET>` values never resolve to real data (**AC09**).
+- Because the repo is public (§0b), add a check that `ops/**` and all fixtures contain **no deployment
+  particular**: no bare domain, no IP, no Drive id, no numeric Telegram id, no real monetary figure.
+  Wire it into the harness so it fails closed.
