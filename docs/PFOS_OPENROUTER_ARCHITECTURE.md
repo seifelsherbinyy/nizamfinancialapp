@@ -55,6 +55,14 @@ independent review of money-moving decisions (Grok) and hard reasoning / repo en
 | **T3** High-impact decision | new debt; purchase over threshold; P0/P1 touched; asset sale; income change; long-horizon capital | analysis `glm-5.2` + review `grok-4.5` + tie-break `kimi-k3` | quality | 0.90 | $2.00/turn | **independent review + human approval REQUIRED** |
 | **T4** Engineering | large-repo analysis; architecture; complex debugging; contract-to-code; test repair | `kimi-k3` -> `glm-5.2` | **throughput** | 0.80 | $10.00/session | separate from live-finance eligibility |
 
+> **Owner routing policy (K4 decision, 2026-08-06) - overlays this table.** Default allowed set is
+> **{`xiaomi/mimo-v2.5`, `z-ai/glm-5.2`} only**, choosing the **cheapest capable** model per tier
+> (T1 -> MiMo; T2/T3/T4 -> GLM). **Grok-4.5 and Kimi-K3 are OFF by default** and used only when the
+> owner **explicitly opts in for an ultra-complex task**. Consequence flagged: with premium off, the
+> **T3 dual-model independent review (Grok) is not available** - default T3 runs single-model GLM
+> with human approval; opt into premium to restore the independent reviewer. Encoded offline in
+> `src/features/routing/modelPolicy.ts` (server-free; the live router that calls it is server-tier).
+
 **T3 triggers** (any one → high-impact): new debt · amount over the user threshold · a critical
 (P0/P1) obligation is touched · asset sale · job/income change · horizon ≥ 365 days ·
 forecast shortfall probability ≥ 10% · low confidence or conflicting evidence.
@@ -156,7 +164,7 @@ Proportional monthly ceiling (upper bound; PFOS = 7-14h/week vs the 56h/week ref
 | Grok 4.5 | ~$185.73 | ~$371.47 |
 | Kimi K3 | ~$233.94 | ~$467.88 |
 
-**Budget guardrail (Phase 3):** target **$20-40/month**. 70% → warning · 85% → restrictive routing ·
+**Budget guardrail (Phase 3):** a hard cap of **USD 5.00/week** (owner K4 decision 2026-08-06; ~USD 21.7/month). 70% → warning · 85% → restrictive routing ·
 95% → premium models disabled for non-critical work · critical work stays available **only** with
 explicit user approval. **A hard budget stop must NEVER block deterministic obligation alerts.**
 The economics work because the workhorse is GLM + MiMo (a few dollars to low-tens per month); Grok/Kimi

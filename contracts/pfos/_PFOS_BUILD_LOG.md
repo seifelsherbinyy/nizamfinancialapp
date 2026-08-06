@@ -480,3 +480,57 @@ M6 (server/key-gated) and is NOT built here - the runner reaches the model only 
   (M8) remain Stage-7 server-tier, gated on D1 (DB location) + D2 (server/bot) + K4 (OpenRouter key +
   spend cap). M2 is the last legitimately-buildable server-free/offline piece; the server-free surface
   is now exhausted.
+
+---
+
+## Decisions D1/D2/K4 recorded + offline model-selection policy (2026-08-06)
+
+Owner resolved three of the four gated items from the M2 report:
+
+- **D1 = B (VPS + SQLite).** Architecture flips from Profile A (Drive-only) to the server tier. The
+  finished Profile-A Drive-JSON app stays as-is; the server tier will use SQLite. Do NOT provision
+  SQLite until the VPS exists. Recorded in `docs/PFOS_BUILD_READINESS.md` (reconciliation item 3,
+  fetch order) and `docs/pfos_build_readiness.yaml` (`architecture_decision: B`).
+- **D2 = yes; provider OVHcloud; NOT YET PROVISIONED.** All `[server]` items (bot, Gmail, SMS,
+  OpenRouter live client, VPS host) stay BLOCKED until the OVHcloud box is provisioned, hardened, and
+  a restore drill is proven. Recorded in the readiness MD VPS row/section and the YAML
+  (`server_decision: yes`, vps_host gate note).
+- **K4 = OpenRouter, hard USD 5.00/week cap; default {mimo, glm} cheapest-capable; grok/kimi OFF
+  unless the owner explicitly opts in for an ultra-complex task.** This TIGHTENS the contract-10/11
+  default roster (which used Grok for T3 review and Kimi for T4). Recorded as a budget + model-policy
+  block in the YAML, an overlay note under the architecture routing table, and the budget guardrail
+  line (`$20-40/month` -> `USD 5.00/week`).
+
+### Offline module built: `src/features/routing/modelPolicy.ts` (+ test)
+
+K4 unlocks one new SERVER-FREE piece: the deterministic model-selection + weekly-budget policy (the
+pure decision the live router M4/M6 will call). Reuses M2's frozen pricing + `costOfUsage` cost model.
+NOT imported by the app router (stays out of the bundle); no network, no key, no live spend I/O (the
+caller passes the running weekly spend in).
+
+- `TIER_CAPABLE` (contract 10): MiMo T1 only; GLM T1-T4 workhorse/fallback; Grok T2/T3; Kimi T3/T4.
+- `DEFAULT_ALLOWED = {mimo, glm}`; `PREMIUM_MODELS = {grok, kimi}` (opt-in only); `TIER_PREMIUM_PICK`
+  T3 -> Grok (independent reviewer), T4 -> Kimi.
+- `budgetPhase()` maps the running weekly spend against USD 5 to ok/warn(70%)/restrict(85%)/
+  critical(95%)/exhausted (contract 11 thresholds).
+- `selectModel()`: T0 -> no model; default -> cheapest capable within {mimo, glm} (T1 MiMo; T2/T3/T4
+  GLM); premium opt-in -> the tier's premium pick; hard cap exhausted -> block all LLM (deterministic
+  engines never blocked); premium held back at >=95%; unaffordable premium falls back to GLM; blocks
+  when even the cheapest capable turn will not fit the remaining budget.
+- **Flagged consequence (surfaced in `notes` + the architecture overlay): with premium off by default,
+  the T3 dual-model independent review (Grok) is unavailable - default T3 runs single-model GLM with
+  human approval.** Owner ruling needed: either T3 high-impact decisions auto-qualify for the Grok
+  opt-in, or single-model T3 + human approval is accepted. Encoded literally for now (explicit opt-in).
+
+### Verification
+
+- `tsc --noEmit` clean; `eslint --max-warnings 0` clean.
+- 14 new tests (budget phases, default routing per tier, premium opt-in, hard-cap block, premium
+  hold-back at critical, unaffordable-premium fallback, cheapest-won't-fit block). Suite 319 -> 333 /
+  37 files. AC04 floor 317 -> 331. AC08/AC08b/AC10/AC11 verified.
+
+### Still gated (unchanged by these decisions)
+
+- The live router (M4/M6), pricing service (M1), and everything server-side wait on the **OVHcloud VPS
+  being provisioned** (D2) + the **OpenRouter key** (K4 fetch) + a **passing Phase-1 benchmark** before
+  any live routing. This module is the offline policy core they will wire up.

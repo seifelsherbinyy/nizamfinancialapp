@@ -56,12 +56,12 @@ Each row below is tagged **[A]** (fetch now, any profile) or **[server]** (only 
 | 2 | Google browser API key | API key (Drive+Picker, referrer-locked) | `.env.local` `VITE_GOOGLE_API_KEY` | **[A] now** | Picker import | **NOT_STARTED - the one real remaining fetch** |
 | 3 | Google Drive folder (optional) | Folder id | `.env.local` `VITE_NIZAM_DRIVE_FOLDER_ID` | **[A] now** | Pin `nizam_db.json` | NOT_STARTED |
 | 4 | Google OAuth (**Desktop** client) | Desktop client JSON | `.secrets/google-oauth-desktop.client.json` | [A] dev-only | Contract ingest tool | ON_FILE |
-| 5 | OpenRouter | API key + hard spend cap | VPS secret store | [server] + D2 + K4 (spec now exists) | LLM routing (Stage 7) | SPEC_READY - models + budget + gates defined (contracts 09-11) |
+| 5 | OpenRouter | API key + USD 5/week hard cap | VPS secret store | [server] + D2 + K4 (spec now exists) | LLM routing (Stage 7) | SPEC_READY - USD 5/wk cap; default {mimo,glm} cheapest, grok/kimi opt-in; offline policy built; gated on OVHcloud provision + key + Phase-1 bench |
 | 6 | Telegram Bot | Bot token | VPS secret store | [server] + D2 | Bot interface (Stage 6) | BLOCKED |
 | 7 | Telegram user id | Your numeric user id (allowlist) | server config | [server] + D2 | Bot auth allowlist | BLOCKED |
 | 8 | Gmail API + grant | Restricted OAuth grant (label/query scope) | VPS secret store | [server] + D2 | Email-relay ingest (Stage 6) | BLOCKED |
 | 9 | SMS / Apple Shortcuts | Shared webhook secret | VPS secret store | [server] + D2 | Signed SMS ingest (Stage 6) | BLOCKED |
-| 10 | VPS | SSH key + host creds + backup-encryption key | VPS secret store / local secure | [server] + D1=B/C | Server host + backups | BLOCKED |
+| 10 | VPS (OVHcloud) | SSH key + host creds + backup-encryption key | VPS secret store / local secure | [server] + D1=B/C | Server host + backups | BLOCKED - D1=B (SQLite) DECIDED; provider OVHcloud chosen, NOT YET PROVISIONED |
 | 11 | Domain / Cloudflare | DNS/API token (optional) | deploy secret store | [server] + D2 | Public TLS endpoint | BLOCKED |
 | 12 | Macro/FX data source | API key (only if the chosen source needs one) | `.env.local` or server | [A] optional (D3) | Automated real net worth | OPTIONAL |
 | 13 | WHOOP | OAuth client + token | **separate encrypted namespace** | [behavioral] + D7 | Behavioral signals (Stage 8) | DEFERRED |
@@ -102,21 +102,21 @@ OpenRouter model/pricing pages, OAuth consent-screen config. These are *steps*, 
 - **Note:** an installed-app "client secret" is **not confidential** (public client + loopback);
   do not treat it as a server secret, and never reuse it for the browser app.
 
-### [server] 5 · OpenRouter · SPEC READY (contracts 09-11); gated on D2 + K4 + budget cap
+### [server] 5 · OpenRouter · SPEC READY; USD 5/week cap + model policy set; gated on OVHcloud provision + K4 + Phase-1 bench
 - **Purpose:** LLM routing for classification / reasoning / narrative forecasting.
-- **Spec:** model roster, T0-T4 routing, $20-40/mo budget, and the launch gate are fully defined in
+- **Spec:** model roster, T0-T4 routing, a USD 5.00/week hard budget cap, and the launch gate are fully defined in
   `docs/PFOS_OPENROUTER_ARCHITECTURE.md` (from contracts 09/10/11). Models: `xiaomi/mimo-v2.5` (T1),
   `z-ai/glm-5.2` (workhorse), `x-ai/grok-4.5` (T3 review), `moonshotai/kimi-k3` (T4/tie-break).
 - **Primary:** https://openrouter.ai/settings/keys
 - **Fallback:** https://openrouter.ai/settings · https://openrouter.ai/models · https://openrouter.ai/docs
-- **Needed:** API key **+ a hard monthly spend cap**.
+- **Needed:** API key **+ the hard weekly spend cap (USD 5.00/week, already set)**.
 - **Home:** VPS secret store (server-side only - **never** `VITE_*`, never the browser).
 - **Verify:** `GET /models`; then one small completion. Confirm **data-retention = off** (contract 02
   section 12.6).
 - **Rotate:** revoke the key in settings, issue a new one, update the server secret, re-verify.
 - **Launch gate:** the **Phase-1 benchmark must pass and the eligibility registry be approved BEFORE**
-  any runtime routing (contract 09). No model goes live on reputation. Then D2 (server) + K4 (key) + a
-  hard monthly spend cap. The benchmark harness itself can be built ahead of the server decision.
+  any runtime routing (contract 09). No model goes live on reputation. Then the OVHcloud server (D2, unprovisioned) + K4 (key); a
+  hard **weekly** spend cap (USD 5.00/week) is set. The offline benchmark harness (M2) and the model-selection policy (src/features/routing) are built; the live router that calls them is server-tier.
 
 ### [server] 6-7 · Telegram bot + user allowlist · BLOCKED until D2
 - **Purpose:** chat interface for briefs + decision prompts.
@@ -145,9 +145,9 @@ OpenRouter model/pricing pages, OAuth consent-screen config. These are *steps*, 
 - **Rotate:** regenerate the shared secret on both ends.
 - **Prereq data:** Dv1 (sanitized real SMS formats) - parsers are built deterministically first.
 
-### [server] 10-11 · VPS + domain · BLOCKED until D1=B/C
+### [server] 10-11 · VPS + domain · D1=B DECIDED (VPS+SQLite); provider OVHcloud chosen, NOT YET PROVISIONED
 - **Purpose:** the always-on host for ingestion/bot/LLM, and a public TLS endpoint.
-- **VPS primary:** Hetzner https://console.hetzner.cloud · Netcup https://www.customercontrolpanel.de · Contabo https://my.contabo.com
+- **VPS chosen: OVHcloud** https://www.ovhcloud.com/en/vps/ (manager https://ca.ovh.com/manager) - **NOT YET PROVISIONED**. Alternatives: Hetzner https://console.hetzner.cloud · Netcup https://www.customercontrolpanel.de · Contabo https://my.contabo.com
 - **Domain/TLS:** https://dash.cloudflare.com
 - **Needed:** SSH keypair, host credentials, **backup-encryption key** (offsite backups must be
   encrypted, 02 section 9-10); optional DNS/API token.
@@ -187,9 +187,9 @@ OpenRouter model/pricing pages, OAuth consent-screen config. These are *steps*, 
 2. **The list conflates two mutually-exclusive builds.** ~9 of the 20 items (Telegram, Gmail, VPS,
    domain, Docker, FastAPI, SQLite, SMS, OpenRouter) exist **only if D1 = B/C**. If you stay Drive-only
    you fetch none of them. Decide **D1/D2 first** (see `PFOS_HUMAN_DELIVERABLES.md`).
-3. **SQLite vs Drive-JSON is an open architecture conflict (D1).** Contract 02 mandates SQLite and names
+3. **SQLite vs Drive-JSON - RESOLVED 2026-08-06: D1 = B (VPS + SQLite).** Contract 02 mandates SQLite and names
    "ledger inside a syncing Drive folder" as the anti-pattern; NIZAM chose Drive-JSON for the server-free
-   build. SQLite is only relevant under D1=B/C. Record the decision; don't provision SQLite until then.
+   build. The Profile-A Drive-JSON app stays as-is; the server tier will use SQLite. Do not provision SQLite until the OVHcloud VPS exists.
 4. **OpenRouter now has a spec (contracts 09-11), so D6 is largely satisfiable by adoption.** The
    LLM-tier surface contract 05 would have governed is specified by the three OpenRouter phase
    contracts (roster, routing, budget, governance - see `docs/PFOS_OPENROUTER_ARCHITECTURE.md`). Adopt
@@ -222,10 +222,10 @@ OpenRouter model/pricing pages, OAuth consent-screen config. These are *steps*, 
    ingest client). If it is the desktop one, create a Web client and replace it.
 5. Run the app, click Connect Google Drive, confirm the consent is **drive.file only**; done.
 
-**Before any server work (Profile B/C):** decide **D1 + D2**, then provision VPS (K7), harden it,
+**Before any server work (Profile B/C):** D1 = B and D2 = yes are DECIDED (OVHcloud, unprovisioned). Next: provision the OVHcloud VPS (K7), harden it,
 prove a **restore drill**, then fetch K3/K5/K6 into the VPS secret store.
 
-**Before any LLM work:** write **contract 05** (D6), set the OpenRouter **spend cap**, verify
+**Before any LLM work:** adopt contracts 09-11 as the LLM tier (D6); the weekly **spend cap (USD 5.00/week) is set**; verify
 data-retention off, then fetch K4.
 
 **Before any behavioral data:** build the encrypted namespace, capture D7 consent, then WHOOP.

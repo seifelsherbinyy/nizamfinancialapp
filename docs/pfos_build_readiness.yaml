@@ -16,8 +16,8 @@
 meta:
   date: 2026-08-06
   authoritative_decision_doc: docs/PFOS_HUMAN_DELIVERABLES.md
-  architecture_decision: D1   # A=Drive-only | B=VPS SQLite | C=hybrid  -- UNDECIDED
-  server_decision: D2         # always-on bot+server yes/no             -- UNDECIDED
+  architecture_decision: B    # A=Drive-only | B=VPS SQLite | C=hybrid  -- DECIDED 2026-08-06: B (VPS + SQLite)
+  server_decision: yes        # always-on bot+server yes/no             -- DECIDED 2026-08-06: yes; provider OVHcloud, NOT YET PROVISIONED
   llm_tier_spec: contracts 09-11 (OpenRouter phases 1-3) ingested 2026-08-06 -> D6 satisfiable by adoption
   current_local_state:        # observed in .env.local (gitignored) on 2026-08-06
     - VITE_GOOGLE_CLIENT_ID is FILLED  -> VERIFY it is a Web-application client (the on-file ingest credential is a Desktop client, the wrong type for the SPA)
@@ -98,7 +98,7 @@ integrations:
       - node scripts/ingest/pfos-drive-pull.mjs --revoke   # revoke when contracts are stable
 
   - id: openrouter
-    status: SPEC_READY   # roster/routing/budget/governance defined in contracts 09-11; not yet built
+    status: SPEC_READY   # D1=B/D2=yes DECIDED (OVHcloud unprovisioned); budget USD 5/wk; offline model-policy built (src/features/routing); live router not built
     profile: server
     gate: D2_and_K4_and_phase1_benchmark
     purpose: LLM routing for classification, reasoning, narrative forecasting.
@@ -112,7 +112,11 @@ integrations:
       T2_routine: z-ai/glm-5.2          # fallback x-ai/grok-4.5, moonshotai/kimi-k3
       T3_high_impact: z-ai/glm-5.2 + x-ai/grok-4.5 (independent review) + moonshotai/kimi-k3 (tie-break)
       T4_engineering: moonshotai/kimi-k3   # fallback z-ai/glm-5.2
-    budget_usd_month: {target: 30, soft_range: [20, 40], warn: 0.70, restrict: 0.85, disable_premium_noncritical: 0.95}
+    budget_usd_week: {hard_cap: 5, warn: 0.70, restrict: 0.85, disable_premium: 0.95}   # DECIDED 2026-08-06: hard USD 5.00/week
+    model_policy:   # DECIDED 2026-08-06 (owner K4 override of the contract default roster)
+      default_allowed: [xiaomi/mimo-v2.5, z-ai/glm-5.2]
+      premium_optin_only: [x-ai/grok-4.5, moonshotai/kimi-k3]
+      rule: "cheapest capable within default_allowed; grok/kimi only on explicit ultra-complex opt-in"
     primary_url: https://openrouter.ai/settings/keys
     fallback_urls:
       - https://openrouter.ai/settings
@@ -191,7 +195,7 @@ integrations:
   - id: vps_host
     status: BLOCKED
     profile: server
-    gate: D1_B_or_C
+    gate: D1_B_or_C   # D1=B DECIDED; provider OVHcloud (console.ovh.com) chosen, NOT YET PROVISIONED
     purpose: Always-on host for ingestion, bot, and LLM; encrypted offsite backups.
     primary_url: https://console.hetzner.cloud
     fallback_urls:
