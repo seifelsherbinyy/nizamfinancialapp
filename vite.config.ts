@@ -30,6 +30,11 @@ export default defineConfig({
   ],
   // Relative base so the static build works on GitHub Pages / any sub-path host.
   base: './',
+  // Pin the dev origin so the Google OAuth Web client + API key (both locked to
+  // http://localhost:5173) never drift. strictPort => Vite FAILS LOUD if 5173 is
+  // taken, instead of silently moving to 5174 and breaking Drive sign-in.
+  server: { port: 5173, strictPort: true },
+  preview: { port: 5173, strictPort: true },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
