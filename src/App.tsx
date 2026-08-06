@@ -19,6 +19,7 @@ import { ObligationsView } from '@/features/obligations/ObligationsView';
 import { SettingsView } from '@/features/settings/SettingsView';
 import { ForecastView } from '@/features/forecast/ForecastView';
 import { DecisionsView } from '@/features/decisions/DecisionsView';
+import { NetWorthView } from '@/features/netWorth/NetWorthView';
 
 const NAV: { path: RoutePath; label: string }[] = [
   { path: '/home', label: 'Home' },
@@ -26,6 +27,7 @@ const NAV: { path: RoutePath; label: string }[] = [
   { path: '/decide', label: 'Decide' },
   { path: '/forecast', label: 'Forecast' },
   { path: '/decisions', label: 'Decisions' },
+  { path: '/networth', label: 'Net worth' },
   { path: '/obligations', label: 'Obligations' },
   { path: '/settings', label: 'Settings' },
   { path: '/reports', label: 'Reports' },
@@ -71,6 +73,7 @@ const views: Record<RoutePath, ReactNode> = {
   '/decide': <DecideView />,
   '/forecast': <ForecastView />,
   '/decisions': <DecisionsView />,
+  '/networth': <NetWorthView />,
   '/obligations': <ObligationsView />,
   '/settings': <SettingsView />,
 };

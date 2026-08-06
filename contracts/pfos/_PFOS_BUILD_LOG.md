@@ -347,3 +347,40 @@ work over the Drive DB.
 
 Server-free; the Stage-5 fork (D1/D2 architecture, contract 05) is unchanged. With this, every
 Stage 1-4 engine now has a screen except the assets/FX net-worth editor (next, and last).
+
+
+## Net-worth UI + asset/FX editor - completed 2026-08-06
+
+**Why.** Stage 4 built the currency-aware net-worth engine (`netWorth`, `toEgp`, `realNetWorth`)
+but it had NO screen - the `/accounts` route is the transaction register, and there was no way to
+enter valued assets or currency rates. This was the LAST server-free engine without a UI. Pure
+client work on the Drive DB.
+
+### Work
+
+- `src/app/router.tsx` + `src/App.tsx` - new `/networth` route + NAV item ("Net worth") +
+  exhaustive `views` entry.
+- `src/features/netWorth/NetWorthView.tsx` - three parts:
+  1. The five net-worth figures as a summary (nominal / liquid / liquidation) with a component
+     breakdown (cash, financial assets, real assets, credit owed, obligations owed).
+  2. An **unrated-currencies banner** - if an asset's currency has no FX rate, the engine leaves
+     it OUT (never silently zeroed, contract 03 section 8.3) and the UI says so, pointing the
+     owner to add a rate. Per-asset values render in the asset's OWN currency via `toDecimal`
+     (currency-agnostic, never throws on a non-ISO code - `toEgp` throws on a missing rate, so it
+     is not used for row display).
+  3. Add/edit/delete editors for `Asset` (name, kind, currency, value, liquid, liquidation
+     haircut % <-> bps, valuation source + date) and `FxRate` (currency, integer EGP-per-unit
+     ratio, source, date). FX rows are keyed by currency (no id); editing locks the code. Real
+     assets force `liquid=false`. Validation refuses a negative value, a haircut outside 0-100%,
+     a non-positive/invalid FX ratio, an EGP rate (base needs none), and bad dates.
+
+### Verification
+
+- 3 new tests: summary + empty prompts; a recorded EGP asset reflected in nominal; add an asset
+  through the modal (writes to `db.assets`). Full suite 271/271 across 31 files. Typecheck 0,
+  lint 0, headers PASS (90 files). AC04 floor 266 -> 269.
+
+Server-free. **This exhausts the server-free surface:** every Stage 1-4 engine now has a screen,
+and real data (accounts, obligations, policy, assets, FX) can be entered entirely client-side on
+the Drive DB. The remaining work is human-gated - D1 (DB location) + D2 (server/bot) architecture
+decision, and contract 05 (unwritten) for the LLM/orchestration tier.
