@@ -56,7 +56,7 @@ Each row below is tagged **[A]** (fetch now, any profile) or **[server]** (only 
 | 2 | Google browser API key | API key (Drive+Picker, referrer-locked) | `.env.local` `VITE_GOOGLE_API_KEY` | **[A] now** | Picker import | **NOT_STARTED - the one real remaining fetch** |
 | 3 | Google Drive folder (optional) | Folder id | `.env.local` `VITE_NIZAM_DRIVE_FOLDER_ID` | **[A] now** | Pin `nizam_db.json` | NOT_STARTED |
 | 4 | Google OAuth (**Desktop** client) | Desktop client JSON | `.secrets/google-oauth-desktop.client.json` | [A] dev-only | Contract ingest tool | ON_FILE |
-| 5 | OpenRouter | API key + hard spend cap | VPS secret store | [server] + D6/contract 05 | LLM routing (Stage 7) | BLOCKED |
+| 5 | OpenRouter | API key + hard spend cap | VPS secret store | [server] + D2 + K4 (spec now exists) | LLM routing (Stage 7) | SPEC_READY - models + budget + gates defined (contracts 09-11) |
 | 6 | Telegram Bot | Bot token | VPS secret store | [server] + D2 | Bot interface (Stage 6) | BLOCKED |
 | 7 | Telegram user id | Your numeric user id (allowlist) | server config | [server] + D2 | Bot auth allowlist | BLOCKED |
 | 8 | Gmail API + grant | Restricted OAuth grant (label/query scope) | VPS secret store | [server] + D2 | Email-relay ingest (Stage 6) | BLOCKED |
@@ -102,8 +102,11 @@ OpenRouter model/pricing pages, OAuth consent-screen config. These are *steps*, 
 - **Note:** an installed-app "client secret" is **not confidential** (public client + loopback);
   do not treat it as a server secret, and never reuse it for the browser app.
 
-### [server] 5 · OpenRouter · BLOCKED until contract 05 exists (D6)
+### [server] 5 · OpenRouter · SPEC READY (contracts 09-11); gated on D2 + K4 + budget cap
 - **Purpose:** LLM routing for classification / reasoning / narrative forecasting.
+- **Spec:** model roster, T0-T4 routing, $20-40/mo budget, and the launch gate are fully defined in
+  `docs/PFOS_OPENROUTER_ARCHITECTURE.md` (from contracts 09/10/11). Models: `xiaomi/mimo-v2.5` (T1),
+  `z-ai/glm-5.2` (workhorse), `x-ai/grok-4.5` (T3 review), `moonshotai/kimi-k3` (T4/tie-break).
 - **Primary:** https://openrouter.ai/settings/keys
 - **Fallback:** https://openrouter.ai/settings · https://openrouter.ai/models · https://openrouter.ai/docs
 - **Needed:** API key **+ a hard monthly spend cap**.
@@ -111,7 +114,9 @@ OpenRouter model/pricing pages, OAuth consent-screen config. These are *steps*, 
 - **Verify:** `GET /models`; then one small completion. Confirm **data-retention = off** (contract 02
   section 12.6).
 - **Rotate:** revoke the key in settings, issue a new one, update the server secret, re-verify.
-- **Gate:** contract 05 (agent/tooling/credential surface) must be written first - it does not exist.
+- **Launch gate:** the **Phase-1 benchmark must pass and the eligibility registry be approved BEFORE**
+  any runtime routing (contract 09). No model goes live on reputation. Then D2 (server) + K4 (key) + a
+  hard monthly spend cap. The benchmark harness itself can be built ahead of the server decision.
 
 ### [server] 6-7 · Telegram bot + user allowlist · BLOCKED until D2
 - **Purpose:** chat interface for briefs + decision prompts.
@@ -185,9 +190,11 @@ OpenRouter model/pricing pages, OAuth consent-screen config. These are *steps*, 
 3. **SQLite vs Drive-JSON is an open architecture conflict (D1).** Contract 02 mandates SQLite and names
    "ledger inside a syncing Drive folder" as the anti-pattern; NIZAM chose Drive-JSON for the server-free
    build. SQLite is only relevant under D1=B/C. Record the decision; don't provision SQLite until then.
-4. **OpenRouter is blocked by a missing contract, not a missing key.** Contract 05 (agent/tooling/
-   credential surface) does not exist. Writing it (or an approved interim policy) is D6 - **do that
-   before fetching an LLM key.**
+4. **OpenRouter now has a spec (contracts 09-11), so D6 is largely satisfiable by adoption.** The
+   LLM-tier surface contract 05 would have governed is specified by the three OpenRouter phase
+   contracts (roster, routing, budget, governance - see `docs/PFOS_OPENROUTER_ARCHITECTURE.md`). Adopt
+   them as the LLM-tier contract. What remains before fetching the key: **D2 (server), a budget cap,
+   and a PASSING Phase-1 benchmark** - never route live on reputation.
 5. **WHOOP is not a near-term fetch.** It is Stage 8, consent-gated (D7), and must be isolated in an
    encrypted namespace; it never enters net worth. Default stays no-linkage.
 6. **"Hermes" is not a PFOS dependency in this repo** - dropped from the contract (ambiguous project

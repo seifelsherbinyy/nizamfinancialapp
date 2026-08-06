@@ -384,3 +384,38 @@ Server-free. **This exhausts the server-free surface:** every Stage 1-4 engine n
 and real data (accounts, obligations, policy, assets, FX) can be entered entirely client-side on
 the Drive DB. The remaining work is human-gated - D1 (DB location) + D2 (server/bot) architecture
 decision, and contract 05 (unwritten) for the LLM/orchestration tier.
+
+
+## OpenRouter LLM-tier contracts ingested + architecture synthesis - 2026-08-06
+
+**Why.** Three new PFOS contracts (OpenRouter Phase 1 Benchmark Calibration, Phase 2 Automatic
+Task/Turn Routing, Phase 3 Adaptive Cost/Quality Governance) arrived as aki attachments. They are
+the authoritative LLM-tier specification - the surface contracts 05 (orchestration/tooling) and 07
+(benchmark bar) were meant to cover and that was previously VERIFIED ABSENT.
+
+### Work
+
+- **Ingested byte-faithful** into `contracts/pfos/09_..`, `10_..`, `11_..` (6,016 / 7,557 / 5,942 bytes;
+  SHA-256 recorded). Honest provenance: **aki attachment channel via the SESHA DROPZONE, NOT the
+  Drive-folder pull** - recorded in a SEPARATE manifest `_INGESTION_MANIFEST_OPENROUTER.json`; the
+  drive-pull manifest `_INGESTION_MANIFEST.json` is untouched.
+- **Registered** the three in `_PFOS_CONTRACT_INDEX.md` (SHA + scope) and reconciled the "Absent
+  contracts" note: 05/07's LLM-tier surface is now substantially specified; D6 becomes closable by
+  adoption rather than authoring a new 05.
+- **Synthesis** `docs/PFOS_OPENROUTER_ARCHITECTURE.md`: model roster (mimo-v2.5 / glm-5.2 / grok-4.5 /
+  kimi-k3 with tier roles), T0-T4 routing table, the end-to-end turn stack (classify -> filter -> score
+  -> call -> escalate -> audit), the utility formula, the three-phase lifecycle, cost+safety envelope
+  ($20-40/mo budget; cache-read is 93.1% of the cost driver; 7 safety invariants), and a **module map
+  M0-M9** onto the NIZAM build. Key connection recorded: **Phase 2's "router never calculates money"
+  rule is ALREADY satisfied** - the shipped Stage 1-4 deterministic engines are T0/the deterministic
+  services; the LLM tier is strictly additive and never sources a number.
+- **Readiness updated** (`PFOS_BUILD_READINESS.md` + `.yaml`): OpenRouter row BLOCKED -> SPEC_READY with
+  the roster, budget thresholds, and launch gate (Phase-1 benchmark must pass before any live routing).
+
+### Notes
+
+- No code built. This is ingestion + architecture documentation only; the LLM tier (modules M1-M9) is
+  Stage 7, server-tier, gated on D1/D2 + K4 + a passing Phase-1 benchmark. M2 (benchmark harness) is the
+  one piece buildable ahead of the server decision.
+- Public-repo note: these contracts contain the owner's LLM budget and AKI workload intensity (no keys/
+  secrets), consistent with the already-public contracts 01-04.

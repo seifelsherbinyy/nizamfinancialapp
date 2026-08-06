@@ -1,0 +1,42 @@
+{
+  "tool": "manual ingest (aki attachment channel)",
+  "ingested_at": "2026-08-06T09:45:20.100224+00:00",
+  "provenance_note": "These three PFOS OpenRouter phase contracts arrived as aki attachments dropped into the SESHA workspace DROPZONE on 2026-08-06. They were NOT pulled from the Drive folder 01_Product_Blueprints (which held only contracts 01-04 as of the 2026-08-05 read-only pull). Ingested byte-for-byte and SHA-256 recorded here; the drive-pull manifest (_INGESTION_MANIFEST.json) is unchanged.",
+  "relationship": "These substantially specify the previously-ABSENT LLM-tier surface (contract 05 Agent Orchestration and Tooling; contract 07 Testing/Validation/Benchmarking). They do not replace those numbered contracts; they are adopted as the authoritative OpenRouter routing/benchmark/governance specification.",
+  "file_count": 3,
+  "files": [
+    {
+      "source_name": "09_PFOS_OpenRouter_Phase_1_Benchmark_Calibration.md",
+      "source_channel": "aki attachment via SESHA GEB-inputs/_DROPZONE (NOT the Drive-folder pull)",
+      "source_path": "SESHA workspace GEB-inputs/_DROPZONE/09_PFOS_OpenRouter_Phase_1_Benchmark_Calibration.md",
+      "source_modified_local": "2026-08-06T09:41:30.390382+00:00",
+      "exported_as": "verbatim bytes",
+      "dest": "contracts/pfos/09_PFOS_OpenRouter_Phase_1_Benchmark_Calibration.md",
+      "bytes": 6016,
+      "sha256": "06851b8ed77a5a02aef0dd85a4869236afee3827603d641893f59bcd5ddf814a",
+      "byte_faithful_verified": true
+    },
+    {
+      "source_name": "10_PFOS_OpenRouter_Phase_2_Automatic_Task_and_Turn_Routing.md",
+      "source_channel": "aki attachment via SESHA GEB-inputs/_DROPZONE (NOT the Drive-folder pull)",
+      "source_path": "SESHA workspace GEB-inputs/_DROPZONE/10_PFOS_OpenRouter_Phase_2_Automatic_Task_and_Turn_Routing.md",
+      "source_modified_local": "2026-08-06T09:41:33.413625+00:00",
+      "exported_as": "verbatim bytes",
+      "dest": "contracts/pfos/10_PFOS_OpenRouter_Phase_2_Automatic_Task_and_Turn_Routing.md",
+      "bytes": 7557,
+      "sha256": "4a593a8ba70374e23c23a62e52378ab6adb6d1d10b1bc4d9128e42c9910ff7ff",
+      "byte_faithful_verified": true
+    },
+    {
+      "source_name": "11_PFOS_OpenRouter_Phase_3_Adaptive_Cost_Quality_Governance.md",
+      "source_channel": "aki attachment via SESHA GEB-inputs/_DROPZONE (NOT the Drive-folder pull)",
+      "source_path": "SESHA workspace GEB-inputs/_DROPZONE/11_PFOS_OpenRouter_Phase_3_Adaptive_Cost_Quality_Governance.md",
+      "source_modified_local": "2026-08-06T09:41:37.881676+00:00",
+      "exported_as": "verbatim bytes",
+      "dest": "contracts/pfos/11_PFOS_OpenRouter_Phase_3_Adaptive_Cost_Quality_Governance.md",
+      "bytes": 5942,
+      "sha256": "1a16747838426179146b41ddd275dbdd3f0130c0007c1e27bc5d5e38a9b7901e",
+      "byte_faithful_verified": true
+    }
+  ]
+}

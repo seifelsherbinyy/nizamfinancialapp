@@ -81,3 +81,24 @@ modified time, byte count, SHA-256, and whether the content changed since the pr
 
 All four source files were last modified 2026-08-04 within a 19-second window and are at
 drive version 2 — a single authoring session, not four independently evolving documents.
+
+
+## OpenRouter LLM-tier contracts (ingested 2026-08-06 via aki attachment)
+
+Three further PFOS contracts arrived as **aki attachments** (dropped into the SESHA workspace
+DROPZONE), **not** via the Drive-folder pull. Ingested byte-for-byte; SHA-256 recorded in
+`contracts/pfos/_INGESTION_MANIFEST_OPENROUTER.json`. Synthesis: `docs/PFOS_OPENROUTER_ARCHITECTURE.md`.
+
+| # | File | Bytes | SHA-256 (first 16) | Scope it governs |
+|---|------|-------|--------------------|------------------|
+| 09 | `09_PFOS_OpenRouter_Phase_1_Benchmark_Calibration.md` | 6,016 | `06851b8ed77a5a02` | Model-selection baseline: ≥210-case PFOS eval set, live pricing refresh (24h TTL), actual-cost scoring, L0/L1/L2 eligibility gates, candidate roster (mimo-v2.5 / glm-5.2 / grok-4.5 / kimi-k3) |
+| 10 | `10_PFOS_OpenRouter_Phase_2_Automatic_Task_and_Turn_Routing.md` | 7,557 | `4a593a8ba70374e2` | Runtime routing: T0-T4 task taxonomy, per-tier model chains + cost caps, turn classifier, utility scoring, escalation rules, OpenRouter request controls, per-turn audit |
+| 11 | `11_PFOS_OpenRouter_Phase_3_Adaptive_Cost_Quality_Governance.md` | 5,942 | `1a16747838426179` | Closed-loop governance: telemetry (OpenRouter usage as source of truth), promotion/demotion, canary 5→100%, $20-40/mo budget guards, weekly optimizer authority ladder, no autonomous weakening of safeguards |
+
+**Effect on the "Absent contracts" list above.** These three **substantially specify the LLM-tier
+surface** that contracts **05 (Agent Orchestration & Tooling)** and **07 (Testing/Validation/
+Benchmarking)** would have governed — the highest-risk surface in the product. They do not renumber
+or replace 05-08; they are adopted as the **authoritative OpenRouter routing / benchmark / governance
+specification**. This lets decision **D6** (`docs/PFOS_HUMAN_DELIVERABLES.md`) be closed by adopting
+these three as the LLM-tier contract rather than authoring a new 05 from scratch. Contract 06
+(Database & Knowledge Model) and the non-OpenRouter parts of 05/07 remain open.

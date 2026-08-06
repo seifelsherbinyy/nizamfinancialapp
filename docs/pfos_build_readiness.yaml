@@ -18,6 +18,7 @@ meta:
   authoritative_decision_doc: docs/PFOS_HUMAN_DELIVERABLES.md
   architecture_decision: D1   # A=Drive-only | B=VPS SQLite | C=hybrid  -- UNDECIDED
   server_decision: D2         # always-on bot+server yes/no             -- UNDECIDED
+  llm_tier_spec: contracts 09-11 (OpenRouter phases 1-3) ingested 2026-08-06 -> D6 satisfiable by adoption
   current_local_state:        # observed in .env.local (gitignored) on 2026-08-06
     - VITE_GOOGLE_CLIENT_ID is FILLED  -> VERIFY it is a Web-application client (the on-file ingest credential is a Desktop client, the wrong type for the SPA)
     - VITE_GOOGLE_API_KEY is EMPTY     -> this is the concrete remaining fetch for Profile A
@@ -97,10 +98,21 @@ integrations:
       - node scripts/ingest/pfos-drive-pull.mjs --revoke   # revoke when contracts are stable
 
   - id: openrouter
-    status: BLOCKED
+    status: SPEC_READY   # roster/routing/budget/governance defined in contracts 09-11; not yet built
     profile: server
-    gate: contract_05_and_D2
+    gate: D2_and_K4_and_phase1_benchmark
     purpose: LLM routing for classification, reasoning, narrative forecasting.
+    spec_docs:
+      - contracts/pfos/09_PFOS_OpenRouter_Phase_1_Benchmark_Calibration.md
+      - contracts/pfos/10_PFOS_OpenRouter_Phase_2_Automatic_Task_and_Turn_Routing.md
+      - contracts/pfos/11_PFOS_OpenRouter_Phase_3_Adaptive_Cost_Quality_Governance.md
+      - docs/PFOS_OPENROUTER_ARCHITECTURE.md
+    model_roster:
+      T1_extraction: xiaomi/mimo-v2.5   # fallback z-ai/glm-5.2
+      T2_routine: z-ai/glm-5.2          # fallback x-ai/grok-4.5, moonshotai/kimi-k3
+      T3_high_impact: z-ai/glm-5.2 + x-ai/grok-4.5 (independent review) + moonshotai/kimi-k3 (tie-break)
+      T4_engineering: moonshotai/kimi-k3   # fallback z-ai/glm-5.2
+    budget_usd_month: {target: 30, soft_range: [20, 40], warn: 0.70, restrict: 0.85, disable_premium_noncritical: 0.95}
     primary_url: https://openrouter.ai/settings/keys
     fallback_urls:
       - https://openrouter.ai/settings
@@ -108,13 +120,14 @@ integrations:
       - https://openrouter.ai/docs
     required: api_key   # PLUS a hard monthly spend cap
     home: vps_secret_store
-    blocked_by:
-      - Contract 05 (agent/tooling/credential surface) does not exist (decision D6).
-      - No server tier yet (decision D2).
+    launch_gate:
+      - Phase-1 benchmark PASSES and the eligibility registry is approved BEFORE any live routing (no reputation promotion).
+      - Server tier exists (decision D2).
+      - Key fetched (K4) with a hard monthly spend cap set.
     verification:
       - GET /models returns a list.
       - A small completion request succeeds.
-      - Data retention is OFF (contract 02 section 12.6).
+      - Data retention is OFF (contract 02 section 12.6); data_collection deny / zdr where supported.
     failure_recovery:
       - Revoke the key, issue a new one, update the server secret, re-verify.
 
