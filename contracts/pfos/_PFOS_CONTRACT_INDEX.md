@@ -29,14 +29,15 @@ drive future validation code.
 
 ---
 
-## Absent contracts (4 of 8 expected) — VERIFIED ABSENT, NOT MISFILED
+## Absent contracts (3 of 8 expected still unauthored) — VERIFIED ABSENT, NOT MISFILED
 
-The request named eight contracts. Four do not exist anywhere in the drive account.
+The request named eight contracts. Four of them do not exist anywhere in the drive
+account. Three of those four are still unauthored; **06 has since been authored inside this
+repository as NIZAM-derived** (see the section below) and is therefore no longer listed here.
 
 | # | Expected file | Status |
 |---|---------------|--------|
 | 05 | `05_PFOS_Agent_Orchestration_and_Tooling_Contract.md` | **Not found** |
-| 06 | `06_PFOS_Database_and_Knowledge_Model_Contract.md` | **Not found** |
 | 07 | `07_PFOS_Testing_Validation_and_Benchmarking_Contract.md` | **Not found** |
 | 08 | `08_PFOS_Research_and_Continuous_Improvement_Contract.md` | **Not found** |
 
@@ -100,5 +101,52 @@ surface** that contracts **05 (Agent Orchestration & Tooling)** and **07 (Testin
 Benchmarking)** would have governed — the highest-risk surface in the product. They do not renumber
 or replace 05-08; they are adopted as the **authoritative OpenRouter routing / benchmark / governance
 specification**. This lets decision **D6** (`docs/PFOS_HUMAN_DELIVERABLES.md`) be closed by adopting
-these three as the LLM-tier contract rather than authoring a new 05 from scratch. Contract 06
-(Database & Knowledge Model) and the non-OpenRouter parts of 05/07 remain open.
+these three as the LLM-tier contract rather than authoring a new 05 from scratch. The
+non-OpenRouter parts of 05/07 remain open. Contract 06 (Database & Knowledge Model) was open at
+the time of that note and has since been authored in-repo — see the next section.
+
+---
+
+## NIZAM-derived contracts authored in this repository (06, 12) — IN FORCE, 2026-08-06
+
+**Authorization.** `.kiro/steering/two-agent-vps.md` (IN FORCE, owner-authorized 2026-08-06) §5
+requires a contract to exist **before** its area is built, and names exactly these two as the ones
+missing for the two-agent server tier. They were authored in Phase 0 of
+`.kiro/specs/06-two-agent-vps/` (tasks 0.2 and 0.3) before any code in their area.
+
+**These were not ingested.** They came from no upstream channel — neither the drive-folder pull nor
+the aki attachment route — so they appear in **neither** `_INGESTION_MANIFEST.json` nor
+`_INGESTION_MANIFEST_OPENROUTER.json`, deliberately. Each carries a `PROVENANCE: NIZAM-DERIVED`
+banner in its own first lines naming every input it was derived from. Unlike the ingested contracts,
+their integrity record is this repository's git history, not a pinned content hash — they are
+expected to evolve here, so no SHA is pinned that would silently go stale.
+
+| # | File | Bytes at authoring | Owning requirements | Scope it governs |
+|---|------|--------------------|---------------------|------------------|
+| 06 | `06_PFOS_Database_and_Knowledge_Model.md` | 34,327 | R1, R2, R3, R4, R5 (and R6 jointly with 12) | Store topology and per-agent isolation, `finance.db` schema, the money persistence boundary (integer milliunits across the store edge), migrations, the token-spend ledger that supplies `modelPolicy`, the knowledge model, retention, and what may never be stored |
+| 12 | `12_PFOS_Two_Agent_VPS_Deployment_and_Operations.md` | 76,544 | R6-R24 (R6 jointly with 06; R16-R19 extend 09/10/11 rather than replacing them) | Two-agent topology on one host, isolation, the consent bus and what may cross it, transport security and de-duplication, deployment-level model-routing governance, operations (backup, restore, health, rollback, disaster recovery), the kill switch, the human gate register, and the public-repository posture |
+
+Requirement identifiers refer to `.kiro/specs/06-two-agent-vps/requirements.md`.
+
+Both are subordinate to `.kiro/steering/two-agent-vps.md`, and to `money-rules.md` and `drive-db.md`
+which nothing overrides. Contract 12 is subordinate to contract 06 wherever it touches the finance
+data tier. Neither invents policy that an upstream contract governs; where either had to choose, the
+choice is recorded in place with its reason and can be overridden by the owner.
+
+**Filename reconciliation.** The "Absent contracts" table above previously named the expected file
+`06_PFOS_Database_and_Knowledge_Model_Contract.md`. The authored file is
+`06_PFOS_Database_and_Knowledge_Model.md`, without the `_Contract` suffix. **The index row was
+corrected to match the file; the file was not renamed.** Three reasons: the `_Contract` suffix came
+from the original request's naming, not from any real document (the same paragraph above records
+that "the numbering came from the request, not from the documents"); no present contract in this
+directory carries that suffix, so keeping it would make 06 the only inconsistent name; and both
+`.kiro/specs/06-two-agent-vps/tasks.md` and contract 12's own source notes already reference the
+suffix-free name, so renaming would have required edits in the spec and inside another contract to
+fix a name that was never authoritative in the first place.
+
+**Effect on the machine gate.** Acceptance criterion AC12 (`scripts/verify/contract-ledger.mjs`)
+reads `contracts/_CONTRACT_INDEX.md` and `contracts/_BUILD_LOG.md` — the original five build
+contracts — and **not** this PFOS index. It asserts exactly five contract rows there, so 06 and 12
+are deliberately **not** added to that file: doing so would break the check. This index and
+`_PFOS_BUILD_LOG.md` are the PFOS-track ledger and are kept mutually consistent by hand; the Phase 0
+section of that log records the same two contracts and this reconciliation.

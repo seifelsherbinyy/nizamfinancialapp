@@ -5,11 +5,11 @@
 > Steering: `.kiro/steering/two-agent-vps.md`. Requirements/design: this folder.
 
 ## Phase 0 - Authorize and author (no code)
-- [ ] 0.1 Confirm `.kiro/steering/two-agent-vps.md` is signed off by the owner. If not, STOP and ask.
-- [ ] 0.2 Author `contracts/pfos/06_PFOS_Database_and_Knowledge_Model.md` (NIZAM-derived, marked as such)
-- [ ] 0.3 Author `contracts/pfos/12_PFOS_Two_Agent_VPS_Deployment_and_Operations.md`
-- [ ] 0.4 Update `_PFOS_CONTRACT_INDEX.md` + build log so **AC12** still agrees
-- [ ] 0.5 Create `ops/GATE_REGISTER.md` seeded with G1-G8 from steering §2
+- [x] 0.1 Confirm `.kiro/steering/two-agent-vps.md` is signed off by the owner. If not, STOP and ask.
+- [x] 0.2 Author `contracts/pfos/06_PFOS_Database_and_Knowledge_Model.md` (NIZAM-derived, marked as such)
+- [x] 0.3 Author `contracts/pfos/12_PFOS_Two_Agent_VPS_Deployment_and_Operations.md`
+- [x] 0.4 Update `_PFOS_CONTRACT_INDEX.md` + build log so **AC12** still agrees
+- [x] 0.5 Create `ops/GATE_REGISTER.md` seeded with G1-G8 from steering §2
 
 ## Phase 1 - Data layer (Contract 06) → R1-R5
 - [ ] 1.1 `src/server/db/` schema + migrations on `node:sqlite`, WAL, `foreign_keys=ON`, idempotent versioning

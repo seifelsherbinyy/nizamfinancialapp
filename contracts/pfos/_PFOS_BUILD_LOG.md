@@ -534,3 +534,90 @@ caller passes the running weekly spend in).
 - The live router (M4/M6), pricing service (M1), and everything server-side wait on the **OVHcloud VPS
   being provisioned** (D2) + the **OpenRouter key** (K4 fetch) + a **passing Phase-1 benchmark** before
   any live routing. This module is the offline policy core they will wire up.
+
+---
+
+## Phase 0 - Two-agent server tier authorized, contracts 06 + 12 authored (2026-08-06)
+
+**Why.** `.kiro/steering/pfos-current.md` blocked this entire area three ways: its wall forbade any
+server / bot / ingestion work outright, its benchmark precondition was circular (runtime work needs a
+passing Phase-1 benchmark, which needs live calls the wall forbids), and the server runtime was an
+open decision. The owner authorized `.kiro/steering/two-agent-vps.md`, which relocates the wall from
+*the area* to *the network and secret boundary*, settles the runtime per agent, and carves out the
+dev-key path for the benchmark. That file is now AUTHORITATIVE for the server / agent / bot /
+ingestion / deployment area and takes precedence over `pfos-current.md` there only; `money-rules.md`
+and `drive-db.md` are still overridden by nothing.
+
+Steering §5 then forbids building in an area before its contract exists, and names the two that were
+missing. Phase 0 authors both and reconciles the ledgers. **No code was written**, by design.
+
+| Phase | Deliverable | Source | Status |
+| ----- | ----------- | ------ | ------ |
+| 0.1 | Steering authorization confirmed (`two-agent-vps.md` IN FORCE, owner-authorized) | owner | done |
+| 0.2 | Contract 06 - Database & Knowledge Model, NIZAM-derived | steering §5; contract 02 §1/§2/§4/§5/§9; architecture brief §1.8/§1.10/§2.2 | done |
+| 0.3 | Contract 12 - Two-Agent VPS Deployment & Operations, NIZAM-derived | steering §0b/§1/§2/§4/§5/§6/§7; architecture brief §1.2-§1.10, §2-§4, §6, §7; contract 02 §5/§8/§9/§10; contract 06 | done |
+| 0.4 | PFOS index + this log reconciled so AC12 still agrees | this section | done |
+
+### Work
+
+- **`contracts/pfos/06_PFOS_Database_and_Knowledge_Model.md`** (34,327 bytes) - owns requirements
+  R1-R5 and R6 jointly with contract 12. Store topology and per-agent isolation, the `finance.db`
+  schema, the money persistence boundary (integer milliunits across the store edge - `money-rules.md`
+  is not relaxed at the database), migrations, the token-spend ledger that will supply the already
+  shipped `src/features/routing/modelPolicy.ts`, the knowledge model, retention, and an unconditional
+  forbidden list. Hands `signals.db`, consent scopes, network binding and all backup / restore /
+  disaster-recovery mechanics to contract 12 rather than duplicating them.
+- **`contracts/pfos/12_PFOS_Two_Agent_VPS_Deployment_and_Operations.md`** (76,544 bytes) - owns
+  R6-R24 (R6 jointly with 06; R16-R19 extend contracts 09/10/11 rather than replacing them).
+  Two-agent topology on one host, isolation, the consent bus and the closed set of what may cross it,
+  transport security and de-duplication, deployment-level routing governance, operations, the kill
+  switch, the human gate register, and the public-repository posture.
+- **Both carry a `PROVENANCE: NIZAM-DERIVED` banner in their first lines**, naming every input they
+  were derived from and stating plainly that they were never authored upstream. Neither was ingested,
+  so neither appears in `_INGESTION_MANIFEST.json` or `_INGESTION_MANIFEST_OPENROUTER.json` - that
+  omission is deliberate and is recorded in the index. Unlike the ingested contracts no SHA is
+  pinned for them: they live and evolve in this repository, so git history is their integrity record
+  and a pinned hash would only go stale.
+- **Public-repository posture honoured (steering §0b).** Neither contract contains a deployment
+  particular - no real domain, address, storage identifier, numeric messaging user id, bot name, port
+  assignment, or real monetary figure, not even as an example. Every such value is written
+  `<ANGLE_BRACKET>` and resolves only from the host environment at run time.
+- **`_PFOS_CONTRACT_INDEX.md` reconciled.** 06 removed from the "Absent contracts" table (which now
+  reads 05, 07, 08 and states why 06 left); the OpenRouter section's closing line, which said 06
+  "remains open", updated; and a new section registers 06 and 12 as NIZAM-derived and IN FORCE with
+  their owning requirement ranges and scopes.
+- **Filename reconciliation, recorded honestly.** The absent-contracts table had named the expected
+  file `06_PFOS_Database_and_Knowledge_Model_Contract.md`. The authored file has no `_Contract`
+  suffix. **The index row was corrected to the real filename; the file was not renamed.** The suffix
+  came from the original request's naming rather than from any document (the index itself already
+  records that "the numbering came from the request, not from the documents"), no other contract in
+  the directory carries it, and both `.kiro/specs/06-two-agent-vps/tasks.md` and contract 12's source
+  notes already cite the suffix-free name - renaming would have meant editing a spec and another
+  contract to preserve a name that was never authoritative.
+
+### Verification
+
+- `npm run verify:all -- --all` - **17 of 19**. **AC12 (contract index and build log agree) PASS.**
+- AC12 was confirmed by reading the checker rather than assumed: it reads
+  `contracts/_CONTRACT_INDEX.md` and `contracts/_BUILD_LOG.md` - the **original five** build contracts
+  - and **not** this PFOS track. It asserts exactly five contract rows there, so contracts 06 and 12
+  were deliberately **not** added to that file; adding them would have broken the check. Those two
+  files therefore needed no change and were left untouched. The PFOS index and this log are the
+  PFOS-track ledger and are kept mutually consistent by hand, which is what this section does.
+- The only red checks are **AC14 (working tree clean)** and **AC15 (push ready)**, both reporting the
+  same four uncommitted Phase-0 entries. That is the expected mid-phase state of a documentation
+  phase and was **not** resolved by committing - Phase 0 is not finished until the orchestrator ticks
+  it. Every other check is green: AC16, AC10, AC01, AC07, AC08, AC08b, AC09, AC11, AC02, AC03, AC04,
+  AC13, LOOP, AC05, AC05b, AC06, AC12.
+- No source or test file changed, so the suite stays at 333 across 37 files and the AC04 floor stays
+  at 331. Nothing in `scripts/verify/` was touched - no check was weakened, relaxed, or edited to
+  make a gate pass.
+
+### Still gated (unchanged by Phase 0)
+
+- Authoring a contract authorizes **writing code behind an injected port with a deterministic mock**;
+  it authorizes nothing on the network. The human gates stand: provision and harden the host, DNS,
+  create the two bots, mint the two runtime keys with weekly caps, the storage consent click, webhook
+  registration, and generate the encryption keypair with the private half kept off the box. G7
+  (repo privatization) stays **closed as WONT-DO** per steering §0b - it is not to be re-raised.
+- No outbound call from a server process and no production secret, unchanged.
