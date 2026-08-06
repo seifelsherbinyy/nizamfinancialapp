@@ -17,11 +17,15 @@ import { CommandCenter } from '@/features/safeToSpend/CommandCenter';
 import { DecideView } from '@/features/decisions/DecideView';
 import { ObligationsView } from '@/features/obligations/ObligationsView';
 import { SettingsView } from '@/features/settings/SettingsView';
+import { ForecastView } from '@/features/forecast/ForecastView';
+import { DecisionsView } from '@/features/decisions/DecisionsView';
 
 const NAV: { path: RoutePath; label: string }[] = [
   { path: '/home', label: 'Home' },
   { path: '/budget', label: 'Budget' },
   { path: '/decide', label: 'Decide' },
+  { path: '/forecast', label: 'Forecast' },
+  { path: '/decisions', label: 'Decisions' },
   { path: '/obligations', label: 'Obligations' },
   { path: '/settings', label: 'Settings' },
   { path: '/reports', label: 'Reports' },
@@ -65,6 +69,8 @@ const views: Record<RoutePath, ReactNode> = {
   '/import': <ImportWizard />,
   '/reconcile': <Reconcile />,
   '/decide': <DecideView />,
+  '/forecast': <ForecastView />,
+  '/decisions': <DecisionsView />,
   '/obligations': <ObligationsView />,
   '/settings': <SettingsView />,
 };

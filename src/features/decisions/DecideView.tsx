@@ -9,9 +9,12 @@
  * decision engine (contract 03 section 1 - the interface never sources numbers). The
  * card is re-rendered live as the request changes; nothing is written to the ledger here.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNizamStore } from '@/state/store';
 import { decidePurchase } from '@/features/decisions/decision.logic';
+import { recordDecision } from '@/features/decisions/decisionRegistry';
+import { newId } from '@/state/actions';
+import { format } from '@/lib/money/money';
 import type {
   PurchaseRequest,
   Recommendation,
@@ -49,6 +52,7 @@ const REC_RAG: Record<Recommendation, RagState> = {
 
 export function DecideView() {
   const db = useNizamStore((s) => s.db);
+  const mutate = useNizamStore((s) => s.mutate);
   const asOf = today();
 
   const [price, setPrice] = useState<Money>(0);
@@ -58,6 +62,7 @@ export function DecideView() {
   const [purpose, setPurpose] = useState<string>('');
   const [altPrice, setAltPrice] = useState<Money>(0);
   const [accountId, setAccountId] = useState<string>('');
+  const [recorded, setRecorded] = useState<boolean>(false);
 
   const request = useMemo<PurchaseRequest>(
     () => ({
@@ -78,6 +83,10 @@ export function DecideView() {
     () => (db && price > 0 ? decidePurchase(db, asOf, request) : null),
     [db, asOf, request, price],
   );
+
+  // Clear the "recorded" confirmation only when the purchase INPUTS change (a new decision) -
+  // not when recording itself mutates the db (which would otherwise re-derive the card).
+  useEffect(() => setRecorded(false), [request]);
 
   if (!db) return <p className="muted">Loading...</p>;
 
@@ -249,6 +258,37 @@ export function DecideView() {
           <p>
             <strong>Next step:</strong> {card.requiredAction}
           </p>
+
+          <div className="modal-actions">
+            <button
+              className="btn"
+              disabled={recorded}
+              aria-label="Record this decision"
+              onClick={() => {
+                mutate((draft) => {
+                  draft.decisions.push(
+                    recordDecision({
+                      id: newId('dec'),
+                      createdAt: new Date().toISOString(),
+                      question: `Buy ${request.purpose ?? 'this item'} - ${format(request.price)}`,
+                      card,
+                      policyVersion: draft.schemaVersion,
+                      dataSnapshotId: `snap-${draft.meta.revision}`,
+                      userAction: 'pending',
+                    }),
+                  );
+                });
+                setRecorded(true);
+              }}
+            >
+              Record this decision
+            </button>
+            {recorded ? (
+              <span className="badge money-positive" role="status">
+                Recorded ✓
+              </span>
+            ) : null}
+          </div>
         </div>
       ) : (
         <div className="card">

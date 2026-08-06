@@ -309,3 +309,41 @@ an inflation figure. All server-free config on the Drive DB.
 
 Server-free; Stage-5 fork unchanged. Combined with the obligations manager, the owner can now
 fully configure safe-to-spend on real data with no server.
+
+
+## Stage 3 UI (forecast + decision registry) - completed 2026-08-06
+
+**Why.** Stages 3-4 built the forecast engine, the decision-outcome registry, and net worth,
+but only the Decide route surfaced any of it. The deterministic cash-flow forecast had no
+screen, decisions could be evaluated but never RECORDED, and the append-only registry (contract
+03 section 12) had no way to view history or attach follow-through. All server-free, pure client
+work over the Drive DB.
+
+### Work
+
+- `src/app/router.tsx` + `src/App.tsx` - new `/forecast` and `/decisions` routes + NAV items +
+  exhaustive `views` entries.
+- `src/features/forecast/ForecastView.tsx` - renders `forecastAll(db, asOf)` as a by-horizon
+  table (starting cash, baseline ending, downside low, shortfall-risk %, buffer days) across the
+  six fixed horizons. Presentation only; no money math.
+- `src/features/decisions/DecideView.tsx` - added a "Record this decision" button that appends a
+  frozen `recordDecision(...)` record to `db.decisions` (policy version + data-snapshot id +
+  pending action), shows a "Recorded" confirmation, and disables to prevent a double-write. The
+  confirmation resets only when the purchase INPUTS change (dependency keyed on `request`, not on
+  the card object identity - recording itself mutates the db and re-derives the card, which would
+  otherwise clear the confirmation instantly).
+- `src/features/decisions/DecisionsView.tsx` - the append-only registry table: ALL recorded
+  decisions, newest first (NOT `matureDecisions`, which filters to review-due only and would hide
+  fresh records); `matureDecisions` is used solely to flag which rows are due for outcome review.
+  "Followed"/"Overrode" buttons update only `userAction` - the frozen forecast/recommendation are
+  never rewritten (03 section 12 prohibition).
+
+### Verification
+
+- 5 new tests: ForecastView (heading + by-horizon table; the six fixed horizons), DecisionsView
+  (empty state; a recorded decision renders + "Followed" updates userAction), DecideView (records
+  a decision into the registry, confirmation shown, button disabled). Full suite 268/268 across
+  30 files. Typecheck 0, lint 0, headers PASS (88 files). AC04 floor 261 -> 266.
+
+Server-free; the Stage-5 fork (D1/D2 architecture, contract 05) is unchanged. With this, every
+Stage 1-4 engine now has a screen except the assets/FX net-worth editor (next, and last).

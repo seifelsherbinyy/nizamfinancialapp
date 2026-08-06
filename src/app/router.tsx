@@ -18,7 +18,9 @@ export type RoutePath =
   | '/reconcile'
   | '/obligations'
   | '/settings'
-  | '/decide';
+  | '/decide'
+  | '/forecast'
+  | '/decisions';
 
 export const DEFAULT_ROUTE: RoutePath = '/home';
 
@@ -44,6 +46,8 @@ export function parseHash(hash: string): ParsedRoute {
     '/obligations',
     '/settings',
     '/decide',
+    '/forecast',
+    '/decisions',
   ];
   const path = (known as string[]).includes(head) ? (head as RoutePath) : DEFAULT_ROUTE;
   const param = segments[1] ?? null;

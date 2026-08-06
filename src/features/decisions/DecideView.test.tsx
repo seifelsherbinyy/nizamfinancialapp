@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DecideView } from './DecideView';
 import { bootStore, fixtureDb } from '../../../tests/helpers/fixtures';
+import { useNizamStore } from '@/state/store';
 
 function seeded(cash: number) {
   const db = fixtureDb();
@@ -48,5 +49,21 @@ describe('DecideView', () => {
     const rec = screen.getByRole('status', { name: /recommendation/i });
     // Not an unconditional green light: the engine caps, conditions, delays, or refuses.
     expect(rec.textContent).toMatch(/cap|condition|reject|blocked|delay|alternative/i);
+  });
+
+  it('records a decision into the append-only registry', () => {
+    bootStore(seeded(1_000_000));
+    render(<DecideView />);
+    enterPrice('50');
+    expect(useNizamStore.getState().db!.decisions).toHaveLength(0);
+    const btn = screen.getByRole('button', { name: /record this decision/i });
+    fireEvent.click(btn);
+    const recs = useNizamStore.getState().db!.decisions;
+    expect(recs).toHaveLength(1);
+    expect(recs[0]!.userAction).toBe('pending');
+    expect(recs[0]!.recommendation).toMatch(/approve/i);
+    // Confirmation is shown and the button disables to prevent a double-write.
+    expect(screen.getByText(/recorded/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /record this decision/i })).toBeDisabled();
   });
 });
