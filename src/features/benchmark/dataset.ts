@@ -10,6 +10,7 @@
  * and statement inputs are SANITIZED/synthetic - human deliverable Dv1 (real bank SMS formats) should
  * augment or replace the extraction templates. No network, no model, no PII.
  */
+import { assertMoney, toDecimal } from '@/lib/money/money';
 import {
   type BenchmarkCase,
   type BenchmarkCategory,
@@ -20,6 +21,26 @@ import {
 
 function pad(n: number): string {
   return String(n).padStart(4, '0');
+}
+
+/**
+ * Render integer milliunits as a two-decimal display string ("1,500.00").
+ * Integer-only: the digits come from the money core's exact decimal form, so there is no float
+ * arithmetic anywhere in the eval set. Rejects an amount that is not piastre-clean, because dropping
+ * the third fractional digit would make the case text disagree with its own expected amount.
+ */
+export function egpAmountText(amountMilli: number): string {
+  assertMoney(amountMilli, 'benchmark case amount');
+  if (amountMilli % 10 !== 0) {
+    throw new RangeError(
+      `NIZAM benchmark: amount ${amountMilli} milliunits is not piastre-clean, so it cannot be rendered to two decimals without drift`,
+    );
+  }
+  const parts = toDecimal(amountMilli).split('.');
+  const units = parts[0] ?? '0';
+  const frac = parts[1] ?? '000';
+  const grouped = units.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `${grouped}.${frac.slice(0, 2)}`;
 }
 
 // ---- T1 · SMS extraction (>=50) --------------------------------------------------------------
@@ -36,10 +57,7 @@ function smsExtractionCases(): BenchmarkCase[] {
       i += 1;
       const merchant = MERCHANTS[k]!;
       const amountMilli = AMOUNTS_MILLI[k]!;
-      const egp = (amountMilli / 1000).toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
+      const egp = egpAmountText(amountMilli);
       const last4 = pad(1000 + i).slice(-4);
       const day = pad(1 + (i % 27)).slice(-2);
       const tsIso = `2026-03-${day}`;
@@ -76,10 +94,7 @@ function smsExtractionExtra(): BenchmarkCase[] {
     const bank = BANKS[j % BANKS.length]!;
     const merchant = MERCHANTS[(j + 3) % MERCHANTS.length]!;
     const amountMilli = AMOUNTS_MILLI[(j + 2) % AMOUNTS_MILLI.length]! + j * 1000;
-    const egp = (amountMilli / 1000).toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+    const egp = egpAmountText(amountMilli);
     const last4 = pad(5000 + j).slice(-4);
     const tsIso = `2026-04-${pad(1 + j).slice(-2)}`;
     out.push({
@@ -137,8 +152,8 @@ function dedupCases(): BenchmarkCase[] {
   const out: BenchmarkCase[] = [];
   for (let i = 0; i < 26; i++) {
     const dup = i % 2 === 0;
-    const amt = (100000 + i * 1500) / 1000;
-    const a = `EGP ${amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} at MERCHANT_${i} 2026-05-${pad(1 + (i % 27)).slice(-2)} 14:0${i % 6}`;
+    const amt = egpAmountText(100_000 + i * 1_500);
+    const a = `EGP ${amt} at MERCHANT_${i} 2026-05-${pad(1 + (i % 27)).slice(-2)} 14:0${i % 6}`;
     const b = dup
       ? a.replace('14:0', '14:1') // same txn, provider re-sent minutes later => duplicate
       : a.replace(`MERCHANT_${i}`, `MERCHANT_${i + 100}`); // different merchant => not duplicate

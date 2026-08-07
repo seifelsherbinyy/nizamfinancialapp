@@ -5,7 +5,13 @@
  * Depends on: eligibility, benchmark.types.
  */
 import { describe, it, expect } from 'vitest';
-import { evaluateEligibility } from './eligibility';
+import {
+  evaluateEligibility,
+  L0_CRITICAL_FIELD_ACCURACY,
+  L1_EVIDENCE_COVERAGE,
+  L1_SCHEMA_VALIDITY,
+  L2_REVIEWER_DISAGREEMENT_BPS,
+} from './eligibility';
 import { type BenchmarkCategory, type CaseScore, type Severity } from './benchmark.types';
 
 function cs(over: Partial<CaseScore> & { category: BenchmarkCategory; severity: Severity }): CaseScore {
@@ -40,6 +46,17 @@ function perfectSet(): CaseScore[] {
 }
 
 describe('evaluateEligibility', () => {
+  // Drift guard: every threshold assertion below is written against these constants, so pin them to
+  // contract 09's stated numbers. L0 >=99.0% critical-field accuracy; L1 >=99% schema validity and
+  // >=90% evidence coverage. The L2 reviewer-disagreement threshold is NIZAM-derived (contract 09
+  // states only "below threshold"), and is pinned here so a change to it is visible.
+  it('pins the contract 09 promotion thresholds', () => {
+    expect(L0_CRITICAL_FIELD_ACCURACY).toBe(0.99);
+    expect(L1_SCHEMA_VALIDITY).toBe(0.99);
+    expect(L1_EVIDENCE_COVERAGE).toBe(0.9);
+    expect(L2_REVIEWER_DISAGREEMENT_BPS).toBe(1500);
+  });
+
   it('promotes a clean model to L0, L1, and L2', () => {
     const e = evaluateEligibility('m', perfectSet());
     expect(e.disqualified).toBe(false);

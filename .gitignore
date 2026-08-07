@@ -27,6 +27,11 @@ outputs/
 Execute and build.md
 # loop scratch (the ledger itself IS committed)
 .loop/tmp/
+# benchmark run outputs (contract 09's five artifacts). Regenerable from tracked inputs — the eval
+# set, the recorded fixture and src/server/benchmark — and a PROVISIONAL registry emitted from
+# fixtures must not sit in a public repository looking like graded evidence. Phase 6.3 replaces it
+# with a live-measured one, which is likewise a run output rather than source.
+artifacts/
 # raw third-party API dumps captured by research tooling: regenerable by the scripts beside them,
 # and they carry third-party prose that the generic-only check (AC11) forbids in a tracked file.
 docs/research/**/_raw/
