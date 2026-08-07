@@ -19,9 +19,9 @@
 - [x] 1.5 Negative tests: non-integer money rejected; migration re-run is a no-op; cross-agent DB open fails
 
 ## Phase 2 - Ports and mocks → foundation for everything gated
-- [ ] 2.1 `src/server/ports/` interfaces: TelegramPort, OpenRouterPort, DrivePort, WhoopPort, SignalBusPort
-- [ ] 2.2 Deterministic mock per port + a recorded-fixture loader
-- [ ] 2.3 Assert `src/server/**` is absent from the browser bundle (extend the existing isolation check)
+- [x] 2.1 `src/server/ports/` interfaces: TelegramPort, OpenRouterPort, DrivePort, WhoopPort, SignalBusPort
+- [x] 2.2 Deterministic mock per port + a recorded-fixture loader
+- [x] 2.3 Assert `src/server/**` is absent from the browser bundle (extend the existing isolation check)
 
 ## Phase 3 - Signal bus and the consent boundary → R7-R10
 - [ ] 3.1 Vendor the signal envelope schema; validation module; no field can carry a figure or long text

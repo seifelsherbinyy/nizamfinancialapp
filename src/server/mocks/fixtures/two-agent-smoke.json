@@ -1,0 +1,134 @@
+{
+  "fixtureVersion": 1,
+  "synthetic": true,
+  "name": "two-agent-smoke",
+  "telegramDeliveries": [
+    {
+      "botId": "bot-alpha",
+      "updateId": 4001,
+      "senderId": "sender-one",
+      "secretTokenHeader": "fixture-token-alpha",
+      "receivedAt": "2026-03-02T09:00:00Z",
+      "rawBody": "fixture delivery one, carrying no figure and no identifier"
+    },
+    {
+      "botId": "bot-alpha",
+      "updateId": 4001,
+      "senderId": "sender-one",
+      "secretTokenHeader": "fixture-token-alpha",
+      "receivedAt": "2026-03-02T09:00:04Z",
+      "rawBody": "fixture delivery one, redelivered by the provider"
+    },
+    {
+      "botId": "bot-beta",
+      "updateId": 4001,
+      "senderId": "sender-one",
+      "secretTokenHeader": "fixture-token-alpha",
+      "receivedAt": "2026-03-02T09:00:07Z",
+      "rawBody": "fixture delivery whose update number collides across two bots"
+    },
+    {
+      "botId": "bot-alpha",
+      "updateId": 4002,
+      "senderId": "sender-unlisted",
+      "secretTokenHeader": "fixture-token-alpha",
+      "receivedAt": "2026-03-02T09:01:00Z",
+      "rawBody": "fixture delivery from a sender outside the allowlist"
+    },
+    {
+      "botId": "bot-alpha",
+      "updateId": 4003,
+      "senderId": "sender-one",
+      "secretTokenHeader": null,
+      "receivedAt": "2026-03-02T09:02:00Z",
+      "rawBody": "fixture delivery whose echoed token header was absent"
+    },
+    {
+      "botId": "bot-alpha",
+      "updateId": 4004,
+      "senderId": "sender-one",
+      "secretTokenHeader": "",
+      "receivedAt": "2026-03-02T09:03:00Z",
+      "rawBody": "fixture delivery whose echoed token header was present and empty"
+    }
+  ],
+  "modelExchanges": [
+    {
+      "correlationRef": "corr-fixture-ok",
+      "modelIdServed": "fixture/model-a",
+      "text": "fixture completion for a synthetic operational task",
+      "parsed": { "verdict": "hold" },
+      "schemaValid": true,
+      "promptTokens": 240,
+      "cachedTokens": 32,
+      "completionTokens": 96,
+      "reasoningTokens": 0,
+      "costMicroUsd": 1250,
+      "latencyMs": 118
+    },
+    {
+      "correlationRef": "corr-fixture-bad-schema",
+      "modelIdServed": "fixture/model-a",
+      "text": "fixture completion that does not satisfy the declared schema",
+      "parsed": null,
+      "schemaValid": false,
+      "promptTokens": 180,
+      "cachedTokens": 0,
+      "completionTokens": 64,
+      "reasoningTokens": 0,
+      "costMicroUsd": 900,
+      "latencyMs": 132
+    }
+  ],
+  "recoveryObservations": [
+    {
+      "observedAt": "2026-03-02T06:00:00Z",
+      "band": "moderate",
+      "trend": "hold"
+    },
+    {
+      "observedAt": "2026-02-18T06:00:00Z",
+      "band": "high"
+    }
+  ],
+  "snapshots": [
+    {
+      "storeName": "finance",
+      "capturedAt": "2026-03-02T03:00:00Z",
+      "scheme": "age",
+      "recipientPublicKeyRef": "FIXTURE_RECIPIENT_PUBLIC_KEY_REF",
+      "ciphertextHex": "0a1b2c3d4e5f",
+      "sizeBytes": 6,
+      "digestHex": "a1b2c3d4e5f60789a1b2c3d4e5f60789a1b2c3d4e5f60789a1b2c3d4e5f60789"
+    },
+    {
+      "storeName": "signals",
+      "capturedAt": "2026-03-02T03:05:00Z",
+      "scheme": "age",
+      "recipientPublicKeyRef": "FIXTURE_RECIPIENT_PUBLIC_KEY_REF",
+      "ciphertextHex": "1b2c3d4e5f60",
+      "sizeBytes": 6,
+      "digestHex": "b3c4d5e6f70189a2b3c4d5e6f70189a2b3c4d5e6f70189a2b3c4d5e6f70189a2"
+    }
+  ],
+  "signals": [
+    {
+      "signalId": "sig-fixture-finance-one",
+      "ts": "2026-03-02T09:05:00Z",
+      "producer": "finance",
+      "kind": "money_pressure",
+      "tier": "money_safe",
+      "consentScope": "producer_only",
+      "payload": { "level": "amber", "direction": "downshift" }
+    },
+    {
+      "signalId": "sig-fixture-life-one",
+      "ts": "2026-03-02T07:30:00Z",
+      "producer": "life",
+      "kind": "recovery_state",
+      "tier": "life_safe",
+      "consentScope": "shared",
+      "payload": { "level": "green" }
+    }
+  ]
+}

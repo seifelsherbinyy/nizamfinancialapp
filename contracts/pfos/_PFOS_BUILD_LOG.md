@@ -818,3 +818,211 @@ deployment particular in a tracked file) is the harness check that task 9.0 owns
   keys with weekly caps, the storage consent click, webhook registration, and generate the encryption
   keypair with the private half kept off the box. G7 stays **closed as WONT-DO** per steering §0b.
 - No outbound call from a server process and no production secret, unchanged.
+
+---
+
+## Phase 2 - Ports and mocks, and the boundary that keeps them out of the browser (2026-08-07)
+
+**Why.** Steering §2 relocated the wall from *the area* to *the network and secret boundary*, and the
+thing that makes that relocation real rather than rhetorical is the phrase it turns on: work is
+authorized when it sits **behind an injected port with a deterministic mock**. Design key decision 1
+says the same in build terms — every external boundary (Telegram, OpenRouter, Drive, WHOOP, bus) is an
+injected interface with a deterministic mock, and that is what makes the whole tier buildable and
+testable with no host and no secret. Phase 2 builds exactly that boundary and nothing behind it. Every
+live half stays gated (G3-G6).
+
+The organizing rule for the phase is narrower than "declare the interfaces", and it is where the work
+actually went: **a runtime filter is code, and code can be bypassed, mis-ordered, disabled under load,
+or forgotten at a new call site, and its failure mode is silent leakage that looks like success.** So
+each forbidden shape here is made **inexpressible** rather than merely rejected. The compiler is the
+first belt; Phase 3's validation is the second. Where that could not be done in the type system it is
+said so plainly below.
+
+| Phase | Deliverable | Source | Status |
+| ----- | ----------- | ------ | ------ |
+| 2.1 | `src/server/ports/` — five interfaces plus the shape guards, the failure vocabulary, and a barrel. Interfaces only | contract 12 §4, §5, §6, §7; steering §2; design key decision 1 | done |
+| 2.2 | `src/server/mocks/` — one deterministic mock per port, an invocation recorder, and a recorded-fixture loader | contract 12 §6.1; steering §3; design key decision 1 | done |
+| 2.3 | `src/server/**` asserted absent from the browser bundle, by extending the existing isolation check | design §"must never be imported"; steering §7 | done |
+
+### What landed
+
+**2.1 — five interfaces, and the forbidden shape made inexpressible.** `telegram.ts`,
+`openrouter.ts`, `drive.ts`, `whoop.ts`, `signalBus.ts`, plus `shapeGuards.ts` (three type-level
+helpers, no runtime export at all), `errors.ts` (the failure vocabulary — a shape, deliberately with
+no class, because this phase ships no implementation) and `index.ts`. **No network module, no request
+primitive, no endpoint literal, no secret-shaped literal, and no implementation construct**: every
+address, token, allowlist and identifier is an injected field on a `*Config` interface with no default,
+because an unset value must be a startup failure and never a guess (steering §0b, R24).
+
+What each boundary makes impossible to write down:
+
+- **`SignalBusPort`** — four mechanisms against one clause each of §4.3. `NoMagnitude` types any
+  numeric field `never`, so a figure added to a payload later becomes uninhabitable and fails to
+  compile. The payload key set is exactly `level` / `direction` / `note`, so a due date or an account
+  reference is not a forbidden *value* — it is a key the type does not have.
+  `Exact<SignalPayload, P>` closes TypeScript's fresh-literal-only excess-property hole, without which
+  the first two rules would be decorative (a producer could assign `balance` to a variable and pass).
+  And `note` is a branded `SignalNote`, so a raw `string` cannot reach the field at all, let alone 121
+  characters of it; Phase 3's validator is the only mint. Two absences are as deliberate: no `update`
+  and no `delete` (a correction is another publish), and no member returning a quarantined invalid
+  signal, which would be precisely the leak the schema prevents.
+- **`OpenRouterPort`** — `privacy` is a **required** field of the request, so "every request carries
+  the provider policy" is a property of the type rather than a habit; and within it
+  `training: 'excluded'` and `dataCollectingProviders: 'denied'` are **single-member literals**, so
+  there is no value meaning "training allowed". `tier` is `Exclude<Tier, 'T0'>`, so a request on the
+  no-model tier does not type-check (R16) — a stronger statement than a runtime branch that happens
+  not to be taken. `ModelCallTelemetry` is wrapped in `Redacted<>`, so a content-bearing key cannot
+  hold a string and the R19 redaction is a property of the schema rather than of a formatting string
+  someone will eventually edit.
+- **`TelegramPort`** — three separate roles, and `inbound.accept()` is **synchronous**. It returns a
+  decision, not a promise, so slow work before the acknowledgement cannot be written without blocking
+  the process outright (R15, §5.5). `DedupKey` has two required fields, so a store keyed on the update
+  identifier alone does not satisfy the type — which is the R14 collision, and its failure mode is one
+  bot silently going quiet. And the `rejected` decision **has no reason field**, because §5.2 requires
+  the response to reveal nothing about which check failed and the cheapest way to honour that is to
+  leave nowhere to put it; the audit is a separate path with its own record.
+- **`DrivePort`** — no generic `upload`, no `putFile`, and **no download member at all**: §7.2 runs
+  the restore drill off the host with the key that only exists off the host, so giving this port a read
+  path would give the host the ability to decrypt what it was designed not to be able to decrypt.
+  `plaintextShredded: true`, `containsSecrets: false`, `source: 'engine_snapshot'` and
+  `privateKeyPresentOnHost: false` are **literals, not booleans**, so an unshredded plaintext, a
+  secret-bearing payload, a file copy passed off as a snapshot, and a host-resident private key are
+  each not expressible (R20).
+- **`WhoopPort`** — deliberately poorer than the upstream provider's API. `NoMagnitude` again, a band
+  enum rather than a score, no member returning a raw sample or series, and `unavailable` as a
+  **first-class outcome** rather than an exception or a substituted value — so a downed source can
+  never be silently reported as `high`.
+
+Verified by **18 tests** in one file: a **source scan** (no network or process module, no request
+primitive, no endpoint literal, no secret-shaped literal, no implementation construct — every
+forbidden token assembled from fragments so the scanner never matches itself), a behavioural check
+that every runtime export is inert rather than callable, and **compile-time negatives** checked by
+`tsc` rather than by the runner — eleven `@ts-expect-error` directives across six negative cases,
+each of which fails the typecheck if its forbidden shape ever becomes expressible.
+
+**2.2 — the mocks, and why they are a SIBLING of `ports/` rather than a child.**
+`ports/interfaceOnly.test.ts` computes its scan root from its own location and recurses into every
+subdirectory. A mock placed under `src/server/ports/mocks/` would therefore be scanned as a
+declaration file and reported for containing a function, an arrow, a class, a constructor and a
+return — **correctly, because that is exactly what a mock is.** The response was to move the
+implementations out of the tree that promises to hold none, not to widen the promise. Recorded here
+because the alternative (relaxing the assertion) is the tempting one and would have cost 2.1 its
+strength.
+
+- **Five deterministic mocks**, each able to drive its port's declared failure paths, so Phases 3/4/5
+  have their negative tests available without a live boundary: the Telegram mock can fail closed on an
+  absent or empty expected token, refuse a non-allowlisted sender without distinguishing which check
+  fired, answer `duplicate` without an error, process a cross-bot identifier collision as two
+  legitimate updates, fail an enqueue, and retry or abandon in the worker; the WHOOP mock can return
+  each unavailability reason *and* throw the two codes its boundary declares, so a caller that treats
+  a throw and an outcome differently is testable both ways; the Drive mock can present the unusable
+  grant §7.1 documents and a verification mismatch that says which property disagreed; the bus and
+  model mocks reject invalid envelopes and ineligible or unavailable models respectively. All five
+  reject with **one** `MockPortFailure` class carrying only a `code` and a correlation reference — no
+  field for a prompt, a completion, an amount, or the name of the failed check.
+- **An invocation recorder**, because §6.1 states the acceptance shape directly ("assert against a
+  port mock that records invocations, then assert the record is empty") and an absence is only
+  observable if something was watching. Its `detail` is **scalars only**, with every content-bearing
+  key typed `never` off the port tier's own `ContentBearingKey` list — so recording a prompt is a
+  compile error rather than a review comment — and `isEmpty()` is the R16 assertion in one call. No
+  clock, no randomness: `seq` starts at one, so two runs of the same script hold byte-identical logs.
+- **A recorded-fixture loader** for steering §3 (when the dev key is absent or exhausted the harness
+  runs against fixtures). `loadRecordedInteractions` **performs no I/O itself** — it takes an injected
+  `FixtureSource`, and `nodeFixtureSource` is the one filesystem-touching function in the directory
+  and is never called by default. A fixture-backed run is marked `provisional: true` **as a literal
+  type**, the same technique as `plaintextShredded`, so there is no value meaning "fixture-backed but
+  authoritative" and §3's rule (a provisional registry may never promote a model) cannot be lost by an
+  assignment. And before anything is parsed, the **raw text** is scanned for a deployment particular —
+  endpoint, host address, bare domain, long numeric identifier, two-decimal monetary figure, recipient
+  or provider key literal, storage identifier field — and any match **refuses the whole fixture**. It
+  fails closed on purpose: a fixture is exactly the file where anonymized real data would look
+  harmless and would not be. That scan **pre-satisfies task 9.0 at the fixture boundary**; 9.0 still
+  owns the gate-level check.
+
+**2.3 — extended AC08b rather than adding a twentieth check** (see the constraint below), asserting
+**both directions, because they fail differently**:
+
+- **SOURCE** — nothing reachable from the browser entry seeds imports `src/server/**`, *and* no
+  browser-side module imports it even if the router has not wired it up yet, because wiring it up
+  later would be a one-line change this check would then have to catch after the fact.
+- **OUTPUT** — five server-only probes appear nowhere in any text asset under `dist/`, which catches a
+  path the source walk cannot see: a bundler alias, a plugin injection. The probes are **string-literal
+  contents** — trigger names, a column name inside DDL text, typed error codes — so minification and
+  identifier mangling preserve them verbatim, which is not true of a class or function name.
+
+Its own integrity is checked before it looks at anything: **every probe must still exist in the tier
+and be absent from every other file under `src/`**, so a probe that rots into a false negative or
+drifts into ambiguity surfaces as a *harness failure* rather than as silence. And it **fails closed**
+on a missing `dist`, a `dist` with no script asset, an empty tier, an empty probe list, a missing entry
+seed, or a file it could not read — a scanner that passes vacuously is worse than no scanner. The
+negative test was demonstrated in both directions (an import from the tier into browser source; a
+probe planted in built output) and then removed.
+
+### Verification
+
+- `npm run typecheck` 0 errors; `npm run lint` 0 warnings at `--max-warnings 0`.
+- Suite **531 → 685 across 51 → 60 files**: 2.1 **+18** (`ports/interfaceOnly.test.ts`), 2.3 **+0**
+  (an extension to an existing harness check, which the harness runs rather than vitest), 2.2 **+136**
+  (fixture loader 28, signal bus 27, telegram 18, openrouter 17, drive 13, determinism 12, whoop 11,
+  invocation recorder 10). Every figure in every fixture is synthetic.
+- `npm run verify:all -- --all` — **17 of 19**, with **AC12 (contract index and build log agree) PASS**,
+  confirmed after editing this log rather than assumed: AC12 reads `contracts/_CONTRACT_INDEX.md` and
+  `contracts/_BUILD_LOG.md` — the **original five** build contracts — and not this PFOS track, so
+  appending here cannot move it. The only red checks are **AC14 (working tree clean)** and **AC15 (push
+  ready)**, both reporting the same uncommitted Phase-2 work. That is the expected mid-phase state; the
+  orchestrator commits at phase end.
+- The AC04 floor stays at **331**. Ratcheting it is task 9.1's, and raising it here would take a
+  decision that belongs to close-out.
+- Nothing in `scripts/verify/` was weakened. AC08b was **extended**, and every assertion it already
+  made is intact.
+
+### Known constraint, recorded because Phase 9 will hit it
+
+**Four tracked documents assert that the harness prints "19 of 19"**:
+`.kiro/steering/pfos-current.md`, `docs/KIRO_HANDOFF.md`, `docs/KIRO_ONBOARDING.md`, and
+`RELEASE_CHECKLIST.md`. (A fifth, `docs/PFOS_CONTRACT_INGESTION_REPORT.md`, records a past run at that
+count rather than asserting a current one.) `KIRO_HANDOFF.md` goes further and instructs the next agent
+to **stop and report** if the count is not 19. That is **why 2.3 extended AC08b instead of adding a
+check**: a twentieth check would have made the documented gate figure wrong the moment it landed, and
+the first thing the next session is told to do is treat that as a stop condition.
+
+**Task 9.0 must add a fail-closed no-deployment-particular check**, so it inherits an open decision it
+should take deliberately rather than discover:
+
+1. **extend an existing check** again (cheapest, keeps the count at 19, but loads a second unrelated
+   assertion onto a check whose name already covers two boundaries); or
+2. **add a twentieth check AND update those four documents in the same increment**, so the gate figure
+   and the documents never disagree even transiently.
+
+Option 2 is the more honest one and is the recommendation, but it is a close-out decision and is left
+to 9.0 rather than pre-empted here.
+
+### Known gaps, recorded honestly because they are real and unclosed
+
+1. **`NoMagnitude` and `Redacted` are trip-wires, not proofs of current cleanliness.** Today they
+   resolve to their argument unchanged, because no numeric or content-bearing field exists on the
+   guarded shapes. Their value is entirely prospective: they make a *future* addition fail to compile.
+   A test cannot observe them doing anything today beyond the `@ts-expect-error` negatives, which is
+   why those negatives are load-bearing rather than decorative.
+2. **The branded `SignalNote` has no mint, so the `note` field is currently unreachable by anyone.**
+   That is correct for this phase — Phase 3's validator owns the only mint — but it means the note path
+   is type-checked and entirely unexercised until 3.1 lands.
+3. **`errors.ts` declares the failure shape and ships no class**, so the ports tier cannot throw its
+   own failure. `mocks/failure.ts` supplies the only thrower. A real adapter (gated) will need one of
+   its own, and nothing structurally guarantees it will discriminate on the same `code` vocabulary
+   rather than inventing a parallel one.
+4. **The `dist/` half of 2.3 is only as current as the last build.** The check fails closed if `dist`
+   is missing, but a stale `dist` that predates a bundling regression would pass. `npm run build`
+   precedes the harness in the documented loop; nothing enforces that ordering inside the check itself.
+5. **2.2's fixture scan and 9.0's gate scan are two implementations of one rule.** The loader's
+   pattern list and the harness check task 9.0 will add can drift apart. 9.0 should either share the
+   list or assert the two agree; today neither is done.
+
+### Still gated (unchanged by Phase 2)
+
+- Building behind an injected port with a deterministic mock is authorized; **nothing on the network
+  is, and this phase built no live half of any boundary.** The human gates stand: provision and harden
+  the host, DNS, create the two bots, mint the two runtime keys with weekly caps, the storage consent
+  click, webhook registration, and generate the encryption keypair with the private half kept off the
+  box. G7 stays **closed as WONT-DO** per steering §0b.
+- No outbound call from a server process and no production secret, unchanged.
