@@ -1,0 +1,674 @@
+[
+  {
+    "name": "adobe/react-spectrum",
+    "url": "https://github.com/adobe/react-spectrum",
+    "reason": "271.50 KB gzip full import exceeds gate; conditional only for committed Arabic/Hijri need.",
+    "blocker_class": "BUNDLE_CONDITIONAL",
+    "evidence_url": "https://github.com/adobe/react-spectrum",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "tailwindlabs/headlessui",
+    "url": "https://github.com/tailwindlabs/headlessui",
+    "reason": "Overlaps Radix and adds a second primitive model.",
+    "blocker_class": "DUPLICATE",
+    "evidence_url": "https://github.com/tailwindlabs/headlessui",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "ariakit/ariakit",
+    "url": "https://github.com/ariakit/ariakit",
+    "reason": "Overlaps selected primitives without a NIZAM-only gain.",
+    "blocker_class": "DUPLICATE",
+    "evidence_url": "https://github.com/ariakit/ariakit",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "reach/reach-ui",
+    "url": "https://github.com/reach/reach-ui",
+    "reason": "Legacy predecessor; current alternatives fit better.",
+    "blocker_class": "MAINTENANCE",
+    "evidence_url": "https://github.com/reach/reach-ui",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "mui/base-ui",
+    "url": "https://github.com/mui/base-ui",
+    "reason": "Promising recently stable layer; reassess after ecosystem settles.",
+    "blocker_class": "MATURITY",
+    "evidence_url": "https://github.com/mui/base-ui",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "mui/material-ui",
+    "url": "https://github.com/mui/material-ui",
+    "reason": "Opinionated styling runtime conflicts with plain CSS.",
+    "blocker_class": "STYLE_COLLISION",
+    "evidence_url": "https://github.com/mui/material-ui",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "chakra-ui/chakra-ui",
+    "url": "https://github.com/chakra-ui/chakra-ui",
+    "reason": "Runtime and system migration exceed scope.",
+    "blocker_class": "STYLE_COLLISION",
+    "evidence_url": "https://github.com/chakra-ui/chakra-ui",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "ant-design/ant-design",
+    "url": "https://github.com/ant-design/ant-design",
+    "reason": "Enterprise weight and visual-language misfit.",
+    "blocker_class": "BUNDLE_STYLE",
+    "evidence_url": "https://github.com/ant-design/ant-design",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "mantinedev/mantine",
+    "url": "https://github.com/mantinedev/mantine",
+    "reason": "Broad styled suite duplicates chosen primitives.",
+    "blocker_class": "STYLE_COLLISION",
+    "evidence_url": "https://github.com/mantinedev/mantine",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "shadcn-ui/ui",
+    "url": "https://github.com/shadcn-ui/ui",
+    "reason": "Excellent pattern source but requires Tailwind adoption.",
+    "blocker_class": "STACK_MIGRATION",
+    "evidence_url": "https://github.com/shadcn-ui/ui",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "heroui-inc/heroui",
+    "url": "https://github.com/heroui-inc/heroui",
+    "reason": "Requires competing styling model.",
+    "blocker_class": "STYLE_COLLISION",
+    "evidence_url": "https://github.com/heroui-inc/heroui",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "facebook/astryx",
+    "url": "https://github.com/facebook/astryx",
+    "reason": "Requires React 19; NIZAM is React 18.3.1.",
+    "blocker_class": "COMPATIBILITY",
+    "evidence_url": "https://github.com/facebook/astryx",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "TanStack/form",
+    "url": "https://github.com/TanStack/form",
+    "reason": "No measured need for a form engine.",
+    "blocker_class": "NO_CURRENT_NEED",
+    "evidence_url": "https://github.com/TanStack/form",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "pacocoursey/cmdk",
+    "url": "https://github.com/pacocoursey/cmdk",
+    "reason": "Last observed activity in 2025; not current priority.",
+    "blocker_class": "MAINTENANCE",
+    "evidence_url": "https://github.com/pacocoursey/cmdk",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "react-component/picker",
+    "url": "https://github.com/react-component/picker",
+    "reason": "Less direct fit than DayPicker.",
+    "blocker_class": "LOW_LEVEL",
+    "evidence_url": "https://github.com/react-component/picker",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "wojtekmaj/react-date-picker",
+    "url": "https://github.com/wojtekmaj/react-date-picker",
+    "reason": "DayPicker has stronger localization fit.",
+    "blocker_class": "DUPLICATE",
+    "evidence_url": "https://github.com/wojtekmaj/react-date-picker",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "bvaughn/react-window",
+    "url": "https://github.com/bvaughn/react-window",
+    "reason": "TanStack Virtual has stronger current RTL fit.",
+    "blocker_class": "DUPLICATE",
+    "evidence_url": "https://github.com/bvaughn/react-window",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "recharts/recharts",
+    "url": "https://github.com/recharts/recharts",
+    "reason": "147.53 KB gzip full import breaches gate.",
+    "blocker_class": "BUNDLE",
+    "evidence_url": "https://github.com/recharts/recharts",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "plouc/nivo",
+    "url": "https://github.com/plouc/nivo",
+    "reason": "Heavier and more opinionated than modular visx.",
+    "blocker_class": "BUNDLE",
+    "evidence_url": "https://github.com/plouc/nivo",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "apache/echarts",
+    "url": "https://github.com/apache/echarts",
+    "reason": "Imperative canvas-default increases bundle and accessibility cost.",
+    "blocker_class": "BUNDLE_A11Y",
+    "evidence_url": "https://github.com/apache/echarts",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "chartjs/Chart.js",
+    "url": "https://github.com/chartjs/Chart.js",
+    "reason": "Canvas-first wrapper path is weaker than React/SVG control.",
+    "blocker_class": "REACT_INTEGRATION",
+    "evidence_url": "https://github.com/chartjs/Chart.js",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "apexcharts/apexcharts.js",
+    "url": "https://github.com/apexcharts/apexcharts.js",
+    "reason": "Commercial terms require added legal review.",
+    "blocker_class": "LICENCE_RISK",
+    "evidence_url": "https://github.com/apexcharts/apexcharts.js",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "tremorlabs/tremor",
+    "url": "https://github.com/tremorlabs/tremor",
+    "reason": "No observed source push since 2025-10; borrow patterns only.",
+    "blocker_class": "MAINTENANCE",
+    "evidence_url": "https://github.com/tremorlabs/tremor",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "FormidableLabs/victory",
+    "url": "https://github.com/FormidableLabs/victory",
+    "reason": "Reduced activity and weaker coverage.",
+    "blocker_class": "MAINTENANCE",
+    "evidence_url": "https://github.com/FormidableLabs/victory",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "leeoniya/uPlot",
+    "url": "https://github.com/leeoniya/uPlot",
+    "reason": "Too low-level and time-series-specific.",
+    "blocker_class": "SPECIALIZED",
+    "evidence_url": "https://github.com/leeoniya/uPlot",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "observablehq/plot",
+    "url": "https://github.com/observablehq/plot",
+    "reason": "Imperative wrapper and full D3 footprint.",
+    "blocker_class": "REACT_INTEGRATION",
+    "evidence_url": "https://github.com/observablehq/plot",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "TanStack/charts",
+    "url": "https://github.com/TanStack/charts",
+    "reason": "Wait for stronger stable API evidence.",
+    "blocker_class": "MATURITY",
+    "evidence_url": "https://github.com/TanStack/charts",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "tabler/tabler-icons",
+    "url": "https://github.com/tabler/tabler-icons",
+    "reason": "One icon runtime only; Lucide selected.",
+    "blocker_class": "DUPLICATE",
+    "evidence_url": "https://github.com/tabler/tabler-icons",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "phosphor-icons/core",
+    "url": "https://github.com/phosphor-icons/core",
+    "reason": "Duplicates Lucide.",
+    "blocker_class": "DUPLICATE",
+    "evidence_url": "https://github.com/phosphor-icons/core",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "react-spring/react-spring",
+    "url": "https://github.com/react-spring/react-spring",
+    "reason": "Motion offers simpler ergonomics.",
+    "blocker_class": "DUPLICATE",
+    "evidence_url": "https://github.com/react-spring/react-spring",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "floating-ui/floating-ui",
+    "url": "https://github.com/floating-ui/floating-ui",
+    "reason": "Consume through Radix.",
+    "blocker_class": "TRANSITIVE",
+    "evidence_url": "https://github.com/floating-ui/floating-ui",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "formatjs/formatjs",
+    "url": "https://github.com/formatjs/formatjs",
+    "reason": "Use react-i18next plus native Intl first.",
+    "blocker_class": "DUPLICATE",
+    "evidence_url": "https://github.com/formatjs/formatjs",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "maybe-finance/maybe",
+    "url": "https://github.com/maybe-finance/maybe",
+    "reason": "AGPL and archived; visual reference only.",
+    "blocker_class": "LICENCE_ARCHIVED",
+    "evidence_url": "https://github.com/maybe-finance/maybe",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "firefly-iii/firefly-iii",
+    "url": "https://github.com/firefly-iii/firefly-iii",
+    "reason": "AGPL and non-React; pattern-only.",
+    "blocker_class": "LICENCE_STACK",
+    "evidence_url": "https://github.com/firefly-iii/firefly-iii",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "ghostfolio/ghostfolio",
+    "url": "https://github.com/ghostfolio/ghostfolio",
+    "reason": "AGPL and Angular; pattern-only.",
+    "blocker_class": "LICENCE_STACK",
+    "evidence_url": "https://github.com/ghostfolio/ghostfolio",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "beancount/fava",
+    "url": "https://github.com/beancount/fava",
+    "reason": "MIT but Svelte/Python; layout reference only.",
+    "blocker_class": "STACK",
+    "evidence_url": "https://github.com/beancount/fava",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "budgetzero/budgetzero",
+    "url": "https://github.com/budgetzero/budgetzero",
+    "reason": "Insufficient current primary evidence.",
+    "blocker_class": "EVIDENCE",
+    "evidence_url": "https://github.com/budgetzero/budgetzero",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "envelope-zero/backend",
+    "url": "https://github.com/envelope-zero/backend",
+    "reason": "AGPL backend, not installable UI.",
+    "blocker_class": "LICENCE_SCOPE",
+    "evidence_url": "https://github.com/envelope-zero/backend",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "akaunting/akaunting",
+    "url": "https://github.com/akaunting/akaunting",
+    "reason": "Copyleft non-React product; pattern-only.",
+    "blocker_class": "LICENCE_STACK",
+    "evidence_url": "https://github.com/akaunting/akaunting",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "jakearchibald/idb",
+    "url": "https://github.com/jakearchibald/idb",
+    "reason": "Dexie already supplies richer schema/migrations.",
+    "blocker_class": "DUPLICATE",
+    "evidence_url": "https://github.com/jakearchibald/idb",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "pouchdb/pouchdb",
+    "url": "https://github.com/pouchdb/pouchdb",
+    "reason": "Competing database/sync model.",
+    "blocker_class": "DUPLICATE",
+    "evidence_url": "https://github.com/pouchdb/pouchdb",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "localForage/localForage",
+    "url": "https://github.com/localForage/localForage",
+    "reason": "Weaker than existing Dexie.",
+    "blocker_class": "DUPLICATE",
+    "evidence_url": "https://github.com/localForage/localForage",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "pwa-builder/PWABuilder",
+    "url": "https://github.com/pwa-builder/PWABuilder",
+    "reason": "vite-plugin-pwa already covers build needs.",
+    "blocker_class": "DUPLICATE",
+    "evidence_url": "https://github.com/pwa-builder/PWABuilder",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "livestorejs/livestore",
+    "url": "https://github.com/livestorejs/livestore",
+    "reason": "Would replace data architecture.",
+    "blocker_class": "MATURITY_MIGRATION",
+    "evidence_url": "https://github.com/livestorejs/livestore",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "electric-sql/electric",
+    "url": "https://github.com/electric-sql/electric",
+    "reason": "Postgres sync conflicts with SQLite roadmap.",
+    "blocker_class": "ARCHITECTURE_MISMATCH",
+    "evidence_url": "https://github.com/electric-sql/electric",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "adminmart/shadcn-dashboard",
+    "url": "https://github.com/adminmart/shadcn-dashboard",
+    "reason": "Borrow layout patterns only.",
+    "blocker_class": "TEMPLATE",
+    "evidence_url": "https://github.com/adminmart/shadcn-dashboard",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "satnaing/shadcn-admin",
+    "url": "https://github.com/satnaing/shadcn-admin",
+    "reason": "Borrow layout patterns only.",
+    "blocker_class": "TEMPLATE",
+    "evidence_url": "https://github.com/satnaing/shadcn-admin",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "TailAdmin/free-react-tailwind-admin-dashboard",
+    "url": "https://github.com/TailAdmin/free-react-tailwind-admin-dashboard",
+    "reason": "Tailwind starter conflicts with plain CSS.",
+    "blocker_class": "STACK_MIGRATION",
+    "evidence_url": "https://github.com/TailAdmin/free-react-tailwind-admin-dashboard",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "Cruip/tailwind-dashboard-template",
+    "url": "https://github.com/Cruip/tailwind-dashboard-template",
+    "reason": "Visual reference only.",
+    "blocker_class": "STACK_MIGRATION",
+    "evidence_url": "https://github.com/Cruip/tailwind-dashboard-template",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "themesberg/flowbite-admin-dashboard",
+    "url": "https://github.com/themesberg/flowbite-admin-dashboard",
+    "reason": "Flowbite/Tailwind runtime collision.",
+    "blocker_class": "STACK_MIGRATION",
+    "evidence_url": "https://github.com/themesberg/flowbite-admin-dashboard",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "horizon-ui/horizon-ui-chakra",
+    "url": "https://github.com/horizon-ui/horizon-ui-chakra",
+    "reason": "Chakra template conflicts with CSS.",
+    "blocker_class": "STACK_MIGRATION",
+    "evidence_url": "https://github.com/horizon-ui/horizon-ui-chakra",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "refinedev/refine",
+    "url": "https://github.com/refinedev/refine",
+    "reason": "Admin framework migration disproportionate.",
+    "blocker_class": "FRAMEWORK_OVERREACH",
+    "evidence_url": "https://github.com/refinedev/refine",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "microsoft/fluentui",
+    "url": "https://github.com/microsoft/fluentui",
+    "reason": "Microsoft design language misfit.",
+    "blocker_class": "STYLE_COLLISION",
+    "evidence_url": "https://github.com/microsoft/fluentui",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "carbon-design-system/carbon",
+    "url": "https://github.com/carbon-design-system/carbon",
+    "reason": "Heavy enterprise system.",
+    "blocker_class": "STYLE_COLLISION",
+    "evidence_url": "https://github.com/carbon-design-system/carbon",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "primer/react",
+    "url": "https://github.com/primer/react",
+    "reason": "GitHub product language, not finance-specific.",
+    "blocker_class": "STYLE_COLLISION",
+    "evidence_url": "https://github.com/primer/react",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "Shopify/polaris",
+    "url": "https://github.com/Shopify/polaris",
+    "reason": "Commerce-specific design language.",
+    "blocker_class": "STYLE_COLLISION",
+    "evidence_url": "https://github.com/Shopify/polaris",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "storybookjs/storybook",
+    "url": "https://github.com/storybookjs/storybook",
+    "reason": "Useful later, not runtime UI.",
+    "blocker_class": "TOOLING",
+    "evidence_url": "https://github.com/storybookjs/storybook",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "chakra-ui/ark",
+    "url": "https://github.com/chakra-ui/ark",
+    "reason": "Strong RTL alternative but duplicates Radix/DayPicker.",
+    "blocker_class": "DUPLICATE",
+    "evidence_url": "https://github.com/chakra-ui/ark",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "chakra-ui/park-ui",
+    "url": "https://github.com/chakra-ui/park-ui",
+    "reason": "Requires Panda CSS.",
+    "blocker_class": "STYLE_COLLISION",
+    "evidence_url": "https://github.com/chakra-ui/park-ui",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "radix-ui/themes",
+    "url": "https://github.com/radix-ui/themes",
+    "reason": "Styled Radix layer duplicates existing token CSS.",
+    "blocker_class": "DUPLICATE",
+    "evidence_url": "https://github.com/radix-ui/themes",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "argyleink/open-props",
+    "url": "https://github.com/argyleink/open-props",
+    "reason": "Token catalogue useful as reference; custom NIZAM tokens are smaller.",
+    "blocker_class": "DUPLICATE",
+    "evidence_url": "https://github.com/argyleink/open-props",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "tabler/tabler",
+    "url": "https://github.com/tabler/tabler",
+    "reason": "Bootstrap dashboard; visual reference only.",
+    "blocker_class": "STACK_MIGRATION",
+    "evidence_url": "https://github.com/tabler/tabler",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "tailwindlabs/heroicons",
+    "url": "https://github.com/tailwindlabs/heroicons",
+    "reason": "Duplicates Lucide.",
+    "blocker_class": "DUPLICATE",
+    "evidence_url": "https://github.com/tailwindlabs/heroicons",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "phosphor-icons/react",
+    "url": "https://github.com/phosphor-icons/react",
+    "reason": "Duplicates Lucide.",
+    "blocker_class": "DUPLICATE",
+    "evidence_url": "https://github.com/phosphor-icons/react",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "wealthfolio/wealthfolio",
+    "url": "https://github.com/wealthfolio/wealthfolio",
+    "reason": "AGPL; borrow patterns only.",
+    "blocker_class": "LICENCE_PATTERN",
+    "evidence_url": "https://github.com/wealthfolio/wealthfolio",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "afaneca/myfin",
+    "url": "https://github.com/afaneca/myfin",
+    "reason": "GPL; borrow Sankey/forecast patterns only.",
+    "blocker_class": "LICENCE_PATTERN",
+    "evidence_url": "https://github.com/afaneca/myfin",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "spliit-app/spliit",
+    "url": "https://github.com/spliit-app/spliit",
+    "reason": "MIT but full Next.js starter; borrow forms only.",
+    "blocker_class": "PATTERN_ONLY",
+    "evidence_url": "https://github.com/spliit-app/spliit",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "envelope-zero/frontend",
+    "url": "https://github.com/envelope-zero/frontend",
+    "reason": "AGPL and very small community.",
+    "blocker_class": "LICENCE_SCOPE",
+    "evidence_url": "https://github.com/envelope-zero/frontend",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "TanStack/query",
+    "url": "https://github.com/TanStack/query",
+    "reason": "No server-state cache requirement for this UI scope.",
+    "blocker_class": "NO_CURRENT_NEED",
+    "evidence_url": "https://github.com/TanStack/query",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "lingui/js-lingui",
+    "url": "https://github.com/lingui/js-lingui",
+    "reason": "Alternative i18n; react-i18next selected for ecosystem fit.",
+    "blocker_class": "DUPLICATE",
+    "evidence_url": "https://github.com/lingui/js-lingui",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "dinerojs/dinero.js",
+    "url": "https://github.com/dinerojs/dinero.js",
+    "reason": "NIZAM integer-money core already enforces arithmetic.",
+    "blocker_class": "DUPLICATE",
+    "evidence_url": "https://github.com/dinerojs/dinero.js",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "MohammadYounes/rtlcss",
+    "url": "https://github.com/MohammadYounes/rtlcss",
+    "reason": "Prefer native logical CSS properties.",
+    "blocker_class": "MAINTENANCE",
+    "evidence_url": "https://github.com/MohammadYounes/rtlcss",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "i18next/i18next",
+    "url": "https://github.com/i18next/i18next",
+    "reason": "Peer of selected react-i18next, not separately scored.",
+    "blocker_class": "TRANSITIVE",
+    "evidence_url": "https://github.com/i18next/i18next",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "tradingview/lightweight-charts",
+    "url": "https://github.com/tradingview/lightweight-charts",
+    "reason": "Price charts do not match current NIZAM surfaces.",
+    "blocker_class": "SPECIALIZED",
+    "evidence_url": "https://github.com/tradingview/lightweight-charts",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "hustcc/echarts-for-react",
+    "url": "https://github.com/hustcc/echarts-for-react",
+    "reason": "Inherits ECharts weight and canvas concerns.",
+    "blocker_class": "BUNDLE_A11Y",
+    "evidence_url": "https://github.com/hustcc/echarts-for-react",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "mui/mui-x",
+    "url": "https://github.com/mui/mui-x",
+    "reason": "Requires MUI ecosystem.",
+    "blocker_class": "STYLE_COLLISION",
+    "evidence_url": "https://github.com/mui/mui-x",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "d3/d3",
+    "url": "https://github.com/d3/d3",
+    "reason": "Use targeted visx/D3 modules instead.",
+    "blocker_class": "LOW_LEVEL",
+    "evidence_url": "https://github.com/d3/d3",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "reactivemarkets/react-financial-charts",
+    "url": "https://github.com/reactivemarkets/react-financial-charts",
+    "reason": "Last publish observed in 2023.",
+    "blocker_class": "MAINTENANCE",
+    "evidence_url": "https://github.com/reactivemarkets/react-financial-charts",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "tailwindlabs/tailwindcss",
+    "url": "https://github.com/tailwindlabs/tailwindcss",
+    "reason": "Borrow token/logical-property patterns without migrating.",
+    "blocker_class": "STACK_MIGRATION",
+    "evidence_url": "https://github.com/tailwindlabs/tailwindcss",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "emilkowalski/vaul",
+    "url": "https://github.com/emilkowalski/vaul",
+    "reason": "Stale and drawer not current priority.",
+    "blocker_class": "MAINTENANCE",
+    "evidence_url": "https://github.com/emilkowalski/vaul",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "s-yadav/react-number-format",
+    "url": "https://github.com/s-yadav/react-number-format",
+    "reason": "Existing MoneyInput plus native Intl should be evaluated first.",
+    "blocker_class": "DUPLICATE",
+    "evidence_url": "https://github.com/s-yadav/react-number-format",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "thesysdev/openui",
+    "url": "https://github.com/thesysdev/openui",
+    "reason": "Generative UI framework is immature and outside core finance UI.",
+    "blocker_class": "MATURITY_SCOPE",
+    "evidence_url": "https://github.com/thesysdev/openui",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "nexu-io/open-design",
+    "url": "https://github.com/nexu-io/open-design",
+    "reason": "Design-generation tool, not runtime integration.",
+    "blocker_class": "MATURITY_SCOPE",
+    "evidence_url": "https://github.com/nexu-io/open-design",
+    "checked_at": "2026-08-07"
+  },
+  {
+    "name": "ibelick/ui-skills",
+    "url": "https://github.com/ibelick/ui-skills",
+    "reason": "Design-agent skills are tooling, not runtime UI.",
+    "blocker_class": "TOOLING",
+    "evidence_url": "https://github.com/ibelick/ui-skills",
+    "checked_at": "2026-08-07"
+  }
+]
