@@ -23,6 +23,10 @@ outputs/
 Execute and build.md
 # loop scratch (the ledger itself IS committed)
 .loop/tmp/
+# raw third-party API dumps captured by research tooling. The curated report, evidence matrix and
+# shortlist ARE committed; the raw responses are regenerable by the scripts in the same folder and
+# carry vendor prose that the generic-only check (AC11) forbids in a tracked file.
+docs/research/**/_raw/
 # --- local secrets (never commit) ---
 .secrets/
 .env.*.local
