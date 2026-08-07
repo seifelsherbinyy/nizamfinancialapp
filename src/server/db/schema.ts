@@ -418,6 +418,37 @@ const MIGRATION_005: readonly string[] = [
    END`,
 ];
 
+/**
+ * Contract 12 §5.5 — give `work_queue` the columns the accept-fast path actually needs. Phase 4.3.
+ *
+ * §3.3's `work_queue` was declared in migration 003 with the operational minimum: identity,
+ * timing, state, attempts. `TelegramWorkItem` (`../ports/telegram.ts`) additionally requires the
+ * sender and the raw body, because §5.5.1 acknowledges the delivery *before* anything reads it —
+ * so the body has to be durable on this side of the acknowledgement or it is simply gone (§5.5.2).
+ * `not_before` is the backoff instant a §5.5.4 queue retry sets: a downstream failure is rescheduled
+ * here, inside the queue, and never handed back to the provider as a failed delivery.
+ *
+ * A NEW migration rather than an edit to 003, because an applied migration is frozen (§5.1) and the
+ * migrator's checksum guard refuses a rewritten one rather than guessing which state is correct.
+ *
+ * These four statements cannot all be defensive, and that is worth stating rather than hiding:
+ * SQLite's `ALTER TABLE ... ADD COLUMN` has no `IF NOT EXISTS` form. What makes the run
+ * once-only is the recorded version — §5.2.2 skips a recorded migration without executing a single
+ * statement — not the DDL's own idempotence. The two index statements are defensive because they can be.
+ *
+ * `UNIQUE (bot_id, update_id)` is the structural half of §5.5.3's idempotence: enqueueing is a
+ * conflict-ignoring insert, so the same delivery cannot produce two units of work even if the
+ * accept path is entered twice concurrently. It is the same device §5.4.2 uses for dedup, for the
+ * same reason — a unique index cannot be raced, and a read-then-write check can.
+ */
+const MIGRATION_006: readonly string[] = [
+  `ALTER TABLE work_queue ADD COLUMN sender_id TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE work_queue ADD COLUMN raw_body TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE work_queue ADD COLUMN not_before TEXT`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS work_queue_delivery ON work_queue(bot_id, update_id)`,
+  `CREATE INDEX IF NOT EXISTS work_queue_claimable ON work_queue(state, not_before, enqueued_at)`,
+];
+
 /** The DDL of each migration, keyed by version. Consumed only by `migrations.ts`. */
 export const SCHEMA_STATEMENTS: Readonly<Record<number, readonly string[]>> = {
   1: MIGRATION_001,
@@ -425,4 +456,5 @@ export const SCHEMA_STATEMENTS: Readonly<Record<number, readonly string[]>> = {
   3: MIGRATION_003,
   4: MIGRATION_004,
   5: MIGRATION_005,
+  6: MIGRATION_006,
 } as const;

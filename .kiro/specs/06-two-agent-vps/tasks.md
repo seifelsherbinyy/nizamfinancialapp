@@ -31,10 +31,10 @@
       `strict_local_maximum` reference rejected
 
 ## Phase 4 - Telegram transport (mocked) → R11-R15
-- [ ] 4.1 Port `auth` logic from `nizamcore/relay/auth.py`: constant-time token compare + allowlist
-- [ ] 4.2 SQLite dedup keyed `(bot_id, update_id)` UNIQUE + `INSERT OR IGNORE` (fixes collision + race)
-- [ ] 4.3 Accept-fast / process-async handler with a work queue
-- [ ] 4.4 Negative tests: missing token, wrong token, non-allowlisted user, duplicate update, and
+- [x] 4.1 Port `auth` logic from `nizamcore/relay/auth.py`: constant-time token compare + allowlist
+- [x] 4.2 SQLite dedup keyed `(bot_id, update_id)` UNIQUE + `INSERT OR IGNORE` (fixes collision + race)
+- [x] 4.3 Accept-fast / process-async handler with a work queue
+- [x] 4.4 Negative tests: missing token, wrong token, non-allowlisted user, duplicate update, and
       **two bots emitting the same update id must both be processed**
 
 ## Phase 5 - Routing, spend, telemetry → R16-R19

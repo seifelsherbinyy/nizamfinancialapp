@@ -1296,3 +1296,251 @@ cannot be asserted in-process; they are carried by `ops/BUS_NETWORK_BINDING.md` 
   registration, and generate the encryption keypair with the private half kept off the box. G7 stays
   **closed as WONT-DO** per steering §0b.
 - No outbound call from a server process and no production secret, unchanged.
+
+---
+
+## Phase 4 - The Telegram transport, mocked end to end (2026-08-07)
+
+**Why.** This is the only place an outside party touches the finance agent, so it is the only place a
+guard is load-bearing rather than tidy. Contract 12 §5 states five rules and names, for each, the
+failure it is chosen against: a short-circuiting token compare leaks the secret through timing; a
+refusal that says *which* check failed hands an attacker an oracle; a dedup store keyed on the update
+identifier alone silently discards one bot's traffic; and a handler that does slow work before
+acknowledging manufactures the retries the dedup store then has to absorb. Every one of those failure
+modes is quiet — the system keeps answering — which is why Phase 4 is built as guards with negative
+tests rather than as a happy path with validation.
+
+| Phase | Deliverable | Source | Status |
+| ----- | ----------- | ------ | ------ |
+| 4.1 | `auth.ts`: the constant-time token compare, the fail-closed configuration check, the allowlist, and one frozen refusal for every stage | contract 12 §5.1, §5.2, §5.3 | done |
+| 4.2 | `updateDedupRepo.ts`: `PRIMARY KEY (bot_id, update_id)` + `INSERT OR IGNORE`, where the insert IS the decision; retention refused shorter than the redelivery window | contract 12 §5.4 | done |
+| 4.3 | `workQueueRepo.ts` + `acceptHandler.ts` + `workerRunner.ts`: accept fast in one transaction, process asynchronously, bounded concurrency; migration 006 for the payload columns | contract 12 §5.5 | done |
+| 4.4 | The five-claim coverage audit, the R11 provider-rule pin, the all-four-stage refusal pin, and this section | contract 12 §5.2, §5.4.6 | done |
+
+### 4.1 — R11's timing leak was removed, not special-cased
+
+`node:crypto`'s `timingSafeEqual` is the right primitive and it **throws when the two buffers differ in
+length**. That throw is itself a timing signal and a control-flow one, so the obvious fix — guard it
+with `if (a.length !== b.length)` — does not remove the leak, it relocates it into the guard and calls
+it handled. Phase 4.1 made the length mismatch **unreachable instead of detectable**: both operands are
+first reduced to a keyed digest of fixed width, so `timingSafeEqual` receives two equal-length buffers
+on every call, cannot throw, and compares the same number of bytes for a one-character token as for a
+4096-character one. `constantTimeTokenEquals` contains no length branch because there is no length
+question left to ask. The key is drawn fresh per call — the double-HMAC verification form — so digests
+cannot be precomputed or compared offline.
+
+The property is proved **structurally, not by wall clock**. A timing assertion on a shared or
+virtualized host is dominated by scheduler noise, turbo clocking and JIT warm-up, so it either fails at
+random or passes on code that leaks: a flaky test that certifies nothing. `auth.constantTime.test.ts`
+instead denies the two things a short-circuit needs in order to exist — it reads the comparison's own
+source and asserts it contains no `if`, no loop, no `break`, no ternary, no `&&`/`||`, no `===`, no
+`.length`, and exactly one `return`; and it drives a length sweep (0, 1, 2, 32, 256, 4096, and astral
+characters at four times the byte width) showing the compared width never moves. It then drives every
+length relationship through the comparison and requires an **answer rather than an exception**, which
+is the assertion the removed throw earns.
+
+The other §5.2 rules got mechanisms rather than prose. **The refusal has nowhere to put a reason:**
+`TelegramAuthDecision`'s refusing variant has no reason field, and every refusal returns the *same
+frozen object*, so two refusals are identical by reference and a per-stage shape is not something a
+later call site can build by accident. **All three gates are evaluated unconditionally before any is
+consulted** — the pattern `signals/consentGate.ts` already set — so an absent header performs the same
+digest work as a wrong one and wall-clock time does not say which stage refused; §5.3's ordering
+survives as the *precedence the verdicts are read in*, which is what "checked after the token check"
+governs operationally. **The authorizer cannot parse the content because it is never handed it:**
+`TelegramAuthSubject` is a three-field projection that omits `rawBody` entirely, and the test plants a
+throwing getter as a tripwire, so any code path that touched the body would fail loudly rather than
+silently.
+
+### 4.2 — R14 is a correctness fix, and the collision test is the one that matters
+
+Namespacing dedup per bot reads like a refinement and is not. Update identifiers are **per-bot
+sequences**, so two bots on one host will emit the same identifier for two entirely unrelated updates.
+A store keyed on the identifier alone treats the second bot's legitimate update as a duplicate of the
+first bot's and discards it. The symptom is **one bot going silent for no visible reason** — which
+reads as a network problem, is not one, and would be diagnosed for a long time. The pair is enforced in
+three places that cannot disagree: `DedupKey` has two required fields, the table declares
+`PRIMARY KEY (bot_id, update_id)`, and the test reads the **live index back from the engine** via
+`PRAGMA index_list` / `index_info` rather than trusting the DDL text, asserting the unique column set is
+exactly `['bot_id', 'update_id']` and that nothing narrower exists.
+
+**§5.4.6's test is the one that matters, and the reason is worth stating plainly: a suite asserting
+only "a duplicate is dropped" passes on the broken single-key design.** Both designs drop a duplicate.
+Only the correct one treats two bots' shared identifier as two new deliveries. So that case is asserted
+from both directions — both claims report `new`, and both rows survive — at the repository level in
+`updateDedupRepo.test.ts` and again through the accept path in `acceptHandler.test.ts`.
+
+The insert **is** the decision: one `INSERT OR IGNORE` whose row count is the answer, with no prior
+read, which is what closes the race a read-then-write scheme leaves open — two concurrent deliveries
+can both read "not seen" and both proceed, and a unique index cannot be raced. For the same reason the
+module exports **no "have I seen this" predicate**: that would be the read half of the pattern the
+contract removed, and the first caller in a hurry would pair it with a conditional insert and re-open
+the window. A duplicate returns `duplicate` and **throws nothing**, because an error would travel back
+as a failed delivery and earn another retry of the very update we just declined.
+
+### 4.3 — the dedup claim and the durable enqueue are ONE transaction
+
+This is the phase's least obvious correctness requirement, so it is recorded in full. Taken as two
+steps, a failure between them **marks the pair as seen with no work behind it**. The provider's
+redelivery is then refused as a duplicate — *correctly*, per §5.4.4 — and the update is lost forever,
+silently, with both guards behaving exactly as specified. Wrapping both in `BEGIN IMMEDIATE` makes "the
+pair is claimed" and "the work exists" the same fact; a duplicate rolls back, so a refused delivery
+writes nothing at all. The test forces the enqueue to fail after the claim is written and asserts the
+dedup table is empty afterwards and the retry is accepted.
+
+`acceptDelivery` is **synchronous**, and that is the design rather than an implementation detail: its
+return value is a decision, not a promise, so there is no point at which an awaited slow call could
+have been placed, and `TelegramInboundPort.accept` is declared synchronous so a future implementation
+that wanted to `await` a model call could not satisfy the type. R15 is proved two ways that together
+are decisive — the decision is asserted not to be thenable, and an `InvocationRecorder` shared with the
+port mock is asserted **empty** after a successful accept, so the slow side exists, is reachable, and
+was not reached. A downstream failure then stays in the queue: the worker's throw does not make the
+drain reject, the item is retried on a doubling backoff clamped at an injected ceiling, and the
+transport decision is unchanged — the redelivery is still a duplicate.
+
+> **Migration 006 is NOT defensively re-runnable, and that is stated rather than hidden.** 003 declared
+> `work_queue` with the operational minimum; §5.5.1 acknowledges before anything reads the delivery, so
+> the sender and the raw body have to be **in the row**, and 003 is frozen (§5.1). 006 adds them. Its
+> three `ALTER TABLE ... ADD COLUMN` statements have no `IF NOT EXISTS` form in SQLite — the form does
+> not exist to write. **What makes the run once-only is the recorded version, not the DDL:** §5.2.2
+> skips a recorded migration without executing a single statement, which is the guarantee Phase 1.5's
+> T8 pinned with a deliberately non-idempotent statement rather than with a schema comparison. The two
+> index statements in the same migration *are* defensive, because they can be. No applied migration was
+> edited.
+
+### 4.4 — the audit, and the one gap of Phase 3.4's shape
+
+**All five claims 4.4 nominally owned were already covered, at both levels.** They were audited against
+the requirements one by one and **no test was added that duplicates an existing assertion**:
+
+| Claim | Unit level | Accept-path level |
+| ----- | ---------- | ----------------- |
+| Missing token | `auth.test.ts` — absent and empty asserted as **distinct facts**, both refused, the audit telling them apart via a boolean without recording either | `acceptHandler.test.ts` — refused, `tokenHeaderPresent: false`, nothing enqueued |
+| Wrong token | `auth.test.ts` — prefix, superstring, same-length near-miss, single character, and an unrelated same-shape token | `acceptHandler.test.ts` — refused, `tokenHeaderPresent: true`, nothing enqueued |
+| Non-allowlisted sender | `auth.test.ts` — absent sender, **empty allowlist means nobody**, empty sender is nobody, and exact matching (no trim, no case fold, no prefix) | `acceptHandler.test.ts` — refused at the allowlist stage, after the token check, nothing enqueued |
+| Duplicate update | `updateDedupRepo.test.ts` — `duplicate`, no second row, first instant preserved, no throw | `acceptHandler.test.ts` — `duplicate`, queue depth unmoved, nothing audited |
+| **Two bots, one update id** | `updateDedupRepo.test.ts` — both `new`, both rows present, and the live unique index read back from the engine | `acceptHandler.test.ts` — **both `enqueued`, distinct refs, depth 2** |
+
+**The drift gap, and it is exactly R7's shape.** Phase 3.4 found that R7's "120 characters" was never
+pinned: every assertion was written *relative to* `SIGNAL_NOTE_MAX_LENGTH`, so raising the constant
+would have kept the suite green while violating the requirement outright. The equivalent here is
+**R11's fail-closed rule against the provider's own token rule**.
+`docs/NIZAM_TWO_AGENT_VPS_ARCHITECTURE.md` §1.4 records, verified against the provider's documentation,
+that a secret token is **1-256 characters drawn from `[A-Za-z0-9_-]`** — a value outside that set can
+never be echoed back on a request. `auth.ts` encodes it as `TELEGRAM_SECRET_TOKEN_MAX_LENGTH` and
+`TELEGRAM_SECRET_TOKEN_PATTERN`, and **every** assertion about it — the over-length fail-closed case,
+the at-the-limit accepting case — was expressed in terms of those two names. Raising the length or
+widening the charset would have left the suite green while the guard stopped matching the transport it
+exists to guard: an operator would configure a token the provider cannot echo,
+`secretTokenIsConfigured` would call it configured, and every request would be refused at the **token**
+stage instead of the **configuration** stage — a guard armed against nothing, reporting the wrong
+reason, and an operator debugging a mismatch that does not exist. `telegram/negativeGuards.test.ts` now
+writes the rule's own number and alphabet down: `TELEGRAM_SECRET_TOKEN_MAX_LENGTH` is pinned to 256, the
+bound is driven in literals on both sides (256 configured, 257 not; one character yes, zero no), every
+character of the documented alphabet is accepted individually, and eleven characters outside it fail
+closed **even when the header echoes the configured value exactly**.
+
+The other three candidates were checked and are **not** gaps, which is worth recording so the check is
+not repeated:
+
+- **R11's digest width is self-checking.** `TOKEN_DIGEST_BYTES` looks like the same pattern but is not:
+  the width assertions would *fail* if the algorithm drifted away from a matching width, and the
+  requirement is "both operands the same fixed width", which equality to one shared constant gives
+  transitively. Pinning 32 would over-pin a number no requirement names.
+- **R14's pair key is already pinned to literals.** The index assertion names `bot_id` and `update_id`
+  as strings read from the engine, not as constants the module owns.
+- **R13's retention rule owns no constant at all.** `pruneDedupBefore` demands *both* the retention and
+  the provider's redelivery window from its caller and refuses when the first is shorter, so there is
+  no code-owned number to drift. Contract 06 §8.2 keeps retention as `<DEDUP_RETENTION_DAYS>`.
+- **R15 has no numeric claim to pin.** "Nothing slow before the acknowledgement" is proved by the
+  synchronous return type and the empty recorder, both structural.
+
+**One existing claim was strengthened rather than restated.** §5.2's "the refusal reveals nothing about
+which check failed" was asserted by-reference for **two** of the accept path's **four** refusing
+stages. The enqueue stage is the one a later edit is most likely to give its own shape, because it is
+the only refusal carrying a distinct failure code internally. All four stages now return the one frozen
+value, asserted identical by reference and single-keyed, while the audit — which §5.3 requires and
+which is a separate path from the response — confirms these really are four *different* refusals being
+answered identically.
+
+### The acceptance tests of contract 12 §12, and where each one lives
+
+| # | Test | Where |
+| - | ---- | ----- |
+| T16 | A request with no secret-token header is rejected, and **absent is not empty** — both refused, kept distinguishable in the audit without recording either | `auth.test.ts`, `acceptHandler.test.ts` |
+| T17 | A mismatched token is rejected — prefix, superstring, same-length near-miss — and the response reveals nothing about which check failed | `auth.test.ts`, `acceptHandler.test.ts`, `negativeGuards.test.ts` (all four stages) |
+| T18 | The token comparison is constant-time: no branch, no early exit, no length-dependent work, and the length-mismatch **throw is gone** | `auth.constantTime.test.ts` |
+| T19 | An absent, empty, over-length, or out-of-charset expected token fails closed, refusing even a request carrying the configured value — **and the 256-character, `[A-Za-z0-9_-]` rule is pinned to its own number** | `auth.test.ts`, `negativeGuards.test.ts` |
+| T20 | A sender absent from the allowlist is refused before any parsing; an empty allowlist refuses everyone; the authorizer is never handed the body | `auth.test.ts`, `acceptHandler.test.ts` |
+| T21 | A repeated update identifier is a no-op acknowledged as success, with no duplicate write and no error | `updateDedupRepo.test.ts`, `acceptHandler.test.ts` |
+| T22 | **Two bots emitting the same update identifier are both processed** — both `new`, both rows, both enqueued with distinct refs | `updateDedupRepo.test.ts`, `acceptHandler.test.ts` |
+| T23 | Concurrent duplicate deliveries cannot both proceed: exactly one of eight repeats and one of **two independent connections** wins | `updateDedupRepo.test.ts`, `workQueueRepo.test.ts` |
+| T24 | The handler acknowledges before any slow work: the decision is not thenable, and the shared recorder is **empty** after a successful accept | `acceptHandler.test.ts` |
+| T25 | An enqueued update survives a restart: closed, re-opened, still claimable | `workQueueRepo.test.ts` |
+| T26 | A downstream failure retries in the queue, never at the transport; the redelivery is still a duplicate; the attempt ceiling abandons without a transport failure | `workerRunner.test.ts` |
+
+### Verification
+
+- `npm run typecheck` 0 errors; `npm run lint` 0 warnings at `--max-warnings 0`.
+- Suite **816 → 945 across 65 → 72 files**, all of it in `src/server/telegram/` (**129 tests, 7
+  files**): 4.1 **+65** (`auth.test.ts` 27, `auth.constantTime.test.ts` 38), 4.2 **+12**
+  (`updateDedupRepo.test.ts`), 4.3 **+37** (`workQueueRepo.test.ts` 15, `acceptHandler.test.ts` 12,
+  `workerRunner.test.ts` 10), 4.4 **+15** (`negativeGuards.test.ts`). Every token, bot, sender and
+  update identifier in every test is synthetic and deliberately short (R24, steering §0b).
+- `npm run verify:all -- --all` — **17 of 19**, with **AC12 (contract index and build log agree) PASS**,
+  confirmed after editing this log rather than assumed: AC12 reads `contracts/_CONTRACT_INDEX.md` and
+  `contracts/_BUILD_LOG.md` — the **original five** build contracts — and not this PFOS track, so
+  appending here cannot move it. Every pre-existing test still passes: 72 of 72 files green, including
+  every scanner (`db/isolation.test.ts`, `db/moneyImplementation.test.ts`, `ports/interfaceOnly.test.ts`,
+  `mocks/determinism.test.ts`, `signals/schemaParity.test.ts`, `signals/exclusion.test.ts`). The only
+  red checks are **AC14 (working tree clean)** and **AC15 (push ready)**, both reporting the same
+  uncommitted Phase-4 work. That is the expected mid-phase state; the orchestrator commits at phase end.
+- The AC04 floor stays at **331**. Ratcheting it is task 9.1's, and raising it here would take a
+  decision that belongs to close-out.
+- Nothing in `scripts/verify/` was touched, weakened, relaxed, or edited. No check was changed to make
+  a gate pass, no applied migration was edited, and no `ATTACH` statement exists anywhere in
+  `src/server/**`.
+
+### Open items that need an owner decision, recorded rather than decided here
+
+1. **The accept path does not check the delivery's `botId` against the transport's `botId`.** Each
+   agent runs one bot, so in the deployed topology the two always agree, and §5.2/§5.3 do not require
+   the check. But nothing refuses a delivery claiming a *different* bot identifier, and it would be
+   recorded under that identifier in both the dedup table and the queue. Whether that is a guard worth
+   having, or a configuration fact the transport layer should assert once at start-up, is an owner
+   call — and it interacts with T4 (each agent resolves exactly one bot token), which is Phase 7's.
+2. **The retention pair has no configured value yet.** `pruneDedupBefore` correctly refuses to prune
+   shorter than the provider's redelivery window, but **both numbers are injected and neither is set
+   anywhere in the repository** — `<DEDUP_RETENTION_DAYS>` is still a placeholder in contract 06 §8.2,
+   and the provider's documented maximum is an operational fact. Until Phase 7.3 writes the env
+   template, nothing prunes, which is the safe direction but not a decision anyone took deliberately.
+
+### Known gaps, recorded honestly because they are real and unclosed
+
+1. **The constant-time property is proved structurally, and structure is not timing.** The source scan
+   and the width sweep together deny everything a short-circuit needs, and that is the strongest
+   deterministic evidence available — but it is evidence about the *code*, not a measurement. A
+   platform-level regression in `timingSafeEqual` itself would not be caught here, and neither would a
+   leak introduced by a future JIT optimization. Recorded rather than papered over.
+2. **The two-connection race stands in for two processes, not for two hosts.** Two handles on one store
+   file prove the decision lives in the engine rather than in either caller's memory, which is the
+   property that matters. True cross-process concurrency under load waits on a host and is G1's.
+3. **`work_queue`'s payload columns carry a `DEFAULT ''`, which migration 006 needed and the code does
+   not want.** `ALTER TABLE ADD COLUMN ... NOT NULL` requires a default in SQLite, so an empty sender
+   or body is representable at the DDL level even though `enqueueWork` refuses both. The guard is in the
+   repository, not in the schema — the same "guard before prepare is per-call-site" shape Phase 1
+   recorded, and unclosed for the same reason.
+4. **Nothing exercises the transport against a real HTTP surface.** There is no server, no route, and
+   no header parsing: `TelegramDelivery` is constructed directly in every test. The header *name* is
+   pinned, but the step that reads it off a request does not exist yet and is Phase 7's.
+5. **The worker's `process` step does no real work.** Every worker in these tests is scripted. What the
+   finance agent actually *does* with an accepted update is Phase 5's routing tier, so the queue's
+   durability and retry semantics are proved while the payload's meaning is still unexamined.
+
+### Still gated (unchanged by Phase 4)
+
+- Phase 4 built the transport's **decision** logic and no part of its network half: no route, no
+  `setWebhook`, no outbound call, no live token. The human gates stand: provision and harden the host,
+  DNS, create the two bots, mint the two runtime keys with weekly caps, the storage consent click,
+  webhook registration, and generate the encryption keypair with the private half kept off the box.
+  G7 stays **closed as WONT-DO** per steering §0b.
+- No outbound call from a server process and no production secret, unchanged.

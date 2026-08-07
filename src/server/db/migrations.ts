@@ -62,6 +62,9 @@ export const MIGRATIONS: readonly Migration[] = [
   { version: 4, name: 'decisions_append_only', statements: SCHEMA_STATEMENTS[4] ?? [] },
   // Phase 1.4 — the same for the token-spend ledger (§6.2.2).
   { version: 5, name: 'spend_ledger_append_only', statements: SCHEMA_STATEMENTS[5] ?? [] },
+  // Phase 4.3 — the durable columns and the unique delivery index the accept-fast path needs
+  // (contract 12 §5.5). A new version, because 003 declared the table and is frozen (§5.1).
+  { version: 6, name: 'work_queue_durable_payload', statements: SCHEMA_STATEMENTS[6] ?? [] },
 ];
 
 /** Stable hash of a migration's identity and its statements. */
