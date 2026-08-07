@@ -145,6 +145,60 @@ ledger describe the same facts with the same vocabulary.
 | `assets` and `valuations` | Net-worth inputs | Valuation history retained; a valuation is never overwritten. |
 | `fx_rates` | Rate history | Integer-safe representation only; see §4.4. |
 
+#### ADDENDUM (added Phase 1.5, after implementation) — two tensions this section created
+
+Both were surfaced by building `src/server/db/**` against this section and are recorded here
+rather than silently resolved in code, because §5.1 makes one of them impossible to resolve the
+obvious way.
+
+**A1 — `decisions.outcome` admits a value that can never truthfully be assigned.**
+
+The applied DDL constrains `outcome` to `pending | confirmed | reverted | superseded`. But
+`superseded` is unreachable as an honest description of the row it appears on:
+
+- §8.1 makes the registry append-only, and migration 4 puts `BEFORE UPDATE` and `BEFORE DELETE`
+  triggers on the table, so the predecessor of a supersede is never touched — not its status,
+  not its timestamp, not its outcome.
+- Consequently "which row currently stands" is **DERIVED**, as `NOT EXISTS (successor)` over
+  `supersedes_decision_id`, and is never stored. That derivation is precisely what makes the
+  no-update rule affordable.
+- So the only way the value could ever land is a caller **self-declaring** it at insert time,
+  producing a row whose `outcome` column asserts a lineage its lineage columns do not support
+  and are free to contradict. §3.2's column vocabulary and §8.1's append-only rule therefore
+  disagreed, and the enum member was dead weight with a trap attached.
+
+**Resolution: the member is RETAINED in the schema and REFUSED on the write path.**
+
+- The DDL is **not** changed. §5.1 forbids editing a migration after it has been applied, and
+  §5.2.5 makes the migrator refuse an applied migration whose checksum no longer matches — so
+  narrowing the `CHECK` in place would move a recorded checksum and be rejected by the store's
+  own guard. Correcting it would require a whole new migration to rebuild the table, which is
+  destructive DDL against financial history (§5.3) for no gain: nothing needs the value gone,
+  only unassignable.
+- The **write path refuses it**, with a typed error
+  (`REPOSITORY_DERIVED_STATE_NOT_ASSIGNABLE`), and the insert type is narrowed to the
+  assignable subset so the refusal is also a compile error. A revised outcome is recorded the
+  way every other change to a decision is recorded: by appending a successor.
+- **Reads still accept the full enum.** A store repaired by hand may hold the value, and
+  refusing to read history is not a fix for anything.
+- Forward compatibility is the reason to keep the member rather than merely tolerate it: if a
+  later migration ever introduces a stored-currentness column (it should not), the vocabulary
+  is already there.
+
+**A2 — `DecisionOutcome` meant two unrelated things in one repository.**
+
+The browser tier's `DecisionOutcome` (`src/features/decisions/decisionRecord.types.ts`,
+contract 03 §12) is an **observed-outcome record**: a review date, an actual net effect, a
+prediction error, an attribution. The server tier's was this section's small **state enum**. No
+file imported both, so it was never a bug — it was a trap for the first module that needed both,
+and the kind of collision that produces a wrong-but-compiling import.
+
+**Resolution: the SERVER identifier is renamed** to `DecisionOutcomeState` (values
+`DECISION_OUTCOME_STATES`, assignable subset `ASSIGNABLE_DECISION_OUTCOME_STATES`). The browser
+tier is unchanged, because it is shipped, tested, and named correctly for what it holds. This is
+a naming change in this repository's own code and touches no DDL, no stored value, and no
+migration checksum.
+
 ### 3.3 Server-tier operational tables
 
 | Table | Purpose | Owning requirement |
@@ -426,6 +480,7 @@ been observed passing is not evidence; each guard must be shown refusing the gua
 | T15 | Exhausting one agent's weekly total refuses that agent and leaves the other unaffected | R5, R17 |
 | T16 | No table accepts a column named in §3.4; telemetry rejects prompt text | R19 |
 | T17 | No tracked file in this area contains a deployment particular | R24 |
+| T18 | A caller cannot assign a DERIVED state: `decisions.outcome = 'superseded'` is refused with a typed error and nothing is written (§3.2 ADDENDUM A1) | R1, §8.1 |
 
 ---
 

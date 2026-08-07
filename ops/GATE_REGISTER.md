@@ -67,6 +67,25 @@ it is that "which domains are harmless" is a judgement call, and an invariant th
 call admits the next. So when spec task 9.0 adds the no-deployment-particular scanner, it needs **no
 allowlist entry at all** for this file. An empty exception list cannot erode (contract 12 §10.2).
 
+## Completion status of this document (spec task 0.5 seeds it, task 9.3 completes it)
+
+Spec task **0.5** seeds this register: every gate present, with why it needs a human, the step shape, a
+verification line, and a status. Spec task **9.3** completes it - "every human step with exact commands
+and a verification line" - once Phase 7 has authored the `ops/` templates the steps refer to, so the
+paths, file names, and environment variable names quoted below match the artifacts that exist rather
+than the ones that were planned.
+
+9.3 is therefore a **fill-in, not a rewrite**. Its edits are confined to:
+
+- resolving intended paths (written below as "intended path `ops/...`") to the real authored paths;
+- aligning environment variable names with the `ops/env/*.env.example` templates as authored;
+- adding any step or verification line that Phase 7 reveals is missing;
+- nothing else. 9.3 must not renumber a gate, remove a gate, soften a verification line, reopen G7, or
+  change any `Status:` away from `BLOCKED - awaiting human` (see "What an agent may write in this file").
+
+If 9.3 finds a gate whose steps cannot be made exact without a deployment particular, the step stays a
+placeholder and the gap is recorded as a note - **not** resolved by inventing a value (R24).
+
 ## How to use this register
 
 - Work top to bottom; the ordering is a dependency ordering (see the summary table).

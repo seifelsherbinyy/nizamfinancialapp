@@ -12,11 +12,11 @@
 - [x] 0.5 Create `ops/GATE_REGISTER.md` seeded with G1-G8 from steering §2
 
 ## Phase 1 - Data layer (Contract 06) → R1-R5
-- [ ] 1.1 `src/server/db/` schema + migrations on `node:sqlite`, WAL, `foreign_keys=ON`, idempotent versioning
-- [ ] 1.2 Repositories for accounts/transactions/obligations/decisions reusing existing types
-- [ ] 1.3 Integer-milliunit boundary guard (reject non-integer at persist) + parity test vs the browser engines (R4)
-- [ ] 1.4 Token-spend ledger keyed by agent; weekly total as a pure function feeding `modelPolicy` (R5)
-- [ ] 1.5 Negative tests: non-integer money rejected; migration re-run is a no-op; cross-agent DB open fails
+- [x] 1.1 `src/server/db/` schema + migrations on `node:sqlite`, WAL, `foreign_keys=ON`, idempotent versioning
+- [x] 1.2 Repositories for accounts/transactions/obligations/decisions reusing existing types
+- [x] 1.3 Integer-milliunit boundary guard (reject non-integer at persist) + parity test vs the browser engines (R4)
+- [x] 1.4 Token-spend ledger keyed by agent; weekly total as a pure function feeding `modelPolicy` (R5)
+- [x] 1.5 Negative tests: non-integer money rejected; migration re-run is a no-op; cross-agent DB open fails
 
 ## Phase 2 - Ports and mocks → foundation for everything gated
 - [ ] 2.1 `src/server/ports/` interfaces: TelegramPort, OpenRouterPort, DrivePort, WhoopPort, SignalBusPort

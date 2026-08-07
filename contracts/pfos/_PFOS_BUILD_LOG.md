@@ -621,3 +621,200 @@ missing. Phase 0 authors both and reconciles the ledgers. **No code was written*
   registration, and generate the encryption keypair with the private half kept off the box. G7
   (repo privatization) stays **closed as WONT-DO** per steering §0b - it is not to be re-raised.
 - No outbound call from a server process and no production secret, unchanged.
+
+---
+
+## Phase 1 - Finance data layer built on contract 06 (2026-08-06)
+
+**Why.** Phase 0 authored contract 06 and thereby authorized code in its area (steering §5). Phase 1
+builds it: the finance agent's SQLite store, the repositories the Stage 1-4 engines will read and write
+through, the integer-milliunit persistence boundary, and the token-spend ledger that feeds the
+already-shipped `src/features/routing/modelPolicy.ts`. All of it is offline. Nothing here opens a
+socket, reads a secret, or touches a gated item; the engine is the runtime's own built-in binding, so
+the tier also adds no supply-chain surface to a store that holds financial facts (§2.2).
+
+The organizing rule for the whole phase is contract 06 §9: "a test that has only ever been observed
+passing is not evidence; each guard must be shown REFUSING the guarded operation." Every guard below
+therefore has a negative case, and each refusal is also shown to have written **nothing**.
+
+| Phase | Deliverable | Source | Status |
+| ----- | ----------- | ------ | ------ |
+| 1.1 | `src/server/db/` — schema, migrations, WAL + `foreign_keys=ON` with read-back assertions, idempotent versioning | contract 06 §2.2, §3, §5 | done |
+| 1.2 | Repositories for accounts / transactions / obligations / decisions, reusing the browser tier's own types | contract 06 §3.2, §4.2, §8.1; contract 02 §4/§5/§6/§9 | done |
+| 1.3 | Integer-milliunit boundary guard + the server/browser parity test + the §4.4 rate boundary | contract 06 §4.2, §4.3, §4.4 | done |
+| 1.4 | Token-spend ledger keyed by agent; the weekly total as a pure function feeding `modelPolicy` | contract 06 §6 (R5), §6.3 | done |
+| 1.5 | Negative guards: non-integer money refused at every write path, a re-run executes zero statements, a cross-agent open is refused | contract 06 §9 | done |
+
+### What landed
+
+**1.1 — the store and its engine contract.** `connection.ts` is the single factory (§2.2's last line):
+it sets `journal_mode=WAL`, `foreign_keys=ON`, `synchronous=FULL` and a busy timeout, then **reads each
+one back** and refuses to hand out a store that cannot prove them — because a pragma that was set but
+did not take is indistinguishable from one that was never set. `paths.ts` resolves the store path by
+**containment rather than pattern matching**, so a traversal segment, an absolute override, and a
+symlink out of the directory all fail one check with one typed error. `schema.ts` holds the DDL for the
+sixteen contracted tables plus the monetary and rate column maps that the boundary guard reads, so the
+guarded set cannot drift from the schema by being maintained twice. `migrations.ts` applies an ordered
+append-only series, each migration in **one transaction with the `INSERT` of its own version row**,
+skipping by recorded version and refusing on checksum mismatch. `errors.ts` gives every guard a typed
+failure with a discriminating `code`, so a caller never has to match a message string.
+
+**1.2 — the fact repositories.** `accounts`, `transactions`, `obligations`, `decisions`, each with the
+narrow surface the engines actually need and no speculative width. Two contract rules are structural
+rather than advisory here: **correction is by superseding row** (`supersede` appends, points at the
+predecessor, bumps `audit_version`, and never edits the predecessor's facts), and **a suspected
+duplicate is never auto-deleted** (there is no delete path at all; a suspicion is recorded in
+`transaction_links` with a confidence in integer basis points and settled by an explicit resolution
+that removes nothing). Migration 4 puts `BEFORE UPDATE` and `BEFORE DELETE` triggers on `decisions`, so
+append-only holds for every path into the store and not only for callers who came through the module.
+Every write records an `audit_log` row that names the columns it touched and **never an amount**.
+
+**1.3 — one money implementation, and the §4.4 gap that this task found and closed.**
+`moneyBoundary.ts` is the single guard: it rejects anything that is not a safe integer, throws a typed
+error carrying the offending **field name on the object**, and runs **before the statement is
+prepared**, so a rejected value never reaches SQLite. Its predicate is the money core's own `isMoney` —
+this tier defines no arithmetic, no parsing, and no formatting of its own (§4.3 INVARIANT), and
+`moneyImplementation.test.ts` proves that structurally by reading the source: the server tier imports
+the money core, declares no member of its surface, and calls no member it did not import.
+`moneyParity.test.ts` takes one shared input vector, runs the **real** Stage-1 and Stage-4 engines over
+it in memory, persists the same facts through the repositories, reads them back, and asserts the second
+result equals the first — so T11's guarantee cannot silently decay, and T7's `allocate` exactness is
+shown to survive the round trip.
+
+> **The §4.4 gap.** Contract 06 §4.4 requires a rate to be an integer numerator over an integer
+> denominator applied through `mulRatio`, and says a row that cannot be expressed that way "is rejected
+> at the boundary by the same guard as §4.2". The DDL already had the integer pair, so the schema looked
+> compliant — but there was **no guard, no write path, and no test**: `fx_rates` had columns and nothing
+> that could put a value in them, which meant the only way to write a rate was ad-hoc SQL that crossed
+> no boundary at all. 1.3 closed it: `assertRatePair` (same predicate, same typed error, same position
+> before `prepare`, plus the positive-denominator check the DDL also carries), a `fxRatesRepository`
+> that keeps rate **history** rather than a cache so an old conversion stays re-derivable, and
+> `toFxRate` which hands the stored pair to the browser tier's own `FxRate` type — the server does not
+> convert currency with its own arithmetic, it hands the same integer pair to the same engine.
+
+**1.4 — the token-spend ledger (R5).** `spendLedgerRepo.ts` appends one row per **completed** call,
+keyed by agent, carrying the provider's **actual reported** cost in integer micro-USD. An estimate is a
+compile error (`costSource` is a single-member literal), re-checked at run time, and refused a third
+time by the table's own CHECK. There is no update path and no delete path, and the test scans the source
+for both SQL verbs so append-only is a property of the file rather than a convention. The read model
+`src/features/routing/spendLedger.ts` deliberately lives in the **routing** tier, not the server tier,
+because §6.3 requires `weeklySpend` to serve `modelPolicy` "without dragging the store into the browser
+tier" — the dependency arrow points server → routing, one way, and the file has no imports at all. Its
+purity is mechanical rather than remembered: `Date` is never referenced (the week bucket is integer
+calendar arithmetic), no statement or handle is named, and there is no cap literal anywhere — the cap is
+injected, which is why §6.3 writes it as `<AGENT_WEEKLY_CAP_USD>`. `agentBudget.ts` is the seam that
+feeds `selectModel` from that total, per agent, never aggregated.
+
+**1.5 — the negative guards, and two contract-hygiene items closed.** `negativeGuards.test.ts` closes
+the places where 1.1-1.3 asserted a guard's existence without exercising its refusal. It adds nothing
+that an existing test already asserts:
+
+- **The money guard is now shown refusing at every repository write path**, not only at the two
+  (`decisions`, `fx_rates`) that had negative cases. §4.2.3's "guard before prepare" is a
+  **per-call-site** property — a new write path can forget it without breaking any existing test — so
+  each path carries its own refusal on record, including the UPDATE paths (`updateBalances`,
+  `reviseAmounts`) and the correction path, where a refusal is additionally shown to leave the
+  predecessor current rather than superseded by a row that does not exist.
+- **A re-run is shown to execute zero statements**, which is the stronger half of §5.2.2. The existing
+  T8 proves the schema is unchanged, but every real migration statement is written defensively
+  (`IF NOT EXISTS`, §5.2.3), so a re-executed statement would be invisible to a schema comparison. The
+  new case migrates a deliberately **non-idempotent** series twice: if the migrator executed a single
+  statement of an already-applied migration, the second call would throw. A companion case shows stored
+  rows surviving a re-run, so "no-op" covers data and not only DDL.
+- **The symlink escape is exercised.** `paths.ts` documented containment and named the symlink case
+  explicitly; nothing had tested it, so the module's strongest sentence was its only untested one. A
+  directory link inside the agent's own data directory, pointing at a peer's, is now shown being
+  refused — the shape a string check misses, because every segment of the requested path looks local.
+
+### Two contract-hygiene items closed (recorded as ADDENDUM in contract 06 §3.2)
+
+1. **`decisions.outcome` admitted a value that could never truthfully be assigned.** The applied DDL's
+   CHECK includes `'superseded'`, but §8.1's append-only rule plus migration 4's triggers make it
+   impossible to ever put that value on the row it would describe: the predecessor of a supersede is
+   never touched, so currentness is **derived** (`NOT EXISTS (successor)`), not stored. §3.2's column
+   vocabulary and §8.1 therefore disagreed, and the member was reachable only by a caller
+   self-declaring it — a row whose `outcome` asserts a lineage its lineage columns do not support.
+   **Resolved by refusing the assignment, not by changing the DDL:** narrowing the CHECK in place would
+   move a recorded checksum on an already-applied migration, which §5.1 forbids and §5.2.5's guard would
+   refuse; rebuilding the table would be destructive DDL against history (§5.3) for no gain. The insert
+   type is narrowed to the assignable subset (a compile error) and the write path throws
+   `REPOSITORY_DERIVED_STATE_NOT_ASSIGNABLE` (a run-time refusal). **Reads still accept the full enum**,
+   because a hand-repaired store may hold the value and refusing to read history fixes nothing. Recorded
+   as ADDENDUM A1 with a new acceptance test **T18**.
+2. **`DecisionOutcome` meant two unrelated things.** The browser tier's `DecisionOutcome` (contract 03
+   §12) is an observed-outcome **record** — review date, actual net effect, prediction error,
+   attribution. The server tier's was this section's small state **enum**. No file imported both, so it
+   was never a bug; it was a trap for the first module that needed both, and exactly the collision that
+   produces a wrong-but-compiling import. The **server** identifier was renamed to
+   `DecisionOutcomeState` (`DECISION_OUTCOME_STATES`, plus `ASSIGNABLE_DECISION_OUTCOME_STATES`); the
+   shipped browser tier is untouched, because it is named correctly for what it holds. No DDL, no stored
+   value, and no migration checksum moves. Recorded as ADDENDUM A2.
+
+### The acceptance tests of §9, and where each one lives
+
+| # | Test | Where |
+| - | ---- | ----- |
+| T1 | WAL and `foreign_keys=ON` read back, and a store that cannot prove them is refused | `src/server/db/connection.test.ts` |
+| T2 | A path outside the configured data directory is a typed error — relative escape, absolute override, missing directory, and (1.5) a **symlink** escape | `connection.test.ts`, `negativeGuards.test.ts` |
+| T3 | No cross-database open statement anywhere in `src/server/**` (source scan; the keyword is assembled from fragments so the scanner never matches itself) | `src/server/db/isolation.test.ts` |
+| T4 | A real foreign-key violation is rejected, proving the pragma took effect | `connection.test.ts` |
+| T5 | A non-integer monetary value is refused with a typed error naming the field, and nothing is written — at **every** write path, and in the §4.4 rate form | `decisionsRepository.test.ts`, `fxRatesRepository.test.ts`, `negativeGuards.test.ts` |
+| T6 | Every monetary column round-trips as the exact integer, and a nullable column stays null rather than reading as zero | `accountsRepository.test.ts`, `transactionsRepository.test.ts`, `obligationsRepository.test.ts`, `decisionsRepository.test.ts` |
+| T7 | `allocate` parts, persisted and re-read, still sum exactly to the original total | `src/server/db/moneyParity.test.ts` |
+| T8 | A second migrate applies zero migrations, changes no schema, executes **zero statements**, and preserves stored rows | `migrations.test.ts`, `negativeGuards.test.ts` |
+| T9 | A migration failing mid-way leaves neither the schema change nor its version row | `migrations.test.ts` |
+| T10 | An edited already-applied migration is refused on checksum mismatch, totally | `migrations.test.ts` |
+| T11 | A shared input vector produces identical results through the server path and the browser path, using the real engines | `moneyParity.test.ts` |
+| T12 | The server tier imports the money core and declares no arithmetic of its own (source scan) | `moneyImplementation.test.ts` |
+| T13 | `weeklySpend` is pure — no clock, no store, no ambient state; proven by source scan **and** by running it with the clock and randomness trapped | `src/features/routing/spendLedger.test.ts` |
+| T14 | Actual reported cost is what lands in the ledger; an estimate never does | `src/server/db/spendLedgerRepo.test.ts` |
+| T15 | Exhausting one agent's weekly total refuses that agent and leaves the other unaffected | `spendLedgerRepo.test.ts`, `src/features/routing/agentBudget.test.ts` |
+| T18 | A caller cannot assign the derived `superseded` outcome; refused with a typed error, nothing written, and the value still readable | `negativeGuards.test.ts` |
+
+T16 (telemetry rejects prompt text) belongs to the telemetry store, which is Phase 5.3. T17 (no
+deployment particular in a tracked file) is the harness check that task 9.0 owns.
+
+### Verification
+
+- `npm run typecheck` 0 errors; `npm run lint` 0 warnings at `--max-warnings 0`.
+- Suite **333 → 531 across 37 → 51 files**: 1.1 +25 (connection 13, isolation 4, migrations 8),
+  1.2 +57 (accounts 10, transactions 10, obligations 11, decisions 26), 1.3 +23 (parity 8,
+  one-implementation 6, fx rates 9), 1.4 +69 (ledger repository 23, pure read model 37, per-agent
+  budget 9), 1.5 +24 (negative guards). Every figure in every fixture is synthetic.
+- `npm run verify:all -- --all` — **17 of 19**, with **AC12 (contract index and build log agree) PASS**,
+  confirmed after editing this log rather than assumed: AC12 reads `contracts/_CONTRACT_INDEX.md` and
+  `contracts/_BUILD_LOG.md` — the **original five** build contracts — and not this PFOS track, so
+  appending here cannot move it. The only red checks are **AC14 (working tree clean)** and **AC15 (push
+  ready)**, both reporting the same uncommitted Phase-1 work. That is the expected mid-phase state; the
+  orchestrator commits at phase end.
+- The AC04 floor stays at **331**. Ratcheting it is task 9.1's, and raising it here would have taken a
+  decision that belongs to close-out.
+- Nothing in `scripts/verify/` was touched. No check was weakened, relaxed, or edited to make a gate
+  pass, and no DDL statement in an applied migration was altered.
+
+### Known gaps, recorded honestly because they are real and unclosed
+
+1. **`statements`, `assets`, and `valuations` declare monetary columns but have no repository.** They
+   are in `MONETARY_COLUMNS`, so the guard knows about them, but nothing can currently write them
+   *through* the guard — they are reachable only by ad-hoc SQL, which crosses no boundary. No task in
+   `.kiro/specs/06-two-agent-vps/tasks.md` claims them today. Until one does, the §4.2 boundary is
+   complete for every table that has a write path and absent for three that do not.
+2. **§2.1.5 (local filesystem only, no network or synchronizing filesystem) has no in-process test, by
+   design.** A process cannot verify that its own mount is not sync-mediated; the check is a property of
+   the host, so it is carried by contract 12 and the ops gate register rather than pretended here. The
+   same is true of contract 12 §3.2.1's second isolation belt — the peer's volume is not in this
+   process's mount namespace at all. Phase 1 tests the **application** belt (a typed error) and
+   documents the ops belt rather than simulating it.
+3. **"The guard runs before prepare" is asserted behaviourally, per call site, not made mechanical by
+   any single module.** Each repository proves it by refusing and then showing the table and the audit
+   log unchanged; nothing structurally prevents a future write path from preparing first. A source-level
+   assertion (every `prepare` in a repository is preceded by the guard for its table) would close it and
+   is not written.
+
+### Still gated (unchanged by Phase 1)
+
+- Building behind an injected port with a deterministic mock is authorized; nothing on the network is.
+  The human gates stand: provision and harden the host, DNS, create the two bots, mint the two runtime
+  keys with weekly caps, the storage consent click, webhook registration, and generate the encryption
+  keypair with the private half kept off the box. G7 stays **closed as WONT-DO** per steering §0b.
+- No outbound call from a server process and no production secret, unchanged.

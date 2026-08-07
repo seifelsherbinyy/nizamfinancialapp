@@ -95,6 +95,13 @@ export interface SelectionInput {
   allowPremium?: boolean;
   /** Running weekly LLM spend (USD), supplied by the caller/telemetry. */
   spentThisWeekUsd: number;
+  /**
+   * The cap this decision is measured against (USD). Injected so a PER-AGENT cap can be supplied
+   * (contract 06 §6.2.3 / §6.3: a cap decision is scoped to one agent and never aggregated across
+   * agents, which is what makes R17 reachable). Omitted, it falls back to the owner's K4 account cap,
+   * preserving the single-agent behaviour this module shipped with.
+   */
+  capUsd?: number;
   /** Optional real token profile for this turn (overrides the nominal per-tier profile). */
   estTurnUsage?: TokenUsage;
 }
@@ -115,9 +122,9 @@ export interface SelectionResult {
 
 /** Pick the model for a turn under the owner's K4 policy and weekly budget. Deterministic. */
 export function selectModel(input: SelectionInput): SelectionResult {
-  const { tier, allowPremium = false, spentThisWeekUsd, estTurnUsage } = input;
-  const phase = budgetPhase(spentThisWeekUsd);
-  const budgetRemainingUsd = Math.max(0, WEEKLY_BUDGET_USD - spentThisWeekUsd);
+  const { tier, allowPremium = false, spentThisWeekUsd, capUsd = WEEKLY_BUDGET_USD, estTurnUsage } = input;
+  const phase = budgetPhase(spentThisWeekUsd, capUsd);
+  const budgetRemainingUsd = Math.max(0, capUsd - spentThisWeekUsd);
   const notes: string[] = [];
 
   const result = (over: Partial<SelectionResult>): SelectionResult => ({
@@ -140,7 +147,7 @@ export function selectModel(input: SelectionInput): SelectionResult {
 
   // Hard weekly cap: once exhausted, no further LLM call (deterministic engines are unaffected).
   if (phase === 'exhausted') {
-    notes.push('Weekly USD 5.00 cap reached; LLM routing paused until the week resets. Deterministic engines continue.');
+    notes.push('The weekly LLM spend cap is reached; LLM routing is paused until the week resets. Deterministic engines continue.');
     return result({ blockedByBudget: true, reason: 'weekly budget exhausted' });
   }
 
