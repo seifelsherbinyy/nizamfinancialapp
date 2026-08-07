@@ -262,7 +262,9 @@ deliberately not in any secret tier the build can reach. A wrong record is publi
    - `money.<DOMAIN>` -> `<HOST_ADDRESS>`
 2. Set `<TTL>` low until the deployment is stable, then raise it.
 3. Do **not** create a record for the signal bus. The bus is internal-network-only and must never be
-   resolvable or proxied (contract 12 §12, requirement **R9**).
+   resolvable or proxied (contract 12 §12, requirement **R9**). The full binding requirement - what the
+   compose file must declare, what the proxy template must never contain, and how both are verified - is
+   `ops/BUS_NETWORK_BINDING.md`, authored in spec Phase 3.3 and binding on tasks 7.1 and 7.2.
 
 ### VERIFICATION
 

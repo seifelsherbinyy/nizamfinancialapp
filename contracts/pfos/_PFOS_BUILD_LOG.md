@@ -1026,3 +1026,273 @@ to 9.0 rather than pre-empted here.
   click, webhook registration, and generate the encryption keypair with the private half kept off the
   box. G7 stays **closed as WONT-DO** per steering §0b.
 - No outbound call from a server process and no production secret, unchanged.
+
+---
+
+## Phase 3 - The signal bus and the consent boundary (2026-08-07)
+
+**Why.** Steering §4.3 is the sentence the whole two-agent design earns its keep on: *the state
+crosses, the data never does.* Phase 3 builds the only channel between the two agents and makes that
+sentence mechanical. Contract 12 §4.3 states the mechanism and names the failure mode it is chosen
+against: **a runtime filter is code, and code can be bypassed, mis-ordered, disabled under load, or
+forgotten at a new call site, and its failure mode is silent leakage that looks like success.** A
+schema with no such field cannot carry the value at all, and its failure mode is a loud validation
+error at the producer before anything is stored. So the boundary here is **consent by absence** — the
+field does not exist — and every negative test asserts a refusal that also wrote nothing.
+
+| Phase | Deliverable | Source | Status |
+| ----- | ----------- | ------ | ------ |
+| 3.1 | Vendored envelope schema + `envelopeValidation.ts`: the four §4.3 mechanisms, the sole `SignalNote` mint, the sealing digest, and a read path that re-validates | contract 12 §4.2, §4.3; steering §4.3 | done |
+| 3.2 | `consentGate.ts`: the five §4.5 rules, the tier gate, and the §4.6 layer-4 de-identification claims about the gate's OUTPUT | contract 12 §4.5, §4.6 | done |
+| 3.3 | `signalStore.ts` + `signalStoreSchema.ts`: append-only at the engine with an audit mirror; `ops/BUS_NETWORK_BINDING.md` for the R9 network half | contract 12 §4.1, §2.2.5, §2.2.6 | done |
+| 3.4 | The R10 exclusion scan, the coverage audit of the other three negatives, and this section | contract 12 §4.4.3, §4.4.5 | done |
+
+### The consent-by-absence argument, and the four §4.3 mechanisms it decomposes into
+
+§4.3 is not one rule but four that only work together, and the fourth is what keeps the first three
+from being decorative:
+
+1. **No numeric field of any kind in the payload.** A level is an enum, not a magnitude. Enforced at
+   the type level by Phase 2.1's `NoMagnitude`, in the vendored JSON document by typing no payload
+   field `number` or `integer`, and at run time by `field_numeric` — including the case that reads as
+   a member mismatch but is not: a **permitted** key handed a magnitude (`payload.level = 2`) refuses
+   as `field_numeric`, at `payload.level`.
+2. **No temporal field other than the envelope's own `ts`.** Refused by name *and* by value, so
+   `dueDate: 'soon'` and `observed: '2026-09-01'` both fail as `field_temporal`. A due date cannot be
+   expressed.
+3. **No identifier field.** No account, transaction, document, or storage reference —
+   `field_identifier`.
+4. **`additionalProperties` false at every level, and the note capped by the schema.** Without the
+   closed level the first three are theatre: a producer could add `balance` and pass. An unrecognized
+   field with no telling name (`colour: 'teal'`) refuses as `field_unrecognized`. And an over-cap note
+   is **refused, never truncated**, because truncation would silently ship the first 120 characters of
+   something that was never allowed to leave.
+
+Two absences carry as much weight as the four presences. **A refusal retains no refused value**
+(§4.3.6): `SignalRefusal` has no `value`, no `payload`, no `received` — it carries the reason, the
+path, the producer's own identifier, and the *length* of a note. There is no quarantine table, because
+that table would be exactly the leak the schema prevents. And the rules are re-run **on read**, from
+the stored row, every read: the digest covers `ts | producer | kind | payload` and therefore does *not*
+cover `tier` or `consent_scope`, so integrity cannot substitute for the gate, and a row a widened
+schema once accepted is still refused today.
+
+### What landed
+
+**3.1 — the schema, the validator, and the mint Phase 2 left open.** `nizam-signalbus.envelope.schema.json`
+is the one artifact the two agents share (steering §1); `envelopeSchema.ts` is this agent's mirror, and
+`schemaParity.test.ts` reads the JSON document **as text from disk** and fails if the two ever drift —
+because two statements of the same rules in two languages is exactly the shape where one moves and the
+other does not, and the consequence would be this agent accepting an envelope the Python agent rejects.
+The parity scan fails closed: a missing document, an unparseable one, an object level with no closing
+keyword, or a `$defs` entry the walk did not reach are all failures.
+
+`envelopeValidation.ts` **became the sole mint for `SignalNote`, which Phase 2 recorded as an open
+gap** ("the branded `SignalNote` has no mint, so the `note` field is currently unreachable by anyone").
+It is now reachable through exactly one function, and the test proves the bypass is a compile error:
+a raw `string` is not assignable to the branded field. That is what makes §4.3.4 structural rather than
+advisory — 121 characters cannot reach the field, because no unvalidated string can.
+
+**3.2 — the consent gate, with each of the five §4.5 rules given its own mechanism.** Rule 1 (the
+refusal happens at the **bus**, not the subscriber) is a brand: a stored envelope is not a served
+envelope until the gate says so, so a subscriber deciding for itself is a compile error rather than a
+review comment. Rule 2 (a refusal is not an empty result) is a discriminated outcome with **no
+`signals` key on the refusal**, and the gate refuses the **whole read** rather than quietly shortening
+the delivered list — dropping the denied row and returning the rest is precisely the indistinguishable
+empty-ish answer the rule forbids. Rule 3 (`producer_only` is the default for a new kind) is asserted
+by **iterating `SIGNAL_KINDS`**, so a kind added tomorrow is covered on the day it is added, and
+covered as closed; the shipped widening allowlist is empty, and the gate takes the *narrower* of the
+stored scope and the kind default so a stray `shared` widens nothing. Rule 4 (evaluated on read, every
+read) is proved three ways: a source scan for module-level mutable state, a map, a memo or a cache; two
+reads returning different answers when the stored row changes between them; and a getter-instrumented
+row showing `consentScope` is re-read on the second call. Rule 5 (tier and scope are independent) is
+walked across the whole four-row truth table.
+
+Beside the five rules, `deidentificationBreaches` is an **independent derivation** asserted about what
+the gate actually delivers (§4.6 layer 4), and it earns its independence by catching something read
+validation accepts: a bare calendar date is a legal signal identifier as far as the envelope schema is
+concerned — a non-empty string within bound — and it is still a date crossing the boundary.
+
+**3.3 — append-only at the engine, and one duplicate validator collapsed.** `signals.db` is its own
+migration series with its own bookkeeping, and append-only is enforced by `BEFORE UPDATE` and
+`BEFORE DELETE` triggers on **both** `signals` and the `signal_audit` mirror, so every path is bound
+and not only callers who came through the module — an editable audit trail is not one. A correction is
+a new row. The audit mirror records the accept **and** the refusal, naming the rule that fired and
+measuring a note's length rather than copying it, and `AUDIT_FORBIDDEN_COLUMNS` is asserted against the
+live `table_info` so the absence of a quarantine column is a property of the shipped table.
+
+> **`signalBusMock` lost its duplicate validation and deliberately KEPT its own digest.** Phase 2.2
+> shipped its own copy of the permitted payload keys, its own instant pattern and its own inline field
+> checks, because the real validator did not exist; its docstring recorded that Phase 3 owned the real
+> one. 3.3 collapsed all of it onto `validateSignalDraft`, so there is one vocabulary, one note cap,
+> one enum set and one field classifier, and the mock cannot drift from the bus. Two checks stayed,
+> because neither is a property of the *envelope*: the duplicate-identifier check and the consent
+> policy. **The mock's `hash` stays a 32-bit FNV-1a rendered as eight hex digits.** The real digest is
+> a sha256, 64 characters wide, and Phase 2.2's determinism and receipt tests **pin the
+> eight-character form**. Pointing the mock at the real digest would break tests that are asserting
+> something true, for no gain: a *mock* integrity claim only has to be stable across runs and
+> sensitive to the payload, which FNV-1a is. The real digest belongs to the real store, and that is
+> where it lives.
+
+`ops/BUS_NETWORK_BINDING.md` is the **R9 documentation half**, and it is a *requirement*, not an
+artifact: nothing in it is executed, and it carries `<ANGLE_BRACKET>` placeholders only. It exists
+because R9 cannot be tested in-process — §2.2.6 requires reaching the bus from outside to fail as a
+**connection refusal at the network layer**, not as an authentication check that denies a reachable
+port, and an authenticated-but-reachable bus is a weaker guarantee that does not satisfy R9 on its own.
+**Phase 7 must honour it**: tasks 7.1 (`ops/docker-compose.yml`) and 7.2 (`ops/Caddyfile`) are the
+artifacts it binds, and it states the constraint they are checked against so they cannot be authored in
+a way that quietly violates R9 and passes review anyway.
+
+**3.4 — the exclusion scan, which is the one §4.4 claim nothing asserted.** §4.4 makes a claim
+stronger than "the bus rejects it", and states five things. Four were already carried: §4.4.1 (not a
+member of the tier enum) by `schemaParity`, `envelopeValidation` and Phase 2's port and mock tests;
+§4.4.2 (not stored) by the store's DDL assertions and contract 06 §3.4/§7.2; §4.4.4 (not transmitted)
+by §4.4.1, since the tier enum is the only channel. **§4.4.3 — it is not REFERENCED — and §4.4.5 — the
+posture is exclusion, not filtering — were the gap**, and 3.2 explicitly left them here.
+
+`signals/exclusion.test.ts` scans **four roots, discovered from disk rather than from a list**, so an
+artifact added tomorrow is covered on the day it lands: `src/server/**` (source, fixtures), `ops/**`
+(templates, runbooks, the gate register, Phase 7's backup manifests), `src/features/benchmark/**` (eval
+cases, which Phase 6.1 completes there), and `src/features/routing/**` (the read-model half of the tier
+that lives outside `src/server`). That is every artifact kind §4.4.3 enumerates **except a log**, and
+this tier has no tracked log — a log is runtime output on a host that does not exist — so that is
+recorded as a gap rather than papered over, and the scan additionally asserts no `.log` file has
+appeared under a scanned root.
+
+Three assertions, and each has a distinct failure it catches:
+
+- **The name appears nowhere**, in code or in prose, in any artifact under any root. Comments are in
+  scope, because a comment that names the thing is a reference. Two of the three tokens are the other
+  repository's **family-domain path** rather than the classification name, because §4.4.3 binds
+  "points at" exactly as tightly as it binds "names" — an artifact could point at the content without
+  ever naming its class.
+- **Nor in assembled form, in anything that is not a refusal test.** The scan collapses adjacent
+  string-literal concatenation before matching, so it sees through the very fragment technique every
+  scanner here uses. 3.2 asserted this for one module; 3.4 generalizes it to every non-test artifact
+  in the tier, `ops/**` included.
+- **The set of files that name it at all is exactly the enumerated refusal tests, checked in both
+  directions.** This is §4.4.5 made mechanical: an unlisted file naming it is a new reference, and a
+  **listed file that stopped naming it is a refusal test that quietly went away**. The check found two
+  files 3.4 had not anticipated — `ports/interfaceOnly.test.ts` (2.1) and `mocks/signalBusMock.test.ts`
+  (2.2) — both legitimate refusal tests, which is the two-directional check doing its job on its first
+  run.
+
+**The exception was handled by reading the rule, not by widening it.** Five documents name the
+classification contiguously: contracts 06 and 12, `docs/NIZAM_TWO_AGENT_VPS_ARCHITECTURE.md`,
+`.kiro/steering/two-agent-vps.md`, and this spec's `requirements.md`. They are out of scope **and not
+by exemption**: §4.4.3 enumerates the artifact kinds it binds — source, template, fixture, eval case,
+log, backup manifest, runbook — and a governing document is none of them. A contract, a steering file
+and a requirements document are the instruments that *forbid* the thing, and a prohibition that could
+not be written down would be unenforceable. No carve-out was added; those files simply are not
+artifacts in the tier, and no scanned root holds one.
+
+The scan **fails closed**: a missing root, an empty root, a shortened collection, an allowlist entry
+that is not on disk, a coverage set missing an artifact kind, or a needle that cannot match are all
+failures. Two of those are load-bearing rather than ceremonial — a needle self-test proves each regex
+matches a planted token and rejects a clean line, and a fragment-assembly self-test proves the
+collapse step works, because without them the three assertions above could be green from a malformed
+pattern. The **planted-reference negative was demonstrated twice and removed both times**: a
+contiguous name in `src/server/signals/index.ts` failed three assertions at once
+(`src/server/signals/index.ts:99 (the excluded tier name)`, the same line again in assembled form, and
+the file appearing in the naming set); the pointer form planted in `ops/BUS_NETWORK_BINDING.md` failed
+the same three, reporting all four token/shape combinations at `ops/BUS_NETWORK_BINDING.md:103`.
+
+**3.4 also strengthened one existing claim rather than restating it.** R7 and steering §4.3.3 both name
+the number — "any free text over **120** characters" — and **nothing pinned it**. Every assertion about
+the cap, in `envelopeValidation.test.ts`, `schemaParity.test.ts`, the store's DDL check and the gate's
+output claims, is expressed *relative to* `SIGNAL_NOTE_MAX_LENGTH`. Raising that constant to 500 would
+have kept all of them green while violating R7 outright. One assertion in
+`envelopeValidation.test.ts` now writes the requirement's own number down, which is what makes the
+relative ones load-bearing. Nothing else was added: the other three negatives this task nominally owned
+were audited against the requirements and found already asserted, so 3.4 added no test that duplicates
+one.
+
+### The acceptance tests of §12, and where each one lives
+
+| # | Test | Where |
+| - | ---- | ----- |
+| T7 | A valid directional signal is accepted and served as a level — the positive control, first on purpose | `signals/envelopeValidation.test.ts`, `signals/consentGate.test.ts` |
+| T8 | A payload carrying a figure is rejected and stores nothing, including a **permitted** key handed a magnitude | `envelopeValidation.test.ts`, `signalStore.test.ts` |
+| T9 | A date and an identifier are each rejected individually, by name **and** by value | `envelopeValidation.test.ts` |
+| T10 | A note over the cap is rejected, **not truncated**; at the cap accepted; no shortened form returned or persisted; and the cap is the 120 the requirement names | `envelopeValidation.test.ts`, `signalStore.test.ts` |
+| T11 | An unrecognized payload field is rejected, with no telling name needed | `envelopeValidation.test.ts` |
+| T12 | A `producer_only` signal is refused to a subscriber, from the bus, distinguishably from "no such signal" | `consentGate.test.ts` (rules 1 and 2) |
+| T13 | Tier and scope are independent gates, walked across the full truth table | `consentGate.test.ts` (rule 5) |
+| T14 | A new kind defaults to `producer_only`, asserted by iterating the enum so a future kind is covered on arrival | `consentGate.test.ts` (rule 3) |
+| T15 | The excluded classification cannot be expressed here **and no artifact in the tier references it** | `schemaParity.test.ts`, `envelopeValidation.test.ts`, `consentGate.test.ts`, `ports/interfaceOnly.test.ts`, `mocks/signalBusMock.test.ts`, **`signals/exclusion.test.ts`** |
+
+T5 and T6 (the bus is reachable only from the internal network; no proxy rule routes to it) are R9 and
+cannot be asserted in-process; they are carried by `ops/BUS_NETWORK_BINDING.md` and bind Phase 7.
+
+### Verification
+
+- `npm run typecheck` 0 errors; `npm run lint` 0 warnings at `--max-warnings 0`.
+- Suite **685 → 816 across 60 → 65 files**, all of it in `src/server/signals/` (**131 tests, 5
+  files**): 3.1 **+46** (envelope validation 32, schema parity 14), 3.2 **+36** (consent gate), 3.3
+  **+35** (signal store; the `signalBusMock` collapse changed no count, because the mock's own 27
+  tests assert the same refusals through one validator instead of two), 3.4 **+14** (exclusion scan
+  13, the cap pin 1). Every figure in every fixture is synthetic.
+- `npm run verify:all -- --all` — **17 of 19**, with **AC12 (contract index and build log agree)
+  PASS**, confirmed after editing this log rather than assumed: AC12 reads
+  `contracts/_CONTRACT_INDEX.md` and `contracts/_BUILD_LOG.md` — the **original five** build contracts
+  — and not this PFOS track, so appending here cannot move it. Every pre-existing scanner
+  (`db/isolation.test.ts`, `db/moneyImplementation.test.ts`, `ports/interfaceOnly.test.ts`,
+  `mocks/determinism.test.ts`, `signals/schemaParity.test.ts`) still passes alongside the new one, and
+  the new one assembles its tokens from fragments for exactly that reason. The only red checks are
+  **AC14 (working tree clean)** and **AC15 (push ready)**, both reporting the same uncommitted Phase-3
+  work. That is the expected mid-phase state; the orchestrator commits at phase end.
+- The AC04 floor stays at **331**. Ratcheting it is task 9.1's, and raising it here would take a
+  decision that belongs to close-out.
+- Nothing in `scripts/verify/` was touched, weakened, relaxed, or edited. No check was changed to make
+  a gate pass, and no DDL statement in an applied migration was altered.
+
+### Open items that need an owner decision, recorded rather than decided here
+
+1. **3.1 omitted the JSON Schema `$schema` dialect keyword.** The 2020-12 dialect URI is an absolute
+   URI with a bare domain, and steering §0b admits **no exception** — "no bare domain … not even as an
+   example" — so the document names its dialect **in prose**, inside its `$comment`, and
+   `schemaParity.test.ts` asserts the file holds no absolute URI at all. **The cost is real:** a
+   generic validator must be *told* which dialect to apply rather than reading it from the document,
+   which is a hand-off cost the Python agent pays too. The alternatives — permitting this one URI, or
+   injecting it at deploy time — are both owner calls about how literally §0b binds a
+   language-neutral specification identifier, and neither was taken unilaterally.
+2. **3.1 added a rule contract 12 does not state: a note containing ANY digit is refused**
+   (`note_carries_a_figure`). It is **derived**, from architecture §1.5 — the finance agent publishes a
+   pressure level and never "you owe 47,000" — and it closes a real hole, because §4.3.1's ban on a
+   numeric *field* says nothing about a figure written inside the one free-text field the schema
+   permits. But it is stricter than the contract's letter, and it refuses legitimate directional prose
+   that happens to contain a digit ("ease off for 2 weeks"). Either contract 12 §4.3 should be amended
+   to state it, or the rule should be narrowed to figure-shaped runs rather than any digit. **Owner
+   decision.**
+3. **`ops/BUS_NETWORK_BINDING.md` check 5 is not wired to anything.** Four of its five verification
+   steps need a host and therefore wait on G1. The fifth — the proxy template names no bus upstream —
+   is a **string match an automated harness can run today**, and it fails closed, which is the only
+   useful direction for that rule. **Task 9.0 is its natural home** (it is already adding a
+   fail-closed no-deployment-particular scanner over `ops/**`), and it is **NOT yet wired**. Until it
+   is, that check is a runbook line rather than a gate.
+
+### Known gaps, recorded honestly because they are real and unclosed
+
+1. **The exclusion scan's refusal-test allowlist is a maintenance surface.** That is deliberate — a
+   new file naming the classification should require a deliberate edit — but it means a legitimate new
+   refusal test fails the suite until it is listed. The alternative (inferring the allowlist from the
+   tree) would make the check assert nothing.
+2. **§4.4.2 "not stored in any of the **three** stores" is asserted for one store.** `signals.db` is
+   checked at the DDL level; `finance.db` is covered by contract 06's column vocabulary; `life.db` is
+   in the other repository and cannot be asserted from here. Steering §6 keeps Kiro out of that repo,
+   so the claim there is carried by the patch series Phase 8 emits, not by a test.
+3. **The store's append-only triggers are asserted; the *absence* of a future non-triggered table is
+   not.** A table added later without triggers would not break any existing test. The same shape as
+   Phase 1's "guard before prepare is per-call-site" gap, and unclosed for the same reason.
+4. **`deidentificationBreaches` is an audit function with no caller in a live path.** It is exercised
+   by tests and by nothing else, because there is no live bus. When Phase 7 wires one, whether it runs
+   on every delivery or only in the audit path is an unmade decision.
+
+### Still gated (unchanged by Phase 3)
+
+- Building behind an injected port with a deterministic mock is authorized; **nothing on the network
+  is, and this phase built no live half of any boundary** — the bus store is a local file and the
+  network binding is a document. The human gates stand: provision and harden the host, DNS, create the
+  two bots, mint the two runtime keys with weekly caps, the storage consent click, webhook
+  registration, and generate the encryption keypair with the private half kept off the box. G7 stays
+  **closed as WONT-DO** per steering §0b.
+- No outbound call from a server process and no production secret, unchanged.

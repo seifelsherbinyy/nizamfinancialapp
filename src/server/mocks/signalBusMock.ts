@@ -15,10 +15,27 @@
  * belts matter. The first stops the mistake being written; the second stops it being accepted from
  * somewhere the compiler never saw.
  *
+ * **Validation is not duplicated here (Phase 3.3).** Phase 2.2 shipped its own copy of the
+ * permitted payload keys, its own instant pattern and its own inline field checks, because the
+ * real validator did not exist yet; its docstring recorded that Phase 3 owned the real one. It
+ * does now, so this mock delegates every envelope-field rule to
+ * {@link validateSignalDraft} in `../signals/envelopeValidation`. There is one vocabulary, one
+ * note cap, one set of enums, and one field classifier, so the mock and the bus cannot drift.
+ *
+ * Two checks stay here, because neither is a property of the ENVELOPE:
+ *   - a client publishes as itself and nothing else (§4.2) — that is a property of this client's
+ *     configuration, and the same envelope is perfectly valid published by its own producer;
+ *   - a kind the owner has not widened stays at the default consent scope (§4.5.3) — that is a
+ *     property of the deployment's consent policy, not of the envelope's shape.
+ *
  * Determinism. No clock: `storedAt` comes from the injected `now`. No randomness and no crypto:
  * `hash` is a 32-bit FNV-1a over the canonical `ts | producer | kind | payload` string, rendered
- * as eight hex digits. That is a MOCK integrity claim — Phase 3 owns the real one — and its only
- * requirements here are that it is stable across runs and that it changes when the payload does.
+ * as eight hex digits. **This deliberately remains the mock's own digest.** The real one
+ * (`signalEnvelopeHash`) is a sha256 and 64 hex characters wide, and Phase 2.2's determinism and
+ * receipt tests pin the eight-character form; swapping it would break tests that are asserting
+ * something true, to no benefit — a MOCK integrity claim only has to be stable across runs and
+ * sensitive to the payload, which this is. The real digest belongs to the real store
+ * (`../signals/signalStore`), which computes it through 3.1 and nowhere else.
  *
  * The failure paths a caller can drive:
  *   - **an invalid envelope** — a producer that is not this client, an empty identifier, a
@@ -43,12 +60,6 @@
  */
 import type { PortFailureCode } from '../ports/errors';
 import {
-  CONSENT_SCOPES,
-  SIGNAL_DIRECTIONS,
-  SIGNAL_KINDS,
-  SIGNAL_LEVELS,
-  SIGNAL_NOTE_MAX_LENGTH,
-  SIGNAL_PRODUCERS,
   SIGNAL_TIERS,
   type SignalBusPort,
   type SignalBusPortConfig,
@@ -63,14 +74,9 @@ import {
   type StoredSignalReceipt,
 } from '../ports/signalBus';
 import type { Exact } from '../ports/shapeGuards';
+import { validateSignalDraft } from '../signals/envelopeValidation';
 import { MockPortFailure } from './failure';
 import type { InvocationRecorder } from './invocationRecorder';
-
-/** The UTC instant form the envelope's `ts` takes. An offset-bearing value is refused. */
-const UTC_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
-
-/** The only keys a payload may carry (§4.3.2, §4.3.3, §4.3.5). */
-const PERMITTED_PAYLOAD_KEYS: readonly string[] = ['level', 'direction', 'note'];
 
 /** Which tiers a subscriber may read. Injectable, so a test can close one. */
 export type ReadableTiers = Readonly<Record<SignalProducer, readonly SignalTier[]>>;
@@ -136,58 +142,32 @@ export function createSignalBusMock(mockConfig: SignalBusMockConfig): SignalBusM
     throw new MockPortFailure(code, `NIZAM signal bus mock: ${why}`, signalId);
   }
 
-  /** The runtime half of §4.3. Order is deliberate: the most serious refusal is raised first. */
+  /**
+   * The runtime half of §4.3, delegated. Every envelope-field rule — the permitted payload keys,
+   * the no-numeric rule, the tier membership, the note cap, the enums, the instant form — comes
+   * from Phase 3.1's validator, which is the single place they are expressed. The refusal it
+   * returns already carries the port failure code, so a caller sees the same `code` it always
+   * did without this file deciding which one that is.
+   */
   function validate(draft: SignalDraft): void {
     const id = draft.signalId.length > 0 ? draft.signalId : null;
 
-    // A surplus payload field is the leak the schema exists to prevent, so it is checked first.
-    const payload = draft.payload as Readonly<Record<string, unknown>>;
-    for (const key of Object.keys(payload)) {
-      if (!PERMITTED_PAYLOAD_KEYS.includes(key)) {
-        reject('SIGNAL_PAYLOAD_FIELD_FORBIDDEN', `payload field "${key}" is not part of the envelope`, id);
-      }
-    }
-    // §4.3.1: a level is an enum, never a magnitude. Belt two for a value that bypassed the type.
-    for (const key of PERMITTED_PAYLOAD_KEYS) {
-      if (typeof payload[key] === 'number') {
-        reject('SIGNAL_PAYLOAD_FIELD_FORBIDDEN', `payload field "${key}" carries a magnitude`, id);
-      }
+    const validated = validateSignalDraft(draft);
+    if (!validated.ok) {
+      const { refusal } = validated;
+      // `signalIdRef` is the producer's own identifier as the validator measured it; the message
+      // is the validator's prose, so the mock cannot describe a rule differently from the bus.
+      reject(refusal.code, refusal.message, refusal.signalIdRef);
     }
 
-    if (!(SIGNAL_TIERS as readonly string[]).includes(draft.tier)) {
-      reject('SIGNAL_TIER_NOT_A_MEMBER', `tier "${String(draft.tier)}" is not a member of the schema`, id);
-    }
-
-    const note = draft.payload.note;
-    if (note !== undefined && note.length > SIGNAL_NOTE_MAX_LENGTH) {
-      // Refused, not truncated (§4.3.4).
-      reject('SIGNAL_NOTE_EXCEEDS_CAP', `the directional note exceeds ${SIGNAL_NOTE_MAX_LENGTH} characters`, id);
-    }
-
-    if (id === null) reject('SIGNAL_ENVELOPE_INVALID', 'the signal identifier is empty', null);
-    if (!UTC_INSTANT.test(draft.ts)) reject('SIGNAL_ENVELOPE_INVALID', 'the completion instant is not a UTC instant', id);
-    if (!(SIGNAL_PRODUCERS as readonly string[]).includes(draft.producer)) {
-      reject('SIGNAL_ENVELOPE_INVALID', 'the producer is not a member of the schema', id);
-    }
+    // A client publishes as itself and nothing else (§4.2). Not an envelope rule: the same
+    // envelope is valid when its own producer publishes it, so it belongs to this client.
     if (draft.producer !== config.producer) {
-      // A client publishes as itself and nothing else (§4.2).
       reject('SIGNAL_ENVELOPE_INVALID', 'this client may only produce its own signals', id);
     }
-    if (!(SIGNAL_KINDS as readonly string[]).includes(draft.kind)) {
-      reject('SIGNAL_ENVELOPE_INVALID', 'the signal kind is not a member of the schema', id);
-    }
-    if (!(CONSENT_SCOPES as readonly string[]).includes(draft.consentScope)) {
-      reject('SIGNAL_ENVELOPE_INVALID', 'the consent scope is not a member of the schema', id);
-    }
-    if (!(SIGNAL_LEVELS as readonly string[]).includes(draft.payload.level)) {
-      reject('SIGNAL_ENVELOPE_INVALID', 'the level is not a member of the schema', id);
-    }
-    const direction = draft.payload.direction;
-    if (direction !== undefined && !(SIGNAL_DIRECTIONS as readonly string[]).includes(direction)) {
-      reject('SIGNAL_ENVELOPE_INVALID', 'the direction is not a member of the schema', id);
-    }
 
-    // §4.5.3: a kind the owner has not widened stays at the default scope.
+    // §4.5.3: a kind the owner has not widened stays at the default scope. A consent policy of
+    // the deployment, not a property of the envelope's shape.
     if (draft.consentScope !== config.defaultConsentScope && !widened.has(draft.kind)) {
       reject('SIGNAL_CONSENT_SCOPE_REFUSED', `the kind "${draft.kind}" has not been widened past the default scope`, id);
     }

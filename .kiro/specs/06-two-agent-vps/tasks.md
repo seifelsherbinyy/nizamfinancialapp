@@ -24,10 +24,10 @@
 - [x] 2.3 Assert `src/server/**` is absent from the browser bundle (extend the existing isolation check)
 
 ## Phase 3 - Signal bus and the consent boundary → R7-R10
-- [ ] 3.1 Vendor the signal envelope schema; validation module; no field can carry a figure or long text
-- [ ] 3.2 Consent gate: `producer_only` refused; tier check; de-identification assertions
-- [ ] 3.3 Append-only store + audit mirror; internal-only binding documented in ops
-- [ ] 3.4 Negative tests: figure in payload rejected; `producer_only` refused; over-length text rejected;
+- [x] 3.1 Vendor the signal envelope schema; validation module; no field can carry a figure or long text
+- [x] 3.2 Consent gate: `producer_only` refused; tier check; de-identification assertions
+- [x] 3.3 Append-only store + audit mirror; internal-only binding documented in ops
+- [x] 3.4 Negative tests: figure in payload rejected; `producer_only` refused; over-length text rejected;
       `strict_local_maximum` reference rejected
 
 ## Phase 4 - Telegram transport (mocked) → R11-R15
