@@ -634,6 +634,117 @@ If the benchmark ends up running against fixtures, record that fact here when th
 updated: "registry provisional as of `<DATE>` - dev key absent or exhausted; live routing still gated on
 G4".
 
+### Recorded observation - registry is PROVISIONAL as of 2026-08-07
+
+**Status: BLOCKED - awaiting human**
+
+Spec task 6.3 ran its pre-flight determination and did **not** make a live call. The eligibility
+registry therefore remains the fixture-backed, `provisional: true` document emitted by task 6.2, and
+live routing is still gated on **G4**.
+
+**Correction to the sentence above, which the register should carry rather than hide.** The carve-out is
+written as a binary - the dev key is either present and usable, or "absent or exhausted". There is a
+**third** state, and it is the one this deployment is actually in: the dev key is *present*, the run is
+*affordable*, and the run is still impossible. Three of the four preconditions hold and a fourth, which
+the carve-out never names, does not:
+
+| Precondition | Held? | Observation (no value recorded) |
+|---|---|---|
+| Dev credential present and non-empty | **yes** | file present, non-empty; existence checked only, never read |
+| Estimated run cost strictly below the stated ceiling | **yes** | estimate is about a third of the ceiling for both models over the whole eval set |
+| Run scoped to the default-allowed model pair only | **yes** | premium models refused by a gate with no opt-in parameter |
+| Eval set passes its completeness and sanitization audits | **yes** | both task 6.1 gates green |
+| **An environment entry resolves the model provider base URL** | **NO** | no such entry exists in the developer environment, in any form |
+
+The fourth line is the one that closed the branch. `OpenRouterPortConfig` (spec task 2.1) states the
+rule it rests on - "there is no default endpoint" - so the base URL arrives as the NAME of an
+environment entry and an unresolved name fails closed. Resolving `<MODEL_API_BASE>` is an **operator**
+step by this register's own placeholder glossary, so an agent supplying it would be manufacturing the
+precondition rather than finding it satisfied, which is gate discipline rule 4.
+
+Nothing was weakened to reach this outcome and nothing was invented to avoid it. The refusal is a typed
+one that a test drives in both directions.
+
+### The blocked item - task 6.3's live benchmark run
+
+**Status: BLOCKED - awaiting human**
+
+#### Why a human is required
+
+Two reasons, and the second is the one that cannot be delegated:
+
+1. The provider base URL must be resolved from the provider's published API documentation and placed in
+   the developer environment. Per the glossary above, that resolution belongs to the operator.
+2. The run **spends the owner's money**. The pre-flight estimate is about one third of the dev key's
+   whole periodic allowance for a single pass over both models, and the remaining allowance for the
+   current period cannot be determined without a network call - so "within its cap" is not fully
+   answerable offline. A spend of that size, on a model roster no offline check can confirm still
+   exists at the provider, is a decision for whoever owns the money.
+
+#### Precondition that was not met
+
+The environment entry naming the model provider base URL is absent. There is no default and no fallback.
+
+#### Steps (human operator, on the developer machine only - never on the host)
+
+1. Resolve `<MODEL_API_BASE>` from the provider's published API documentation.
+2. Place it, and a reference to the existing dev credential, in the **developer** environment - never in
+   a tracked file, and never in the host secret store (this is the dev tier, per
+   `docs/PFOS_SECRETS_PLAN.md` §4):
+   ```
+   # developer environment only, git-ignored
+   NIZAM_BENCH_MODEL_API_BASE=<MODEL_API_BASE>
+   NIZAM_BENCH_DEV_KEY_FILE=<DEV_CREDENTIAL_FILE>
+   ```
+3. Confirm the roster the frozen pricing snapshot names still exists at the provider, since contract 09
+   puts live model metadata first in its source precedence. A model absent from the provider cannot be
+   graded, and grading a substitute under the requested name is refused by the adapter.
+4. Supply the one artifact this repository deliberately does **not** contain: a transport that performs
+   the request. The live adapter holds no request function, no request module and no scheme literal -
+   asserted by a test - so the network capability is injected at the moment of the run and exists
+   nowhere in the repository. Its only privileged act is to read the credential through the single named
+   chokepoint while building the authorization header.
+5. Run the two default-allowed models over the sanitized eval set, from the developer machine, once.
+   Do **not** retry a refusal in a loop: the adapter stops on the first non-success status, and a
+   partial run must fall back to the fixture path rather than emit a half-measured registry.
+6. Emit the registry through the witnessed path. A run that did not answer every case cannot produce a
+   non-provisional document, and there is no flag that overrides that.
+
+#### VERIFICATION
+
+```
+# 1. the pre-flight gate, which spends nothing
+#    -> reports the estimate and the ceiling side by side, and refuses unless strictly below
+# 2. after the run, on the emitted document:
+#    -> "provisional": false, and one entry per graded model
+#    -> the entry count equals the number of models actually run, never more
+#    -> every entry's "developerBuild" is false (see below - this is correct, not a fault)
+# 3. the actual reported spend is recorded, and is at or below the pre-flight estimate
+# 4. the negative: re-run the emission with one case removed from a model's answers
+#    -> it must REFUSE, not emit
+```
+Record only the observation - "registry measured as of `<DATE>`, N models graded, actual spend within
+estimate" - never the credential, never the endpoint.
+
+#### What clearing this does NOT do
+
+It does not release **G4**, and it does not make contract 10's **T4** tier routable. Contract 09 grades
+developer/build work "based on code benchmark and repository tests, **separate from live finance
+eligibility**", so a run over the FINANCE eval set leaves the developer verdict `unmeasured` - which
+`developerBuildPasses` answers `false` for, by design. A fully measured registry still has
+`developerBuild: false` on every entry, and `T4` still resolves to no eligible model. That is contract
+09 being honoured, not a gap; making T4 routable needs a code benchmark, which is a separate exercise
+against a separate corpus.
+
+#### Already built and waiting
+
+All of it except step 4. The pre-flight estimate and its two gates, the live adapter with its
+developer-machine capability and its non-printable credential holder, the response reader that fails
+closed on a bad status, a missing usage block, a non-integer cost and a substituted model, the grader
+that refuses an unanswered case instead of scoring it correct, and the witnessed emission that produces
+`provisional: false` only downstream of a complete run. Every one of those runs today, under test,
+against an in-memory transport - with no key, no endpoint and no network.
+
 ---
 
 ## What an agent may write in this file

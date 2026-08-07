@@ -2025,3 +2025,398 @@ the ceiling the owner set on provider spend, already published in the steering f
 - The **dev-key carve-out of steering §3 was not used.** No live OpenRouter call was made from any
   machine in this phase. Phase 6.3 is where that decision arises, and it arises with a cap.
 - No outbound call from a server process and no production secret, unchanged.
+
+---
+
+## Phase 6 - Benchmark Phase-1: the eval set audited, the registry made readable, and the live run refused (2026-08-07)
+
+**Why.** Phase 5 ended holding a router that could not be fed. Its last recorded open item was blunt:
+the artifact `src/features/benchmark/` emits and the document `src/server/routing/eligibilityRegistry.ts`
+reads "do not meet yet". Phase 6 is the phase that makes them meet, and it is also the first phase whose
+task line contains an `IF`. Steering §3 grants a single network exception — the Phase-1 benchmark, from
+the developer machine, on the dev key, over the sanitized eval set — and 6.3 is where that grant is
+either taken or declined. It was declined, on a precondition the carve-out does not name.
+
+Three things shaped the work, and each is a refusal to accept a claim on its face.
+
+The **6.1** bar was already met before the phase began: 219 cases against contract 09's 210 floor. So
+6.1 was never a padding exercise, and nothing was padded. What it turned out to be is an audit of the
+*other* half of its own task line — "sanitized cases only" — which had **zero** mechanical backing. The
+**6.2** gap was recorded by Phase 5 and had a concrete shape: an emitted document the reading side
+refuses. What was not recorded is that the fix's load-bearing assertion is a **round trip**, not a field
+check. And **6.3** had four preconditions in its task line, all four held, and the run was still
+impossible.
+
+| Phase | Deliverable | Source | Status |
+| ----- | ----------- | ------ | ------ |
+| 6.1 | `datasetIntegrity.ts`: 19 gates over every string and number in every case — steering §0b sanitization, contract-09 structural completeness, and money integrity — plus `egpAmountText` replacing float division, and three drift pins | contract 09 §eval set, steering §0b | done |
+| 6.2 | `fixtureReplay.ts` + `provisionalRegistry.ts` + `developerBuild.ts`: contract 09's five artifacts, emitted in the shape `eligibilityRegistry.ts` parses, and refused by it as `provisional` on a round trip through disk | contract 09, contract 12 §6.3, steering §3, Phase 5 open item 1 | done |
+| 6.3 | `preflight.ts` + `liveModelCaller.ts` + `liveRegistry.ts` + `liveModelCaller.isolation.test.ts`: the whole live path, built and tested against a deterministic transport, and **not run** — the ELSE branch, recorded in `ops/GATE_REGISTER.md` | steering §3, contract 09, contract 12 | done (branch closed as ELSE) |
+
+### 6.1 — the bar was met; the claim beside it had nothing behind it
+
+**What the audit found first, and it is the reason this sub-task exists.** The task line has two halves.
+The count half was satisfied: 219 cases, and the distribution is proportional rather than back-loaded
+onto one cheap category — `sms_extraction` 52 against 50, `classification` 32 against 30, `dedup` 26
+against 25, `safe_to_spend_explanation` 26 against 25, `purchase_decision` 26 against 25, `forecast` 21
+against 20, `tool_call` 16 against 15, with `multilingual` and `adversarial` sitting **exactly** on
+their floor of 10. Seven of nine categories carry one or two cases of headroom and two carry none; that
+is recorded precisely rather than rounded up to "all nine", because a category at exactly its minimum
+loses coverage the moment one case is deleted, and a later reader should know which two those are.
+
+The sanitization half had **nothing**. `datasetIntegrity.test.ts` did not exist. `dataset.test.ts`
+asserted counts, uniqueness, that the counts sum to the total, and that removing a category invalidates
+the set — every one of those a **cardinality** property. Not one line of the repository asserted that a
+case carried no URL, no bare domain, no address handle, no opaque identifier, no long numeric
+identifier, and no journal-length prose. The claim "sanitized cases only" was true by the care of
+whoever wrote the generators, and would have stayed true only for as long as that care held.
+
+So 6.1's deliverable is **19 gates**, and the count is not arbitrary — it is seven forbidden-token
+scanners plus twelve structural and money gates, enumerated in `INTEGRITY_GATES` in evaluation order so
+the list itself is testable:
+
+- **Steering §0b, seven scanners:** `no_url_scheme`, `no_domain` (a bare `label.tld` with no scheme,
+  which is what a hostname looks like in prose), `no_ip_address` (dotted-quad), `no_address_handle`
+  (the `local@domain` shape, which covers both a mail address and a bot handle), `no_opaque_identifier`
+  (a run of at least 28 characters from the opaque-id alphabet — the shape of a Drive file or folder id),
+  `no_long_numeric_identifier` (a digit run past six, which is what a numeric Telegram user id or a full
+  account number looks like, and which a masked four-digit tail, a year, and a grouped amount triple all
+  sit safely under), and `no_public_key`.
+- **Two length gates**, which are §0b's "no journal excerpt" made mechanical: `MAX_CASE_INPUT_CHARS` is
+  400 because a case is one event or one instruction, and `MAX_CASE_INPUT_LINES` is 3 because the
+  longest legitimate shape in the set is a prompt plus the dedup A/B pair.
+- **Contract-09 completeness**, five gates: `has_safety_constraints`, `has_allowable_variation`,
+  `valid_severity`, `tier_matches_category`, `expected_kind_matches_category` — contract 09 requires
+  every case to define expected structured output, hard safety constraints, allowable variation and
+  severity, and before this the requirement was prose — and `p0_category_severity`, which pins the four
+  categories where a fabricated field is an automatic failure (`sms_extraction`, `multilingual`,
+  `purchase_decision`, `adversarial`) to severity P0 so a case cannot be quietly downgraded to P2.
+- **Money integrity**, three gates: `numeric_fields_are_integers` over every number at any depth,
+  `amount_is_integer_milliunits` through `assertMoney`, and `amount_text_matches_expected`, which is the
+  one that actually caught something. Plus `account_is_masked`.
+
+**Every gate has a proven negative.** `datasetIntegrity.test.ts` is 28 tests, and its shape matters more
+than its size: for each forbidden token it constructs a case that carries one and asserts the specific
+gate fires by name — not "some problem was reported". A scanner that has only ever been observed passing
+is not evidence, which is the argument Phase 5.3 made for its fourth layer and the same argument holds
+here. The forbidden tokens in the scanner are **assembled from fragments** (`'co' + 'm'`) for a reason
+that is not stylistic: this file must not match itself, and it must not trip the repository's own
+scanners, which read tracked files looking for exactly these shapes.
+
+**The real find: `dataset.ts` was doing float arithmetic on money, and AC07 does not catch it.** Three
+call sites computed display text as
+
+```
+(amountMilli / 1000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+```
+
+That is a division producing a `number` with a fractional part, outside `src/lib/money`, on a value
+whose name ends in `Milli`. The money invariant is unambiguous — "NO floating-point money anywhere" —
+and the harness misses it, because AC07 scans for `parseFloat`, `Number.parseFloat`, `.toFixed(` and
+decimal literals assigned to money-named fields. `/ 1000` is none of those. The bug is real rather than
+theoretical: `toLocaleString` with `maximumFractionDigits: 2` **rounds**, so a non-piastre-clean amount
+would render text that disagrees with the case's own `expected.amountMilli`, and a model marked wrong
+for extracting the amount the text actually showed.
+
+The replacement is `egpAmountText`, integer-only end to end: it asserts the input through `assertMoney`,
+takes the digits from the money core's own exact decimal form (`toDecimal`), groups the units with a
+string regex, and slices two fractional digits. It **throws** on an amount that is not piastre-clean
+rather than truncating, because dropping the third fractional digit silently is precisely the drift the
+invariant exists to prevent. `amount_text_matches_expected` then re-derives the text from the expected
+amount and compares — so the gate and the renderer disagree loudly if either changes.
+
+**And this is the fourth instance of the drift-gap shape, found and pinned.** Phase 3.4 found it on
+R7's 120-character note cap, Phase 4.4 on R11's token length and charset, Phase 5.4 on K4's roster and
+weekly cap. The shape is always the same: every assertion is written *relative to* the constant it is
+about, which is correct for each assertion taken alone, and collectively leaves the constant free to
+move. `dataset.test.ts` asserted `cases.length >= BENCHMARK_MINIMUM_CASES` and each category against
+`CATEGORY_MINIMUMS`; lower `BENCHMARK_MINIMUM_CASES` to 10 and every test stays green while contract
+09's bar is gone. So three pins were added: `BENCHMARK_MINIMUM_CASES` to `210`, `CATEGORY_MINIMUMS` to
+contract 09's nine literals **with their sum checked against the total** (so the nine cannot be
+individually plausible and jointly wrong), and `eligibility.ts`'s promotion thresholds to `0.99` /
+`0.99` / `0.9`. The L2 reviewer-disagreement threshold is pinned too, and labelled NIZAM-derived in the
+test, because contract 09 states only "below threshold" and the number is ours — pinning it makes a
+change to it visible rather than authoritative.
+
+### 6.2 — the load-bearing assertion is the round trip, not the field
+
+Phase 5 recorded the gap precisely: `buildRegistry` produced `{ [modelId]: ModelEligibility }`, and
+`parseEligibilityRegistry` wants a document with an explicit top-level `provisional` boolean and, per
+entry, `bands`, `developerBuild` **and** `disqualified`. Handed today's output it would refuse twice
+over — `ELIGIBILITY_REGISTRY_PROVISIONAL_FLAG_ABSENT` at the top and
+`ELIGIBILITY_REGISTRY_ENTRY_INVALID` on every entry. Phase 5 called that "the correct direction to fail
+in", and it was, but it also meant the benchmark and the router were two halves of a mechanism that had
+never been connected.
+
+The emitted document now has **exactly** the three top-level keys `eligibilityRegistry.ts` declares —
+`registryVersion`, `provisional`, `entries` — and exactly the four entry keys `modelId`, `bands`,
+`developerBuild`, `disqualified`. Not a superset with the extra fields ignored: the reader's shape is the
+writer's shape, so a field added on one side is a compile error on the other rather than a value silently
+dropped at the boundary.
+
+**What is actually asserted, and why a field check would not have been enough.** A test that built the
+document in memory and read `doc.provisional === true` would prove the writer sets a flag. It would not
+prove the artifact is *readable* — which is the thing Phase 5 recorded as broken, and the thing a field
+check structurally cannot see. So the assertion is a **round trip**: the emitted document is serialized
+to text, the text is handed to `parseEligibilityRegistry` **the way the router reads it** — as `unknown`
+from a string, not as a typed object passed between functions — and the parse is required to refuse with
+`ELIGIBILITY_REGISTRY_PROVISIONAL`. It is asserted four ways, and the fourth is the one that closes the
+loop: from **the text that actually reached the sink**, not from a re-serialization of the in-memory
+object. A writer that produced a correct object and a subtly different file would pass the first three
+and fail the fourth.
+
+The refusal being the *expected* outcome is the point. A fixture-backed run must produce a document the
+router declines, and now there is a test that watches it decline, through the real reader, on real text.
+
+**`provisional: true` is copied, not written.** `provisionalRegistryFromFixture` was already in place
+from Phase 5.2 — it accepts anything structurally carrying `provisional: true`, which a `LoadedFixture`
+does, and returns `ProvisionalEligibilityRegistry`, precisely what `LiveEligibilityRegistry` excludes.
+6.2 makes the emitter use that path rather than restating the literal: the flag on the emitted document
+comes from the fixture loader's own `provisional: true`, so **hand-writing `false` there is a compile
+error** (TS2322 — `false` is not assignable to `true`). Steering §3's rule that a fixture-backed run
+yields a provisional registry is now a property of the type graph rather than a line somebody has to
+remember. There is no `as` anywhere along the path.
+
+**`developerBuild` is derived, and `unmeasured` is not a pass.** `developerBuild.ts` models the verdict as
+a discriminated union with a `measured` member and an `unmeasured` member carrying a `reason`. A
+fixture-backed run has not executed a code benchmark or a per-model repository-test pass, so its verdict
+is `unmeasured` with reason `fixture_backed_run`, and `developerBuildPasses` answers `false` for it. The
+`false` on the emitted entry is therefore **derived from the absence of a measurement** rather than
+written as a value — the same discipline as contract 09's "no model promoted from benchmark reputation
+alone", applied to the axis nobody measured. Writing `developerBuild: true` on a fixture-backed entry
+would be inventing a passing grade for a benchmark that never ran; the union makes it unspellable.
+
+**All five contract-09 artifacts are emitted**, under the names contract 09 gives them: the registry as
+`model_eligibility_registry.json`, and per model `benchmark_results.json`, `pricing_snapshot.json`,
+`cost_projection.json` and `reviewer_disagreement.json`. The artifact **directory** is
+`artifacts/benchmark` and it is **git-ignored**, with the reasoning recorded in `.gitignore` beside the
+entry rather than left implicit: the set is regenerable from tracked inputs — the eval set, the recorded
+fixture, and `src/server/benchmark` — and a *provisional* registry sitting in a public repository would
+look like graded evidence to anyone who found it. Artifact names are checked for directory escape
+(`REGISTRY_ARTIFACT_NAME_ESCAPES_DIRECTORY`), because a name is data and a sink writes where it is told.
+
+`fixtureReplay.ts` is the transport half: it maps recorded exchanges onto cases through
+`configurableCaller`, which is Phase 2.2's own deterministic loader rather than a second one, and
+`src/server/mocks/fixtures/benchmark-phase1-replay.json` is the recorded corpus it replays. The
+`serializeOutputs` form is not extended or wrapped — it is **replaced** for registry purposes, because
+`{ [modelId]: ModelEligibility }` is not a document any reader in this repository can parse, and keeping
+it alongside a parseable one would leave two artifacts with the same job.
+
+**One thing about how this sub-task was reached, recorded because it is unusual.** An interrupted prior
+6.2 attempt had left three files in the tree — `fixtureReplay.ts`, `provisionalRegistry.ts` and
+`liveRegistry.ts` — with no tests and no log entry. They were **completed rather than rewritten**: each
+was read, audited against contract 09 and Phase 5's recorded gap, corrected where it disagreed, and given
+its tests. Rewriting from scratch would have been faster to narrate and would have discarded work that
+was substantially right; the audit is what makes the claim that they are right worth anything.
+
+### 6.3 — the ELSE branch, and the fifth precondition the task line does not name
+
+The task line reads: **IF** the dev key is present and within its cap, run live and emit a
+non-provisional registry; **ELSE** leave provisional and record it in the gate register. The
+determination was made and the ELSE branch was taken. Stated plainly, because a phase that ends in a
+refusal is where a build log is most tempted to be vague:
+
+- **Dev credential present.** Yes. `.secrets/openrouter.dev.key`, **74 bytes**. Existence and length
+  only — the file was **never opened** and its contents have never entered any process, any log, or this
+  document.
+- **Estimated cost strictly below the ceiling.** Yes. **USD 0.320812 against a USD 1.00 cap — 32%.**
+- **Scoped to the two K4-allowed models.** Yes. `xiaomi/mimo-v2.5` and `z-ai/glm-5.2`; the premium pair
+  is refused by a gate with no opt-in parameter to supply.
+- **Both 6.1 gates green.** Yes — completeness and sanitization.
+- **An environment entry resolving the provider base URL.** **No.** And this is the one the carve-out
+  never names.
+
+**The fifth precondition, and why an agent supplying it would be the wrong answer.** Phase 2.1's
+`OpenRouterPortConfig` states the rule it rests on: *"there is no default endpoint."* The base URL
+therefore arrives as the **name** of an environment entry, and an unresolved name fails closed. No entry
+in the developer environment resolves it, in any form. Resolving `<MODEL_API_BASE>` is an **operator**
+step by `ops/GATE_REGISTER.md`'s own placeholder glossary, so an agent creating the entry would be
+*manufacturing the precondition* rather than finding it satisfied — gate discipline rule 4, "never
+weaken a gate to make it pass", read in the direction that is easy to miss. The sub-agent declined, and
+declining was correct.
+
+The carve-out is written as a binary — the key is either usable or "absent or exhausted". This deployment
+is in a **third** state the binary does not have a name for: the key is present, the run is affordable,
+and the run is impossible. That correction is written into the gate register rather than smoothed over,
+because the next person to read the carve-out will otherwise conclude the key must be missing.
+
+**What was built and tested, so that the operator's remaining job is one step and not six.** Every part
+of the live path exists and runs today under test against a deterministic in-memory transport — with no
+key, no endpoint, and no network:
+
+- **`preflight.ts`** — a **pessimistic** estimate, and the pessimism is stacked four ways on purpose:
+  prompt tokens from `CHARS_PER_PROMPT_TOKEN = 4` (the low end, so token count comes out high),
+  `REQUEST_OVERHEAD_TOKENS = 400` added per request, `MAX_OUTPUT_TOKENS_PER_CASE = 512` charged in full
+  as though every case saturated its ceiling, and `ESTIMATE_SAFETY_MULTIPLIER = 2` over the lot. An
+  estimate that is wrong should be wrong in the direction that refuses a run, never in the direction
+  that authorizes one. Two refusal gates sit on it, and the estimate is in integer micro-USD —
+  `DEV_KEY_WEEKLY_CAP_MICRO_USD` — so the affordability comparison itself involves no float.
+- **`liveModelCaller.ts`** — five properties, each a capability rather than a check.
+  **(1)** The credential is an `OpaqueSecret` whose `toString` and `toJSON` both return
+  `REDACTION_MARKER`, so the two implicit paths a secret escapes through — string interpolation into a
+  log line and `JSON.stringify` of a context object — are closed at the value, not at the call sites.
+  `revealSecret` is the single named chokepoint. **(2)** A branded `DeveloperMachineGrant`, minted only
+  by `grantDeveloperMachineRun`, which **refuses when a server-runtime marker is present** — steering
+  §2's "no outbound network call from a server process" enforced by the module that would make the call,
+  rather than by convention about where the module is imported. **(3)** No network primitive of any kind
+  exists in the module: no `fetch`, no request module, and **no scheme literal** — asserted by a test.
+  The transport is a `LiveTransport` function injected at the moment of the run, so the network
+  capability lives nowhere in this repository. **(4)** Stop on first failure, with **no retry loop**: a
+  partial run falls back to the fixture path rather than emitting a half-measured registry, and a
+  refusal retried in a loop is how a USD 1.00 cap becomes a surprise. **(5)** No correct-answer baseline
+  is available to the caller, so an **unanswered case refuses rather than scoring as correct** — the
+  failure mode where a model that returned nothing grades perfectly.
+- **`liveRegistry.ts`** — `provisional: false` is reachable only downstream of a
+  `LiveMeasurementWitness`. A run that did not answer every case cannot produce a non-provisional
+  document, and there is no flag that overrides it.
+- **`liveModelCaller.isolation.test.ts`** — a **five-part reachability argument** with non-vacuity belts:
+  each part asserts that a capability is absent, and each is paired with an assertion that the same
+  probe *would* find the capability if it were there. An absence proved by a probe that can never find
+  anything is not a proof, which is the positive-control discipline Phase 5.1 used on its 36-turn corpus.
+
+**The real bug the tests caught, and it would have inverted the result of every live run.** The
+fabrication detector scans a model's response for numbers the model was not given — contract 09's
+automatic-failure outcome for a fabricated field. It flagged the model's own **`confidenceBps`**. The
+reason is that a basis-point confidence is drawn from a fixed 0–10000 scale, so its digits are
+*structurally* indistinguishable from an invented figure: a model answering perfectly, with a
+well-formed confidence on every case, was graded a **total P0 failure** across the board. Left in, the
+first live run would have produced a registry disqualifying both models and the disqualification would
+have looked like a finding. The fix is `FABRICATION_SCAN_EXEMPT_KEYS` — response **metadata** rather than
+asserted answers — and it deliberately keeps **`toolCalls` in scope**, because a fabricated argument to a
+tool call is exactly the failure the detector exists to catch and exempting the whole response envelope
+would have been the easy over-correction.
+
+### The acceptance criteria of contract 09 and steering §0b/§3, and where each one lives
+
+| # | Test | Where |
+| - | ---- | ----- |
+| C09 eval set | 219 cases against the 210 floor, every per-category minimum met, ids unique, counts summing to the total, and an under-count invalidating the set | `dataset.test.ts` |
+| C09 eval set | Every case defines expected structured output, hard safety constraints, allowable variation and severity; expected kind matches category; the four fabrication-critical categories are P0 | `datasetIntegrity.test.ts` |
+| §0b | No case carries a URL scheme, a bare domain, a dotted-quad, an address/bot handle, an opaque Drive-style id, a long numeric id, or an age public key — each gate driven by a case that carries one and asserted **by gate name** | `datasetIntegrity.test.ts` |
+| §0b | No case is journal-length: 400 characters and 3 lines, both pinned | `datasetIntegrity.test.ts` |
+| Money | Every number in every case is an integer; every amount passes `assertMoney`; the rendered display text is re-derived from the expected amount and compared; a non-piastre-clean amount throws rather than rounding | `datasetIntegrity.test.ts`, `dataset.test.ts` |
+| Drift | Contract 09's case bar, its nine category minimums **and their sum**, and the L0/L1/L2 promotion thresholds are pinned to their own literals | `dataset.test.ts`, `eligibility.test.ts` |
+| §3 + C12 §6.3 | The emitted registry, re-read from **the text that reached the sink** exactly as the router reads it, is refused with `ELIGIBILITY_REGISTRY_PROVISIONAL` — asserted four ways | `provisionalRegistry.test.ts` |
+| §3 | `provisional: true` is copied from the fixture loader's own literal; writing `false` is a compile error | `provisionalRegistry.test.ts` |
+| C09 | `developerBuild` on a fixture-backed entry is `unmeasured`/`fixture_backed_run` and answers `false`; an injected passing verdict is refused | `developerBuild.test.ts`, `provisionalRegistry.test.ts` |
+| C09 | All five artifacts emitted under contract 09's own names; an artifact name that escapes the directory is refused | `provisionalRegistry.test.ts` |
+| §3 | The estimate is pessimistic on all four axes and both refusal gates fire; affordability is integer micro-USD | `preflight.test.ts` |
+| §2 | The credential redacts through `toString` **and** `toJSON`; the developer-machine grant refuses when a server-runtime marker is present; an unanswered case refuses instead of scoring correct; a failure stops the run with no retry | `liveModelCaller.test.ts` |
+| §2 | The module holds no request primitive, no request module and no scheme literal — five absence proofs, each with a non-vacuity control | `liveModelCaller.isolation.test.ts` |
+| C09 | `provisional: false` is reachable only downstream of a measurement witness; an incomplete run cannot emit | `liveRegistry.test.ts` |
+
+### Verification
+
+- `npm run typecheck` 0 errors; `npm run lint` 0 warnings at `--max-warnings 0`.
+- Suite **1095 → 1262 across 83 → 91 files** (**+167 tests, +8 files**): 6.1 **+30**
+  (`datasetIntegrity.test.ts` 28, plus the two drift pins added to `dataset.test.ts` and
+  `eligibility.test.ts`), 6.2 **+48** (`provisionalRegistry.test.ts` 25, `fixtureReplay.test.ts` 18,
+  `developerBuild.test.ts` 5), 6.3 **+89** (`liveModelCaller.test.ts` 41,
+  `liveModelCaller.isolation.test.ts` 18, `preflight.test.ts` 17, `liveRegistry.test.ts` 13). Every
+  model id, amount, account, merchant tail and cost figure in every test is synthetic; provider cost is
+  integer micro-USD and owner money never appears (R24, steering §0b).
+- `npm run verify:all -- --all` — **`verification harness: 17 of 19 executed checks passed`** before the
+  commits, the two red checks being **AC14 (working tree clean)** and **AC15 (push ready)**, both
+  reporting the same uncommitted Phase-6 work; **`verification harness: 19 of 19 executed checks
+  passed`** after them. Every pre-existing test still passes, including every scanner.
+- The AC04 floor stays at **331**. Ratcheting it is task **9.1**'s, and raising it here would take a
+  decision that belongs to close-out.
+- **No check was weakened and nothing was invented to reach the 6.3 outcome.** `scripts/verify/all.mjs`
+  was not touched. The `AC04 --min` floor was not touched. No migration was edited. No network call was
+  made from any machine in this phase. `.secrets/` was never read: the dev credential's **existence and
+  byte length** were observed and nothing else, and no endpoint, no key material and no host particular
+  appears in any file this phase added.
+- **One untracked file at the repository root was resolved as housekeeping, not as spec work.**
+  `jiggle.ps1` is a local mouse-jiggler that keeps a workstation awake. It is imported by nothing, has
+  no project role, and contains no deployment particular and no secret — it was read in full and scanned
+  before the decision. It is **git-ignored**, in its own `chore:` commit, with the reason recorded beside
+  the entry. It was **not deleted**: it belongs to whoever is sitting at the machine.
+
+### Open items that need an owner decision or a later phase, recorded rather than decided here
+
+1. **The eval set names real banks and merchants, and task 9.0 must settle this deliberately rather than
+   by omission.** The set carries `CIB`, `HSBC`, `NBE`, `QNB`, `CARREFOUR`, `TALABAT`, `VODAFONE` and
+   `بنك مصر`, among others. Steering §0b bans "any real ... payee" in a fixture, so read literally these
+   are violations. Against that: `src/lib/db/schema.ts` has shipped `CIB_DEBIT` and `HSBC_CC` as
+   `AccountType` values **since Contract 1**, and roughly a dozen committed tests use them — so the
+   repository has treated a bank *name* as a schema-level enumeration, not as a payee, for the whole
+   build. The two readings cannot both stand. **9.0 owns the fixture scanner, so 9.0 is where this is
+   decided**, and it must be decided rather than left to whichever way the scanner's regex happens to
+   fall. Note the cost of the strict reading: renaming would need semantically-loaded synthetic names,
+   because a classification case that maps `MERCHANT_17` to `Groceries` is unsolvable — the merchant
+   name *is* the signal being tested.
+2. **A real Google Drive folder id is committed**, at `contracts/pfos/_PFOS_CONTRACT_INDEX.md` line 4,
+   and `_INGESTION_MANIFEST.json` carries long identifier strings that need triage (its SHA-256 digests
+   are legitimate; a Drive **file** id is not). This **predates this build** — it was written by the
+   ingestion run on 2026-08-05 — and steering §0b names "Google Drive folder ids, file ids" explicitly.
+   9.0's scanner as currently scoped reads `ops/**` and fixtures, so **it would not catch this.** The
+   options are a widened scope plus redaction, or a recorded reviewed exception. Doing neither leaves a
+   §0b violation in a public repository behind a check that structurally cannot see it.
+3. **`.secrets/KEYS_TODO.md` still says live LLM calls are blocked until the VPS exists.** That
+   prohibition is superseded by steering §3's dev-key carve-out, but the stale sentence is sitting in the
+   same directory as the key, which is the worst place for it: the next reader reaches for the key and
+   finds a note telling them not to use it.
+4. **`ops/GATE_REGISTER.md`'s G4 entry can be read two ways.** Its "Unblocks" section can be read as
+   gating 6.3 on G4, while the later carve-out section says G4 gates **routing** and the carve-out buys
+   the **registry**. The second reading is the one steering §3 supports and the one this phase acted on.
+   The two sections should be reconciled so a future operator does not conclude that the benchmark needs
+   a runtime key it does not need.
+5. **Even a fully measured live registry leaves contract 10's T4 unroutable.** Contract 09 grades
+   developer/build work "separate from live finance eligibility", so a run over the **finance** eval set
+   leaves the developer verdict `unmeasured` and `developerBuildPasses` answers `false` — on **every**
+   entry. `T4` therefore resolves to no eligible model even after a perfect live run. That is contract 09
+   being honoured rather than a bug, and it is recorded because it will surprise: making T4 routable needs
+   a **code** benchmark against a separate corpus, which is a separate exercise nobody has scheduled.
+6. **`ModelCaller` is synchronous, so the live path is necessarily two-phase.** Async collection followed
+   by synchronous replay. A consequence worth writing down: the live adapter can be **neither** a
+   `ModelCaller` **nor** an `OpenRouterPort` implementation. Not a `ModelCaller` because that interface is
+   sync; not an `OpenRouterPort` because **AC08b flags any textual import of `src/server/**` from a
+   non-server `src` file, including `import type`** — a type-only import that vanishes at compile time is
+   still a string in the file the scanner reads. So `liveModelCaller.ts` declares
+   **structurally-compatible** types in its own tier rather than importing the port's. That is deliberate
+   duplication, and it is the kind a later tidy-up will want to collapse; collapsing it would break
+   AC08b.
+
+### Known gaps, recorded honestly because they are real and unclosed
+
+1. **Nothing in this phase has spoken to a provider either.** Phase 5's gap 2 stands unchanged and now
+   has a sharper edge: the live path exists, is tested, and has never run. Latency, provider-side model
+   substitution, the true shape of a usage report, and the actual reported cost remain **shapes the code
+   accepts** rather than values it has seen. The pessimistic estimate has never been compared to a real
+   invoice.
+2. **The registry the router can read is the one it refuses.** 6.2 closed the parse gap; it did not
+   produce a routable registry, and by steering §3 it could not. So contract 10's routing tier still has
+   no admitted registry, and `AdmittedRegistry` still cannot be constructed in this tree from any
+   available input.
+3. **Two categories sit exactly on their floor.** `multilingual` and `adversarial` are at 10 against a
+   minimum of 10, so deleting one case in either breaks the bar. Recorded rather than fixed, because
+   adding cases to reach headroom is the padding 6.1 deliberately did not do — but a later reader
+   editing those generators should know there is none.
+4. **`egpAmountText` throwing is correct and unexercised by the shipped set.** Every amount in the eval
+   set is piastre-clean, so the `RangeError` path is reached only by its own negative test. The guard is
+   real; the condition has never occurred in production data because there is none.
+5. **`FABRICATION_SCAN_EXEMPT_KEYS` is a list, which means it is a maintenance surface.** The
+   `confidenceBps` bug was a *false positive* that inverted a whole run; the failure mode of the fix is a
+   *false negative* if a future response field carrying an asserted answer is added to the exempt list by
+   analogy with metadata. `toolCalls` is deliberately in scope as the marker of where that line sits, and
+   the reasoning is in the module — but the discipline is a comment, not a mechanism.
+6. **Six of contract 10's seven utility terms are still unimplemented.** Phase 5's gap 1 stands
+   unchanged, and Phase 6 is the phase that was supposed to close it. It does not, because the terms need
+   a **measured** run and the measured run did not happen. Selection is still contract 09's hard filters
+   followed by cheapest-capable within K4's allowed set, in contract 10's stated roster order.
+
+### Still gated (unchanged by Phase 6, except where noted)
+
+- The **dev-key carve-out of steering §3 was evaluated and not exercised.** No live OpenRouter call was
+  made from any machine. The registry remains fixture-backed and `provisional: true`, and live routing is
+  still gated on **G4**. The full determination — all five preconditions, the operator's remaining steps,
+  and the verification lines to record afterwards — is in `ops/GATE_REGISTER.md` under *"Recorded
+  observation - registry is PROVISIONAL as of 2026-08-07"*.
+- The human gates stand unchanged: provision and harden the host, DNS, create the two bots, mint the two
+  runtime keys with weekly caps, the storage consent click, webhook registration, and generate the
+  encryption keypair with the private half kept off the box. G7 stays **closed as WONT-DO** per steering
+  §0b.
+- One **new** operator step is now recorded that was not previously named: resolve `<MODEL_API_BASE>` into
+  the developer environment, and supply the transport function, if and when the owner authorizes the live
+  benchmark spend.
+- No outbound call from a server process and no production secret, unchanged.

@@ -45,10 +45,13 @@
       T0 never calls a model; provisional registry cannot promote
 
 ## Phase 6 - Benchmark Phase-1 (dev-key carve-out, steering §3)
-- [ ] 6.1 Complete the eval set toward the >=210-case bar; sanitized cases only
-- [ ] 6.2 Run against recorded fixtures; emit `model_eligibility_registry.json` marked `provisional: true`
-- [ ] 6.3 IF the dev key is present and within its cap: run live from the dev machine only, emit a
+- [x] 6.1 Complete the eval set toward the >=210-case bar; sanitized cases only
+- [x] 6.2 Run against recorded fixtures; emit `model_eligibility_registry.json` marked `provisional: true`
+- [x] 6.3 IF the dev key is present and within its cap: run live from the dev machine only, emit a
       non-provisional registry. ELSE leave provisional and record it in the gate register.
+      **Closed on the ELSE branch: no live call was made.** The live path (`preflight.ts`,
+      `liveModelCaller.ts`, `liveRegistry.ts`) is built and tested against a deterministic transport;
+      the registry stays `provisional: true` and the determination is recorded in `ops/GATE_REGISTER.md`.
 
 ## Phase 7 - Ops artifacts (TEXT ONLY, never executed) → R20-R22
 - [ ] 7.1 `ops/docker-compose.yml` with per-service resource limits/reservations + healthchecks + internal network
