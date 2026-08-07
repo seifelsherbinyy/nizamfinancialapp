@@ -23,10 +23,14 @@ outputs/
 Execute and build.md
 # loop scratch (the ledger itself IS committed)
 .loop/tmp/
-# raw third-party API dumps captured by research tooling. The curated report, evidence matrix and
-# shortlist ARE committed; the raw responses are regenerable by the scripts in the same folder and
-# carry vendor prose that the generic-only check (AC11) forbids in a tracked file.
+# raw third-party API dumps captured by research tooling: regenerable by the scripts beside them,
+# and they carry third-party prose that the generic-only check (AC11) forbids in a tracked file.
 docs/research/**/_raw/
+# an IN-FLIGHT research run. Its report, shortlist, exclusions and integration notes are still being
+# authored and rewritten as its tooling fetches primary sources, so the folder is a staging area, not
+# a deliverable. Ignored so the acceptance gate is not measuring another process's scratch space.
+# Track it (and restore the _RESEARCH_INDEX.md row) once the run is finished and its author says so.
+docs/research/2026-08-07-oss-design-scan/
 # --- local secrets (never commit) ---
 .secrets/
 .env.*.local

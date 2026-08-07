@@ -11,4 +11,3 @@
 | egypt-iscore-fastest-levers.md | Fastest ethical iScore movers (utilization, curing arrears) — feeds rescue analytics |
 | ethical-card-cashflow-strategy.md | Ethical card/cashflow strategy |
 | prior-pipeline-adr.md | ADR of the prior PDF->ledger->HTML pipeline (informs import + ledger schema) |
-| 2026-08-07-oss-design-scan/REPORT.md | Evidence-graded OSS UI/design scan for NIZAM: 96 repos, shortlist, exclusions, tokens, and integration playbooks |
