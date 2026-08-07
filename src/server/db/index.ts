@@ -48,7 +48,39 @@ export {
 export { isWithinDataDir, resolveStorePath } from './paths';
 // Phase 1.2 — the fact repositories and the vocabulary they share.
 export * from './repositories';
-export { BOOTSTRAP_DDL, MONETARY_COLUMNS, SCHEMA_STATEMENTS, TABLES, type TableName } from './schema';
+export {
+  BOOTSTRAP_DDL,
+  MONETARY_COLUMNS,
+  SCHEMA_STATEMENTS,
+  TABLES,
+  TELEMETRY_FORBIDDEN_COLUMNS,
+  type TableName,
+} from './schema';
+// Phase 5.3 — the append-only telemetry store. No update or delete export, because there is no
+// update or delete path: telemetry is the evidence contract 11 governs from (contract 12 §6.4).
+export {
+  contentBreaches,
+  ESTIMATE_SOURCE_PREFLIGHT,
+  MODEL_TELEMETRY_COLUMNS,
+  MODEL_TELEMETRY_ERROR_CODES,
+  ModelTelemetryError,
+  readTelemetry,
+  recordedCallCount,
+  recordTelemetry,
+  TELEMETRY_CONTENT_CLAIMS,
+  TELEMETRY_FIELD_MAX_LENGTH,
+  TELEMETRY_OUTCOMES,
+  type CostSourcePreflightEstimate,
+  type ModelTelemetryColumn,
+  type ModelTelemetryErrorCode,
+  type ModelTelemetryRow,
+  type PreflightCostEstimate,
+  type TelemetryContentBreach,
+  type TelemetryContentClaim,
+  type TelemetryOutcome,
+  type TelemetryQuery,
+  type TelemetryRecord,
+} from './modelTelemetryRepo';
 // Phase 1.4 — the append-only token-spend ledger. There is no update or delete export, because
 // there is no update or delete path (contract 06 §6.2.2).
 export {

@@ -38,10 +38,10 @@
       **two bots emitting the same update id must both be processed**
 
 ## Phase 5 - Routing, spend, telemetry → R16-R19
-- [ ] 5.1 Turn classifier (rules-first) producing T0-T4; T0 provably invokes no model
-- [ ] 5.2 Router/scorer consuming `modelPolicy` + the eligibility registry; refuse a `provisional` registry
-- [ ] 5.3 Telemetry store: actual reported cost, tokens, latency, schema validity; **no prompt text**
-- [ ] 5.4 Negative tests: cap exhausted refuses one agent and not the other; deterministic alerts still fire;
+- [x] 5.1 Turn classifier (rules-first) producing T0-T4; T0 provably invokes no model
+- [x] 5.2 Router/scorer consuming `modelPolicy` + the eligibility registry; refuse a `provisional` registry
+- [x] 5.3 Telemetry store: actual reported cost, tokens, latency, schema validity; **no prompt text**
+- [x] 5.4 Negative tests: cap exhausted refuses one agent and not the other; deterministic alerts still fire;
       T0 never calls a model; provisional registry cannot promote
 
 ## Phase 6 - Benchmark Phase-1 (dev-key carve-out, steering §3)

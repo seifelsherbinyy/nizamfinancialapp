@@ -1544,3 +1544,484 @@ answered identically.
   webhook registration, and generate the encryption keypair with the private half kept off the box.
   G7 stays **closed as WONT-DO** per steering §0b.
 - No outbound call from a server process and no production secret, unchanged.
+
+---
+
+## Phase 5 - Routing, spend and telemetry: the tier that decides whether to spend (2026-08-07)
+
+**Why.** Phase 4 ended with an accepted update sitting in a durable queue and nothing that knew what
+to do with it. Phase 5 is what the worker does — and it is the first tier in this build whose
+mistakes cost money, send content to a third party, or both. Contract 12 §6 states four rules and,
+as in §5, names the failure each is chosen against. A `T0` guarantee asserted by inspecting the
+ANSWER "would pass if a model were called and its output discarded, which still spends money and
+still sends content to a provider". A registry checked AFTER selection is a runtime filter, and
+§4.3 already recorded what those are worth: re-orderable, skippable at a new call site, failing as
+a paid call to an unvetted model that looks like success. A cost adapted from an ESTIMATE makes
+contract 11's governance loop grade its own guesses. And a cap that suppressed a due-date warning
+would be, in §6.2's words, "the single worst failure mode this system could have".
+
+Every one of those is quiet. So Phase 5 is built the way Phase 3 built consent and Phase 5.1 builds
+R16: not as checks that fire, but as **capabilities the wrong path does not hold**, with the runtime
+belt behind the type and a negative test that shows the belt refusing.
+
+| Phase | Deliverable | Source | Status |
+| ----- | ----------- | ------ | ------ |
+| 5.1 | `turnClassifier.ts` + `turnDispatch.ts`: T0-T4 from rules only, and a T0 turn that holds no capability to reach a model | contract 12 §6.1, contract 10 classifier | done |
+| 5.2 | `eligibilityRegistry.ts` + `modelRouter.ts`: presence in the registry as a precondition of selection, `provisional` as a compile error, contract 09's L-scale joined to contract 10's T-scale | contract 12 §6.3, contracts 09/10 | done |
+| 5.3 | `modelTelemetryRepo.ts` + migration 007: actual reported cost, tokens, latency, schema validity, append-only, and no prompt text at four independent layers | contract 12 §6.4, contract 06 §3.3/§6.2 | done |
+| 5.4 | The five-claim coverage audit, the cap-isolation sweep, the deterministic-alerts differential, the T0 composition, the promotion-versus-admission walk, and the K4 drift pin | contract 12 §6.2, contract 06 §9 T15/T16 | done |
+
+### 5.1 — the T0 guarantee is a capability the T0 branch does not have
+
+Three mechanisms were available for R16 and the choice among them is the whole of the sub-task, so
+it is recorded rather than summarized. **A runtime branch** (`if (tier === 'T0') return
+deterministic(...)`) was rejected as the primary mechanism for §4.3's reason about runtime filters
+generally. **`Exclude<Tier, 'T0'>` on the request type** was already in force one layer out —
+`ModelRequest.tier` has excluded `T0` since Phase 2.1 — and is not sufficient: a caller holding a
+T0 classification can relabel the turn `T1` and call the port, because the type constrains the
+LABEL and not the AUTHORITY. What shipped is the third: **a capability the T0 branch does not
+have.**
+
+`TurnClassification` is a discriminated union. The model-bearing branch carries a
+`ModelInvocationGrant`; the `T0` branch types that same field **`never`**, so it cannot hold one
+under any spelling. `classifyTurn` is the grant's only mint — the device Phase 3.2 used for
+`ServedSignalEnvelope` — and the port is **not handed to the dispatcher at all**: it is wrapped once
+in `createModelChannel`, captured in the closure, absent from the returned object, and the channel's
+only member demands a grant. So the deterministic branch of `dispatchTurn` does not decline to call
+the model; it has no argument it could pass and no expression it could write. Writing the call is a
+compile error rather than a code-review question.
+
+A `as unknown as` cast defeats any purely type-level brand, so three runtime belts sit behind the
+type and each throws **before the port is touched**, which is what lets the negative tests assert
+the refusal AND an empty invocation record in the same breath: the grant must have been minted
+(`TURN_MODEL_GRANT_NOT_MINTED`), the request's tier must equal the grant's
+(`TURN_MODEL_GRANT_TIER_MISMATCH`, closing the gap where a `T1` grant buys a `T4` model), and the
+request's correlation reference must equal the grant's turn reference
+(`TURN_MODEL_GRANT_TURN_MISMATCH` — one grant, one turn, the discipline Phase 4.2 applied to dedup
+keys). The mint is recorded in a module-private `WeakSet`, and **note the direction state can move
+in**: nothing outside `mintGrant` adds to it, so the registry can only ever REFUSE a grant it did
+not issue. Its failure mode is a false negative that halts a call, never a false positive that
+permits one. It holds no decision and no cache — a classification is re-derived on every call,
+exactly as §4.5.4 requires of a consent scope.
+
+**The empirical half, because a structural argument about a capability still has to be observed.**
+`t0NoModel.test.ts` dispatches a corpus that is adversarial on purpose: six deterministic intents
+crossed with six pressure profiles, every profile carrying a fact that WOULD escalate a
+non-deterministic turn — new debt, an over-threshold amount, a critical obligation, conflicting
+evidence, low confidence, irreversibility. Thirty-six turns is not a large number; it is every
+deterministic intent under every pressure the classifier knows about. The `InvocationRecorder`
+shared with the port mock is asserted **empty** after all thirty-six. And because an empty record
+only means something if a full one is reachable through the same wiring, a **positive control** at
+the bottom dispatches one non-T0 turn through the identical dependencies and asserts the recorder
+DID capture it — without that, "the record is empty" would be equally consistent with a recorder
+that never records.
+
+Two vocabulary decisions are worth recording because a later phase will be tempted to undo them.
+`Tier` is **imported** from `src/features/routing/modelPolicy.ts` — contract 10's own taxonomy — so
+`T0`-`T4` have exactly one definition in this repository and a rename breaks here loudly instead of
+leaving two ladders to drift. And contract 09's `L0`/`L1`/`L2` are **deliberately not mixed in**:
+they grade a MODEL, not a turn, and conflating the two axes is the mistake 5.2 then has to be
+careful about at the join.
+
+No figure can enter the classifier, and that is enforced rather than intended. Contract 10 lists an
+amount and two ratios among its features; `TurnFacts` consumes the deterministic engines' VERDICTS
+about them (`amountOverOwnerThreshold`, `exceedsSafeToSpendAllowance`,
+`materialShareOfLiquidNetWorth`) and has no numeric field at all. `NoMagnitude<>` types every
+numeric key `never`, so adding `amountMilliunits: number` later makes the field uninhabitable, and
+`Exact<>` on the argument refuses a surplus key — TypeScript's own excess-property check fires only
+on a fresh literal, so a figure smuggled in on an extra key would otherwise pass. `src/lib/money` is
+neither imported nor needed: there is no arithmetic, because there is no money.
+
+### 5.2 — stage 4 is a resolution, not a check, and a provisional registry is a compile error
+
+The router's last stage takes the model id `selectModel` answered with and produces the value the
+caller may return. The obvious shape for R18 is `if (!registry.includes(modelId)) refuse(...)`
+somewhere after it. What shipped inverts the direction: **`EligibleModel` is branded and
+`admitEligibilityRegistry` is its only mint.** One `EligibleModel` is minted per registry entry;
+there is no `from(modelId)`, no widening export, and the entries are captured in the closure so a
+caller cannot retrieve one and build its own. `RoutedModel.model` is an `EligibleModel`, and the
+only route from a `string` to one is `AdmittedRegistry.resolve`. So stage 4 is a **resolution**: a
+miss leaves nothing to return rather than a value that needs checking, and "selected a model that
+was not in the registry" is not a case the tests have to cover, because it is not a sentence this
+tier can write.
+
+The same device carries R18's second half further than a runtime refusal can.
+`LiveEligibilityRegistry` intersects the document with **`provisional: false` as a LITERAL**, and
+`admitEligibilityRegistry` takes that type — so a document holding `provisional: true`, or one whose
+flag is merely `boolean` and therefore not known to be `false`, is not assignable at all. The
+refusal happens in the type checker, before the program exists.
+
+**What closes that loop is one directory away and was already there.** `mocks/fixtures.ts` types
+`LoadedFixture.provisional` as the literal `true`, because steering §3 ties a fixture-backed run to
+a provisional registry. `provisionalRegistryFromFixture` makes the tie mechanical in the other
+direction: it accepts anything carrying `provisional: true` — which a `LoadedFixture` does,
+structurally — and returns `ProvisionalEligibilityRegistry`, which is precisely what
+`LiveEligibilityRegistry` excludes. **The only path from recorded fixtures to a registry therefore
+ends in a document the router cannot be handed, with no `as` anywhere along it and nothing for an
+author to remember.**
+
+A literal is only known statically, so `parseEligibilityRegistry` is the runtime belt for a registry
+that arrives as `unknown` from disk, and it is fail-closed in all four of §6.3's senses with **a
+distinct code for each**: `ELIGIBILITY_REGISTRY_ABSENT`, `..._UNPARSEABLE`,
+`..._PROVISIONAL_FLAG_ABSENT` (§6.3 is explicit that an absent flag is NOT read as "not
+provisional"), and `..._PROVISIONAL`. They are four codes rather than one because §6.3 calls a
+provisional registry "a gate item, not worked around", and an operator has to know WHICH of the four
+they are in before they can record it. Four more codes cover the shapes that make a registry
+ambiguous rather than merely provisional — an unsupported version, an invalid entry, a duplicated
+model, and an **empty** registry, which is refused rather than admitted because an enabled-but-empty
+registry lets an operator believe routing works when nothing can be selected. Nothing degrades to a
+cheaper model, returns an empty registry, or continues with a warning.
+
+**The L×T join is `TIER_REQUIRED_ELIGIBILITY`, and it needed two reconciliations that are not
+obvious.** It is a total `Record` over `ModelBearingTier`, so a tier added to contract 10's taxonomy
+without a stated eligibility requirement fails to compile rather than routing to an ungraded model.
+
+- **The bands are NOT a ladder.** `L1` does not imply `L0`. `L0` is critical-field extraction
+  accuracy; `L1` is schema validity plus evidence coverage; `evaluateEligibility` computes them
+  independently. So each tier names exactly ONE requirement rather than a minimum band. Treating
+  them as nested would admit a model to extraction on the strength of an evidence-coverage score,
+  which measures something else entirely.
+- **`T4` does not take an L band at all.** Contract 09's own words: developer/build tasks are judged
+  "separate from live finance eligibility". So `T4` takes `developerBuild`, which comes from the code
+  benchmark and the repository tests rather than from the finance eval set — and `developerBuild` is
+  a REQUIRED field of an entry, so a registry that omits it is unparseable and refuses. An unstated
+  developer verdict is not read as a passing one.
+
+**The deliberate non-implementation, recorded because a later reader will otherwise think it was
+missed.** Contract 10 gives a weighted utility over seven terms: QualityFit, SafetyFit,
+ToolReliability, LatencyFit, ContextFit, HistoricalPersonalAccuracy, and normalized expected cost.
+**Only the last has a data source today** — cost comes from the frozen pricing snapshot through
+`modelPolicy`. The other six come from a Phase-1 benchmark run that has not happened; Phase 6 owns
+it, and contract 09's exit criteria end with "No model promoted from benchmark reputation alone."
+Fabricating the six with plausible constants would manufacture exactly the reputation contract 09
+forbids, and once written down it would be indistinguishable from measurement. So the two terms that
+DO have evidence are expressed as contract 10's **own hard filters** rather than as weighted
+numbers: SafetyFit is the disqualification gate — an admitted registry grades a disqualified model
+for nothing, so contract 09's automatic-failure outcome survives into routing without a second place
+to record it — and QualityFit is the band gate. Cost stays `modelPolicy`'s cheapest-capable rule.
+The candidate ordering is contract 10's OWN stated primary-then-fallback order, read from
+`TIER_CAPABLE`, which is evidence somebody already wrote. When Phase 6 produces a measured registry
+the terms have a source and the score can be added.
+
+`modelPolicy` is consumed and nothing about it is restated: no second roster, no second tier map, no
+second cap ladder, no reimplementation of "cheapest capable". `selectModel`'s verdict is carried in
+`RoutedModel.policy` verbatim. What this file adds is the stage contract 10 puts in FRONT of that
+decision — "hard eligibility filters execute before scoring" — which is the join contract 09 and
+contract 10 each half-described and neither owned. When the roster and the registry disagree, the
+refusal is **explicit** (`MODEL_ROUTING_POLICY_PICK_NOT_ELIGIBLE`) and no second-choice model is
+substituted, because §6.3 forbids the silent degradation and because a silent upgrade spends money
+nobody approved.
+
+K4 is held off by three things and the first is load-bearing: `allowPremium` is derived from a
+`PremiumOptIn` **argument**, and an argument that is not supplied is not supplied — no default, no
+environment lookup, no field that could be set once and forgotten. `PremiumOptIn` is bound to ONE
+turn (`authorizedBy` is a single-member literal so it cannot arrive as "it was already like that";
+`forTurnRef` must equal the grant's reference so it cannot be carried forward), and a present opt-in
+belonging to another turn is **refused rather than ignored**, because ignoring it would leave the
+owner believing they had authorized something they had not. `premiumRefusal` is the belt behind
+both, applied to the chosen model and to every member of the fallback chain — the chain is what a
+provider request would actually carry as `models`.
+
+### 5.3 — no prompt text, enforced at four layers that fail independently
+
+Migration **007** finishes `model_telemetry`. 003 declared it in Phase 1 with tokens, latency, schema
+validity and the requested model identity; three things §6.4 permits an operator to see were absent
+and one thing §6.2.1 requires of a recorded cost was not expressible. 007 adds the actual reported
+cost and its provenance, the pre-flight estimate in its own column, the model actually **served**,
+the per-request privacy assertion, an index on `(agent, occurred_at)`, and two append-only triggers.
+A new migration rather than an edit to 003, because an applied migration is frozen (§5.1) and the
+migrator refuses a rewritten checksum rather than guessing which state is correct. As with 006, the
+five `ALTER TABLE ADD COLUMN` statements **cannot** be defensive — SQLite has no `IF NOT EXISTS`
+form for them — and what makes the run once-only is the recorded version, not the DDL: §5.2.2 skips
+a recorded migration without executing a single statement. No applied migration was edited.
+
+R19's "no prompt text and no completion text is written to any log, ever" is mechanical at four
+layers, and the point of four is that they **fail independently**:
+
+1. **The TYPE cannot hold content.** The write path accepts nothing broader than
+   `ModelCallTelemetry`, which Phase 2.1 already defined as a `Redacted<>` projection typing every
+   content-named key `never`. It is **reused, not re-defined** — there is deliberately no second
+   telemetry shape in this module, because two shapes would eventually disagree about what a log
+   line may carry. `TelemetryRecord` adds only what a stored row needs and a loggable projection has
+   no business holding: a surrogate key, the UTC instant, and the optional estimate. The read model
+   is wrapped in the same `Redacted<>` for the same reason: today it resolves to itself, and
+   tomorrow it refuses to compile if somebody adds a content field.
+2. **The DDL has no column that could hold free text.** `TELEMETRY_FORBIDDEN_COLUMNS` enumerates
+   eighteen names the table must never grow, and the test asserts the list against the live
+   `table_info` of **every table in the store** AND against the DDL text of **every migration** — so
+   the absence is a property of the shipped schema rather than of a comment about it. Matching is by
+   exact column name on purpose: `prompt_tokens` and `completion_tokens` are COUNTS, which §6.4
+   explicitly permits, in the same way `signal_audit.note_length` measures a note it does not keep.
+   A substring rule would forbid the counts and pass anything named `narrative`, which is the wrong
+   trade in both directions.
+3. **The WRITE PATH refuses a surplus key and refuses prose.** A cast defeats a type, so the key set
+   is re-checked at run time against the permitted projection, and every string field is checked for
+   being an identifier, an enum member, or a timestamp rather than narrative — length past 120
+   characters, or any newline or tab, is decisive. The refusal reports the **KEY and never the value**,
+   for the reason §4.3.6 gives about quarantine tables: an error message that quotes the refused
+   value is itself a log line carrying prompt text. A refused record writes nothing, because every
+   guard runs before the statement is prepared.
+4. **An independent derivation about the STORED ROW.** `contentBreaches` re-derives, from the raw
+   record the engine hands back, that the row's key set is exactly the table's columns, that none is
+   content-named, and that no value on it is prose. It is deliberately **not** a call back into the
+   write guards — the two would then fail together — and it earns its independence the way Phase
+   3.2's `deidentificationBreaches` did: it catches what input validation never saw. A caller who
+   reached the handle and inserted a completion into `model_id` passed no write guard at all, and
+   this is the layer that refuses to serve the result. It is wired into `readTelemetry` and also
+   exercised directly, because a guard only ever observed passing is not evidence.
+
+**Actual cost and estimated cost are separated four ways, not documented as different.** §6.2.1 lets
+an estimate GATE a call and never be what is recorded; contract 11 adapts cost policy from what WAS
+recorded, so adapting from estimates would make the governance loop grade its own guesses. So:
+**different columns**, `actual_cost_micro_usd` and `preflight_estimate_micro_usd`, neither of them
+the bare `cost` — the ambiguous name `cost_micro_usd` exists in no table that also holds an
+estimate, so a careless `SELECT` cannot pick up "the cost"; **different types**, each with a
+single-member provenance literal (`provider_reported_actual` versus `preflight_estimate`), so neither
+structure type-checks where the other is wanted, in either direction; **a CHECK at the engine** on
+`actual_cost_source`, so a caller reaching the handle still cannot record an estimate as an actual;
+and **different names on the read model**, where the actual is a number and the estimate is an object
+carrying its own provenance, so a consumer that wants a figure has to name which figure it means.
+
+Append-only, for the reason 004 and 005 give and one more. Telemetry is **evidence**: contract 11
+promotes and demotes models from it, and an editable evidence table is a governance input that can be
+quietly rewritten to justify the decision it was supposed to inform. The module exposes no update
+path and no delete path and its test scans this source to prove it — but that is a property of one
+module, and the handle is what every future caller reaches, so the refusal lives in the table as two
+triggers. A correction is another `recordTelemetry` with its own `id`. Retention pruning stays an
+explicit operation rather than an incidental delete.
+
+Two refusals in this repository are worth naming together because they are the same idea from
+opposite ends: a `T0` turn class is refused here outright — a telemetry row describing a model call
+at a tier that invokes no model is a contradiction — and a missing `schemaValid` verdict is refused
+rather than defaulted, because a missing verdict is not a failed one and contracts 09 and 11 both
+read that field. This sub-task is what satisfies contract 06 §9 **T16**.
+
+### 5.4 — the audit, and the one claim that was covered by an argument instead of a test
+
+The five claims 5.4 nominally owned were audited against the requirements one by one, and **claim 2
+was the only wholly uncovered one**. No test was added that duplicates an existing assertion:
+
+| Claim | Status at audit | What 5.4 added |
+| ----- | --------------- | -------------- |
+| Cap exhausted refuses one agent and not the other | Covered at the POLICY level by `features/routing/agentBudget.test.ts`, which says so in its own header and says the sweep belongs here | `capIsolation.negative.test.ts` — the same claim at the ROUTER, at the PROVIDER belt, and over a REAL store |
+| **Deterministic alerts still fire** | **Uncovered. True by construction and asserted nowhere** | `deterministicAlerts.negative.test.ts` — a differential over the real Stage 1-4 engines |
+| T0 never calls a model | Covered by 5.1's 36-turn corpus with a positive control | `t0UnderClosedDoors.test.ts` — the COMPOSITION 5.1 held fixed |
+| A provisional registry cannot promote | ADMISSION covered thoroughly by `eligibilityRegistry.test.ts` | `provisionalCannotPromote.test.ts` — the whole promotion journey, not just the gate |
+| K4's roster and cap are what the owner set | Asserted only RELATIVE to the constants | `features/routing/k4Constants.test.ts` — the drift pin |
+
+**Cap isolation, proved at the three levels R17 actually spans (contract 06 §9 T15).** §6.2 says
+"Two belts, and neither substitutes for the other", so a test exercising one belt has tested half of
+R17 and left the other half to a comment. The three: the **server router**, where the other agent is
+now shown routing successfully in the same breath as the first is refused, so nothing could begin
+consulting an aggregate unnoticed; the **provider belt**, which is one key per agent — two mocks with
+two configurations is what that topology looks like from this side of the port, and one is driven to
+refusal while the other completes; and a **real store**, because the pure read model is handed rows
+by a caller, that caller is `spendLedgerRepo`, and §6.2.3 has it read BOTH agents' rows deliberately
+so the per-agent scoping is exercised at run time rather than hidden in a `WHERE` clause. The
+topology asserted is the tree's own — one ledger table with an enumerated `agent` column, never
+aggregated for a cap decision — and store-file isolation stays where it already is, under contract 06
+§9 T2/T3. Asserting a two-file topology here would assert something the tree does not do.
+
+**The deterministic-alerts claim is a DIFFERENTIAL over the real engines, and it needed to be.** The
+claim is true by construction today: the engines take no model port, so a cap cannot reach them. That
+is exactly why it had never been asserted — a property nobody can see failing is a property nobody
+writes down. But "the engines do not import the router" is a structural fact about today's tree, and
+R17 is a promise about the system's behaviour, and the gap between them is one refactor wide: a
+briefing path that decorated an obligation alert with a model-written sentence and then propagated
+the refusal instead of degrading to the deterministic line would violate R17 while every existing
+test stayed green. So the same synthetic ledger is run **twice** — once with an ample cap, once with
+the cap exhausted and the channel refusing on every call — through `obligationFundingReport`,
+`safeToSpendAllHorizons`, `forecastAll` and `worstStatus`, the **real Stage 1-4 engines imported
+verbatim**. The assertion is **deep equality** across the two runs: not "still non-empty", not "still
+red somewhere", but identical field for field, including the amber and red statuses, the shortfall
+figures, the penalty exposure and the due-date arithmetic. A deterministic alert that changed in ANY
+respect because a model budget ran out fails this. Owner money in the fixture is integer milliunits
+through `src/lib/money`; provider cost is integer micro-USD; the two never meet.
+
+**The T0 composition, under closed doors.** 5.1's corpus runs with a healthy budget and a fully
+graded registry. R16 with R17 and R18 promises something stronger — a T0 turn is answered when there
+is no model available to call at all — and there are three distinct ways of having none. The cap is
+exhausted, so both belts refuse. The registry is **absent**, and this is the sharpest form: with no
+`AdmittedRegistry` in existence, `routeModel` cannot even be CALLED, because the value its parameter
+needs was never produced. Not a refusal at run time — an absence of the argument. Or the registry is
+present but provisional, so admission refuses and again there is nothing to route with. In all three
+the T0 turn is answered and the recorder is asserted empty. The corpus here is deliberately small:
+the breadth argument was made in 5.1, and repeating thirty-six turns three times would be volume
+rather than evidence. What this file adds is the axis 5.1 held fixed.
+
+**Promotion is narrower than admission, and contract 09 words the narrow one.** "No model promoted
+from benchmark reputation alone." Promotion is a JOURNEY — a run grades a model, the grades are
+written into a registry, the registry admits, the router selects, a request carries the id, the
+provider serves it — and §6.3 cuts it at the registry. A test that only showed a provisional document
+being refused would leave open whether a well-graded model could reach live routing by some other
+route. So `provisionalCannotPromote.test.ts` walks the whole journey with a model that contract 09's
+**real aggregator** (`evaluateEligibility`, imported verbatim) promoted to L0, L1 **and** L2 — a
+genuinely well-graded model, not a failing one, because a disqualified model would make the test pass
+for the wrong reason — and shows every remaining step unavailable because the run was fixture-backed.
+There is no other route, and this is where that is written down.
+
+**The K4 drift pin, and it is the third instance of this shape in the build.** Phase 3.4 found it on
+R7's 120-character note cap and pinned `SIGNAL_NOTE_MAX_LENGTH` to `120`. Phase 4.4 found it on R11's
+token length and charset. The shape: every assertion is written *relative to* the constant it is
+about, which is the right way to write each one individually, and taken together they leave a hole.
+`modelPolicy.test.ts` blocks routing at `spentThisWeekUsd: WEEKLY_BUDGET_USD`. `agentBudget.test.ts`
+asserts the chosen model is `toContain`-ed in `DEFAULT_ALLOWED`. `modelRouter.negative.test.ts`
+iterates `PREMIUM_MODELS` and filters `TIER_CAPABLE` by `DEFAULT_ALLOWED`. Raise the weekly cap from
+the owner's five to fifty and all of them stay green while the ceiling is multiplied by ten. Move
+`x-ai/grok-4.5` out of `PREMIUM_MODELS` into `DEFAULT_ALLOWED` and the premium-refusal tests still
+pass — **because they iterate the very array that was changed** — while a model the owner turned OFF
+becomes a default. The tests would be measuring the code against itself.
+
+**This was verified rather than argued.** The move was performed on `modelPolicy.ts` and the three
+K4-relative files were run against it: **all 40 pre-existing tests stayed green** — 14 in
+`modelPolicy.test.ts`, 9 in `agentBudget.test.ts`, 17 in `modelRouter.negative.test.ts` — and only
+the new pin failed, 3 of its 9. The mutation was reverted with `git checkout --` and the tree
+verified clean before anything was staged. So the number the log reports is measured, not asserted.
+
+What is pinned is only the OWNER-FACING values: the weekly cap, because K4 says "a hard USD 5.00/week
+cap"; the allowed and premium sets, because K4 says which two are on and which two are off; the
+premium picks, because K4 admits one only for an ultra-complex task; and contract 11's governance
+ladder, because those thresholds are what "restrictive routing" means. Deliberately **not** pinned:
+`NOMINAL_TURN_USAGE`, which is a ranking aid tuned from measurement rather than a decision, and the
+frozen price snapshot, which contract 09's pricing module pins itself. Pinning those would convert
+every future recalibration into a test failure that says nothing. The cap is a POLICY figure in USD —
+the ceiling the owner set on provider spend, already published in the steering file and in contract
+11 — not an amount in the owner's finances, which is what R24 forbids.
+
+### The acceptance tests of contract 06 §9 and contract 12 §12, and where each one lives
+
+| # | Test | Where |
+| - | ---- | ----- |
+| T15 | Exhausting one agent's weekly total refuses that agent and leaves the other unaffected — at the router, at the provider belt, and over rows that round-tripped through the engine | `capIsolation.negative.test.ts`, `features/routing/agentBudget.test.ts` |
+| T16 | No table accepts a column named in §3.4, asserted against live `table_info` for every table AND the DDL text of every migration; telemetry rejects prompt text at the write path and refuses to serve it from a stored row | `modelTelemetryRepo.test.ts` |
+| R16 | A `T0` turn invokes no model: `modelGrant` typed `never`, `classifyTurn` the sole mint, the port unreachable without a grant, 36 adversarial turns leaving the record empty, and a positive control proving the record works | `turnClassifier.test.ts`, `turnDispatch.negative.test.ts`, `t0NoModel.test.ts` |
+| R16+17+18 | A `T0` turn is still answered with the cap exhausted, with no registry at all, and with a provisional registry | `t0UnderClosedDoors.test.ts` |
+| R17 | An exhausted cap refuses model calls and changes **no** deterministic output — deep equality across an ample run and an exhausted one, over the real Stage 1-4 engines | `deterministicAlerts.negative.test.ts` |
+| R18 | A model absent from the registry cannot be named; a provisional registry is refused by the type checker, again behind a cast, at both parse and admit; the fixture path can only produce a provisional document | `eligibilityRegistry.test.ts`, `modelRouter.negative.test.ts`, `provisionalCannotPromote.test.ts` |
+| R18 | The roster and the registry disagreeing is an explicit refusal, never a substitution to a different model | `modelRouter.negative.test.ts` |
+| R19 | Actual cost cannot be recorded from an estimate and an estimate cannot be recorded as an actual, in either direction, at the type, at the write path, and at the engine's CHECK; the table is append-only whatever the path | `modelTelemetryRepo.test.ts` |
+| K4 | The owner's cap, allowed set, premium set, premium picks and governance ladder are pinned to their own literals | `features/routing/k4Constants.test.ts` |
+
+### Verification
+
+- `npm run typecheck` 0 errors; `npm run lint` 0 warnings at `--max-warnings 0`.
+- Suite **945 → 1095 across 72 → 83 files** (**+150 tests, +11 files**): 5.1 **+33**
+  (`turnClassifier.test.ts` 22, `turnDispatch.negative.test.ts` 7, `t0NoModel.test.ts` 4 — four cases
+  driving a 36-turn corpus), 5.2 **+37** (`eligibilityRegistry.test.ts` 20,
+  `modelRouter.negative.test.ts` 17), 5.3 **+41** (`modelTelemetryRepo.test.ts`), 5.4 **+39**
+  (`capIsolation.negative.test.ts` 11, `provisionalCannotPromote.test.ts` 7,
+  `deterministicAlerts.negative.test.ts` 6, `t0UnderClosedDoors.test.ts` 6, `k4Constants.test.ts` 9).
+  Every model id, agent, reference, token count and cost figure in every test is synthetic; provider
+  cost is integer micro-USD and owner money never appears (R24, steering §0b).
+- `npm run verify:all -- --all` — **17 of 19** before the commit, with the two red checks being
+  **AC14 (working tree clean)** and **AC15 (push ready)**, both reporting the same uncommitted Phase-5
+  work; **19 of 19** after it. **AC12 (contract index and build log agree) PASS**, confirmed after
+  editing this log rather than assumed: AC12 reads `contracts/_CONTRACT_INDEX.md` and
+  `contracts/_BUILD_LOG.md` — the **original five** build contracts — not this PFOS track, so
+  appending here cannot move it. Every pre-existing test still passes, including every scanner
+  (`db/isolation.test.ts`, `db/moneyImplementation.test.ts`, `ports/interfaceOnly.test.ts`,
+  `mocks/determinism.test.ts`, `signals/schemaParity.test.ts`, `signals/exclusion.test.ts`,
+  `telegram/negativeGuards.test.ts`).
+- The AC04 floor stays at **331**. Ratcheting it is task 9.1's, and raising it here would take a
+  decision that belongs to close-out.
+- **One file under `scripts/verify/` was touched, additively, and it is recorded rather than glossed.**
+  `ingest-isolation.mjs` gained two entries to `BUNDLE_PROBES` —
+  `TURN_MODEL_GRANT_NOT_MINTED` and `ELIGIBILITY_REGISTRY_PROVISIONAL_FLAG_ABSENT`, both typed error
+  codes from the new modules — so AC08b now proves the routing tier is absent from the browser bundle
+  by looking for strings that only exist in it. That is a **strengthening**: the check does more work
+  than before and can only fail in more cases. No check was weakened, relaxed, or edited to make a
+  gate pass, no test floor was lowered, no applied migration was edited, and no `ATTACH` statement
+  exists anywhere in `src/server/**`.
+
+### Open items that need an owner decision or a later phase, recorded rather than decided here
+
+1. **`src/features/benchmark/eligibility.ts` emits neither a `provisional` marker nor a
+   `developerBuild` field, and Phase 6.2 must add both.** Contract 09's aggregator returns
+   `ModelEligibility` with `levels: { L0, L1, L2 }`, `disqualified`, `disqualifiers`,
+   `reviewerDisagreementBps` and `metrics`. Phase 5.2 reads a registry DOCUMENT whose entries require
+   `bands`, `developerBuild` **and** `disqualified`, and whose top level requires an explicit
+   `provisional` boolean. The two shapes therefore do not meet yet: a registry emitted by today's
+   `buildRegistry` would be refused by `parseEligibilityRegistry` with
+   `ELIGIBILITY_REGISTRY_PROVISIONAL_FLAG_ABSENT` and, per entry,
+   `ELIGIBILITY_REGISTRY_ENTRY_INVALID` on `developerBuild`. **That is the correct direction to fail
+   in** — an unstated developer verdict is not a passing one, and an absent flag is not "not
+   provisional" — but it means Phase 6.2 has a concrete, non-optional job: emit `provisional` as a
+   literal `true` for a fixture-backed run, and emit `developerBuild` from contract 09's code
+   benchmark and repository tests rather than from the finance eval set. Phase 5.2's tests construct
+   registry documents directly, so nothing in the tree currently depends on the aggregator producing
+   the document shape, and nothing hides the gap either.
+2. **`design.md` and the tree disagree about where the spend ledger and telemetry live, and the tree
+   was followed.** The design file places both under `src/server/routing/` ("classifier, router, spend
+   ledger, telemetry"). The tree puts the **repositories** in `src/server/db/` — `spendLedgerRepo.ts`
+   since Phase 1.4, `modelTelemetryRepo.ts` now — with only **pure read models** in
+   `src/features/routing/` (`spendLedger.ts`, `modelPolicy.ts`, `agentBudget.ts`). The tree's split is
+   the one contract 06 implies, because a repository is a store concern and the weekly total is R5's
+   "pure function", and it keeps `src/server/routing/` free of any store handle — which is what lets
+   the classifier and the router be tested with no database at all. It is recorded here as a
+   divergence to reconcile rather than corrected silently in either direction: the fix is a one-line
+   edit to `design.md`, and that edit is an owner-visible change to a spec document.
+3. **R18 is now enforced at two boundaries with two vocabularies, on purpose.** Phase 2.2's
+   OpenRouter mock refuses an ineligible or provisional model at the **port**, with the shared
+   `PortFailureCode` set. Phase 5.2's router refuses at **selection**, with tier-local
+   `MODEL_ROUTING_*` codes. That is not duplication to be collapsed. The port's refusal is the belt
+   that holds when something bypasses the router entirely — which is exactly the case a router-only
+   guard cannot cover — and the router's refusal is the one that can say WHICH requirement was unmet
+   at WHICH tier, which a generic port code cannot express. Collapsing them would lose one property or
+   the other. Recorded so a later tidy-up does not read two error vocabularies as an accident.
+4. **`MODEL_ROUTING_NO_MODEL_SELECTED` is unreachable today, and the test asserts the precondition
+   instead of contriving a path.** It fires only if `selectModel` returns a null pick for a reason
+   other than the budget, which requires a tier's capable set and K4's allowed set to stop
+   intersecting — the budget cases that also yield a null pick are caught one branch earlier by
+   `MODEL_ROUTING_WEEKLY_CAP_EXHAUSTED`. Rather than fabricate a fake roster to drive the branch, the
+   test asserts the **precondition**: that `TIER_CAPABLE[tier]` and `DEFAULT_ALLOWED` intersect at
+   every model-bearing tier. So the day contract 10's roster changes, the branch becomes reachable
+   **knowingly** — the precondition test fails and names the tier — rather than becoming reachable
+   silently behind a guard nobody has exercised.
+
+### Known gaps, recorded honestly because they are real and unclosed
+
+1. **Six of contract 10's seven utility terms are not implemented, and this is a gap rather than a
+   design.** §5.2 above records why fabricating them would be worse. But the consequence is that
+   selection today is contract 09's hard filters followed by cheapest-capable within K4's allowed set,
+   in contract 10's stated roster order — not a scored ranking. A model that is *technically* eligible
+   at a tier and *materially worse* at it than another eligible model will be chosen if it is cheaper.
+   Phase 6 is what closes this, and until it does, the ordering is an inherited opinion rather than a
+   measurement.
+2. **Nothing in Phase 5 has ever spoken to a provider.** Every model call is the deterministic mock
+   behind `OpenRouterPort`. The channel, the grant checks, the registry, the router and the telemetry
+   store are all proved against it, which means latency, provider-side model substitution, the shape
+   of a real usage report, and the actual reported cost are all *shapes this tier accepts* rather than
+   values it has seen. `model_id_served` exists precisely because a provider may serve another model;
+   no test has ever observed one doing it.
+3. **`preflight_estimate_micro_usd` has no producer.** The column, the type, the provenance literal
+   and the refusals are all in place, and §6.2.1's separation is airtight — but nothing in the tree
+   computes a pre-flight estimate yet, so every row written today carries `null`. The gating half of
+   §6.2.1 ("an estimate may gate a call") is therefore unimplemented, and the recording half is
+   implemented and unexercised by any real estimate.
+4. **The five columns migration 007 adds carry defaults the code does not want**, the same shape Phase
+   4.3 recorded for `work_queue`. `ALTER TABLE ADD COLUMN ... NOT NULL` requires a default in SQLite,
+   so `actual_cost_micro_usd` defaults to `0` and `model_id_served` to the empty string, both
+   representable at the DDL level even though `recordTelemetry` refuses an empty served identity. The
+   guard is in the repository, not in the schema, and it is per-call-site for the same reason as
+   before.
+5. **The router is never called from anything.** Phase 4.3's worker still does no real work: the queue
+   is durable and retrying, `dispatchTurn` classifies and routes, and no line of code joins the two.
+   Which turn facts a real Telegram update produces — who derives `amountOverOwnerThreshold` from a
+   parsed bank message, and how — is unwritten, and it is where Phase 7's HTTP surface and the
+   deterministic engines have to meet.
+6. **`contentBreaches` recognizes prose by length and by control characters, which is a heuristic.** A
+   119-character single-line completion inserted directly into `model_id` through the handle would
+   pass it. The layers in front make that unreachable through any supported path, and the column set
+   is the real guarantee — but layer 4's own rule is a shape test, not a semantic one, and it is
+   recorded as such.
+
+### Still gated (unchanged by Phase 5)
+
+- Phase 5 built the routing tier's **decisions** and no part of its network half: no live model call,
+  no key, no registry produced from measurement, no request ever sent. The human gates stand: provision
+  and harden the host, DNS, create the two bots, mint the two runtime keys with weekly caps, the
+  storage consent click, webhook registration, and generate the encryption keypair with the private
+  half kept off the box. G7 stays **closed as WONT-DO** per steering §0b.
+- The **dev-key carve-out of steering §3 was not used.** No live OpenRouter call was made from any
+  machine in this phase. Phase 6.3 is where that decision arises, and it arises with a cap.
+- No outbound call from a server process and no production secret, unchanged.

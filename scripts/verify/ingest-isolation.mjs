@@ -143,6 +143,8 @@ const BUNDLE_PROBES = [
   "spend_ledger_append_only_update", // src/server/db/schema.ts, migration 005 trigger
   "STORE_PATH_ESCAPES_DATA_DIR", // src/server/db/paths.ts, typed error code
   "MIGRATION_CHECKSUM_MISMATCH", // src/server/db/errors.ts, typed error code
+  "TURN_MODEL_GRANT_NOT_MINTED", // src/server/routing/turnDispatch.ts, typed error code
+  "ELIGIBILITY_REGISTRY_PROVISIONAL_FLAG_ABSENT", // src/server/routing/eligibilityRegistry.ts, typed error code
 ];
 
 const SOURCE_EXTS = [".ts", ".tsx"];

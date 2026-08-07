@@ -65,6 +65,10 @@ export const MIGRATIONS: readonly Migration[] = [
   // Phase 4.3 — the durable columns and the unique delivery index the accept-fast path needs
   // (contract 12 §5.5). A new version, because 003 declared the table and is frozen (§5.1).
   { version: 6, name: 'work_queue_durable_payload', statements: SCHEMA_STATEMENTS[6] ?? [] },
+  // Phase 5.3 — the actual reported cost, the pre-flight estimate in its own column, the served
+  // model identity, the per-request privacy assertion, and append-only triggers on the telemetry
+  // table (contract 06 §3.3/§6.2, contract 12 §6.4, R19). 003 declared the table and is frozen.
+  { version: 7, name: 'model_telemetry_cost_and_append_only', statements: SCHEMA_STATEMENTS[7] ?? [] },
 ];
 
 /** Stable hash of a migration's identity and its statements. */

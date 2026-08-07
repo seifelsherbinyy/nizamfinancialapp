@@ -449,6 +449,107 @@ const MIGRATION_006: readonly string[] = [
   `CREATE INDEX IF NOT EXISTS work_queue_claimable ON work_queue(state, not_before, enqueued_at)`,
 ];
 
+/**
+ * Contract 06 §3.3 / §6.2 and contract 12 §6.4 — finish `model_telemetry`. Phase 5.3 (R19).
+ *
+ * §3.3 declared the table in migration 003 with tokens, latency, schema validity, and model
+ * identity. Three things §6.4 permits an operator to see were missing from it, and one thing
+ * §6.2.1 requires of any recorded cost was not expressible:
+ *
+ *  - **The ACTUAL reported cost.** There was no cost column at all, so "what the provider
+ *    reported" had nowhere to land beside the call it describes. `actual_cost_micro_usd` is
+ *    integer micro-USD of PROVIDER accounting, exactly as `spend_ledger.cost_micro_usd` is,
+ *    and `actual_cost_source` carries the same single-value CHECK: an estimate cannot be
+ *    written into the actual column at all, whatever path reaches the table.
+ *  - **The pre-flight estimate, in a column that cannot be read as the actual.** §6.2.1 lets an
+ *    estimate GATE a call and never be what is recorded; contract 11 adapts cost policy from
+ *    what was recorded. If the two shared a column — or a name a query could confuse — the
+ *    governance loop would be adapting from its own guesses and confirming itself. So the
+ *    estimate is `preflight_estimate_micro_usd`: nullable, because most calls have no estimate,
+ *    and named for its provenance, so neither column is the bare `cost` a careless SELECT picks
+ *    up. Note that neither name is `cost_micro_usd`; the ambiguous name exists in no table.
+ *  - **The model actually SERVED.** 003's `model_id` is the model the router asked for. A
+ *    provider may serve another, and §6.4 lists "a model identity" among what may be logged —
+ *    which is only useful if the served identity is recorded next to the requested one.
+ *  - **The per-request privacy assertion.** §6.4: every request carries the provider privacy
+ *    policy, and "a per-request assertion is what a test can observe". Single-valued, so a row
+ *    that exists is a row whose request carried the policy.
+ *
+ * And the triggers, for the reason migration 004 and 005 give: telemetry is EVIDENCE. Contract
+ * 11 promotes and demotes models from it, and an editable evidence table is a governance input
+ * that can be quietly rewritten to justify a decision after the fact. The repository exposes no
+ * update path and no delete path and its test scans the source to prove it — but that is a
+ * property of one module, and the handle is what every future caller reaches.
+ *
+ * A NEW migration rather than an edit to 003, because an applied migration is frozen (§5.1) and
+ * the migrator refuses a rewritten checksum rather than guessing which state is correct. The five
+ * `ADD COLUMN` statements cannot be defensive: SQLite's `ALTER TABLE ADD COLUMN` has no
+ * `IF NOT EXISTS` form, and what makes the run once-only is the recorded version — §5.2.2 skips a
+ * recorded migration without executing a single statement — not the DDL's own re-runnability.
+ *
+ * No column here can hold prompt or completion text, and none ever will (§3.4). The absence is
+ * asserted against the live `table_info` by `modelTelemetryRepo.test.ts` and against this DDL
+ * text by the same file, so it is a property of the shipped table rather than of this comment.
+ */
+const MIGRATION_007: readonly string[] = [
+  `ALTER TABLE model_telemetry ADD COLUMN actual_cost_micro_usd INTEGER NOT NULL DEFAULT 0
+     CHECK (actual_cost_micro_usd >= 0)`,
+  `ALTER TABLE model_telemetry ADD COLUMN actual_cost_source TEXT NOT NULL DEFAULT 'provider_reported_actual'
+     CHECK (actual_cost_source = 'provider_reported_actual')`,
+  `ALTER TABLE model_telemetry ADD COLUMN preflight_estimate_micro_usd INTEGER
+     CHECK (preflight_estimate_micro_usd IS NULL OR preflight_estimate_micro_usd >= 0)`,
+  `ALTER TABLE model_telemetry ADD COLUMN model_id_served TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE model_telemetry ADD COLUMN privacy_policy_asserted TEXT NOT NULL DEFAULT 'true'
+     CHECK (privacy_policy_asserted = 'true')`,
+  `CREATE INDEX IF NOT EXISTS model_telemetry_agent_occurred ON model_telemetry(agent, occurred_at)`,
+  `CREATE TRIGGER IF NOT EXISTS model_telemetry_append_only_update
+     BEFORE UPDATE ON model_telemetry
+   BEGIN
+     SELECT RAISE(ABORT, 'model_telemetry is append-only: telemetry is the evidence contract 11 promotes and demotes models from, so a recorded call is never edited (contract 06 3.3, contract 12 6.4)');
+   END`,
+  `CREATE TRIGGER IF NOT EXISTS model_telemetry_append_only_delete
+     BEFORE DELETE ON model_telemetry
+   BEGIN
+     SELECT RAISE(ABORT, 'model_telemetry is append-only: a call that happened is never unrecorded; retention pruning is an explicit operation, never an incidental delete (contract 06 3.3, 8.2)');
+   END`,
+];
+
+/**
+ * Column names `model_telemetry` must never grow (§3.4, contract 12 §6.4, R19).
+ *
+ * The list is the guard, not a comment about one: `modelTelemetryRepo.test.ts` asserts the live
+ * `table_info` of EVERY table in the store contains no column whose name equals one of these, and
+ * asserts the same about the DDL text of every migration above. §3.4 forbids prompt text and
+ * completion text in any column under any name, and a name is the one part of "under any name"
+ * a test can actually enumerate.
+ *
+ * Matching is by exact column name, deliberately. `prompt_tokens` and `completion_tokens` are
+ * COUNTS — a measurement of content, which §6.4 explicitly permits an operator to see, in the
+ * same way `signal_audit.note_length` measures a note it does not keep. A substring rule would
+ * forbid the counts and pass anything named `narrative`, which is the wrong trade in both
+ * directions.
+ */
+export const TELEMETRY_FORBIDDEN_COLUMNS = [
+  'body',
+  'completion',
+  'completion_text',
+  'content',
+  'message',
+  'messages',
+  'prompt',
+  'prompt_text',
+  'raw_request',
+  'raw_response',
+  'reasoning',
+  'reasoning_text',
+  'request_body',
+  'response',
+  'response_body',
+  'response_text',
+  'text',
+  'transcript',
+] as const;
+
 /** The DDL of each migration, keyed by version. Consumed only by `migrations.ts`. */
 export const SCHEMA_STATEMENTS: Readonly<Record<number, readonly string[]>> = {
   1: MIGRATION_001,
@@ -457,4 +558,5 @@ export const SCHEMA_STATEMENTS: Readonly<Record<number, readonly string[]>> = {
   4: MIGRATION_004,
   5: MIGRATION_005,
   6: MIGRATION_006,
+  7: MIGRATION_007,
 } as const;
