@@ -18,6 +18,10 @@ data/ledgers/*.csv
 Thumbs.db
 .idea/
 *.log
+# a local developer-machine convenience script: it nudges the mouse pointer to keep a workstation
+# awake. It holds no project role, is imported by nothing, and belongs to whoever is sitting at the
+# machine — not to the build. Ignored rather than tracked so it stops failing AC14 (clean tree).
+jiggle.ps1
 # continuation analysis + build session inputs (tooling, not app code)
 outputs/
 Execute and build.md
