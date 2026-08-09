@@ -43,7 +43,18 @@ const opt = (n, d = null) => {
   return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith("--") ? argv[i + 1] : d;
 };
 
-const FOLDER = opt("folder", "1w4ekuw9rSXktm2NO8rJL65YXUA--W0Tm");
+/**
+ * The source folder identifier is a DEPLOYMENT PARTICULAR, so it is not written here. The repository
+ * is public and steering §0b forbids a storage folder or file identifier in a tracked file. It
+ * arrives from the operator's environment or from --folder, and an unresolved name fails closed
+ * rather than defaulting to something nobody reviewed.
+ */
+const FOLDER = opt("folder", process.env.PFOS_SOURCE_FOLDER_ID ?? "");
+
+/** What the tracked manifest carries in place of an identifier. Never a real value. */
+const REDACTED_FOLDER_ID = "<PFOS_SOURCE_FOLDER_ID>";
+const REDACTED_FILE_ID = "<PFOS_SOURCE_FILE_ID>";
+
 const OUT_DIR = opt("out", "contracts/pfos");
 const MANIFEST = opt("manifest", join(OUT_DIR, "_INGESTION_MANIFEST.json"));
 const PORT = Number(opt("port", "8731"));
@@ -343,6 +354,13 @@ async function main() {
     await discover(token, discoverTerm);
     return;
   }
+  if (FOLDER === "") {
+    console.error("FAIL no source folder identifier resolved");
+    console.error("     It is a deployment particular, so it is not written in this tracked file.");
+    console.error("     Supply it as PFOS_SOURCE_FOLDER_ID in the environment, or pass --folder <id>.");
+    console.error("     Run --discover PFOS to find it, which needs no identifier.");
+    process.exit(2);
+  }
   const meta = await api(token, "/files/" + FOLDER, {
     fields: "id,name,mimeType,modifiedTime,webViewLink",
     supportsAllDrives: "true",
@@ -379,7 +397,10 @@ async function main() {
     writeFileSync(dest, bytes);
     records.push({
       source_name: f.relPath,
-      source_id: f.id,
+      // REDACTED on purpose. The manifest is a TRACKED file and the repository is public, so
+      // steering §0b forbids a storage file identifier in it. Byte-identity to the source is
+      // proved by source_name + bytes + sha256, which this redaction does not touch.
+      source_id: REDACTED_FILE_ID,
       source_mime: f.mimeType,
       source_modified: f.modifiedTime,
       source_version: f.version ?? null,
@@ -396,10 +417,12 @@ async function main() {
   const manifest = {
     tool: "scripts/ingest/pfos-drive-pull.mjs",
     ingested_at: new Date().toISOString(),
-    source_folder: { id: meta.id, name: meta.name, modified: meta.modifiedTime },
+    source_folder: { id: REDACTED_FOLDER_ID, name: meta.name, modified: meta.modifiedTime },
     scope_used: READ_SCOPE,
     scope_note:
       "Read only scope is used by this local tool only. The shipped application keeps the per file scope.",
+    id_note:
+      "Every source identifier is redacted to an <ANGLE_BRACKET> placeholder. The repository is public and steering §0b forbids a storage folder or file identifier in a tracked file. Byte-identity to the source is proved by name, byte count and sha256 below, none of which the redaction touches; the identifiers were provenance labels only. The tool writes placeholders too, so a re-run does not reintroduce them.",
     file_count: records.length,
     not_ingested: other.map((f) => ({ name: f.relPath, mime: f.mimeType })),
     files: records.sort((a, b) => a.source_name.localeCompare(b.source_name)),

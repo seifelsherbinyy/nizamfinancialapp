@@ -37,7 +37,7 @@
 - Test state verified: **333 passed (37 files)**.
 
 ### The single most important finding - surface, not architecture
-**Both repositories are PUBLIC.** `nizamcore` is 92 MB with 48 open issues; a real Drive folder id (`1N_Cx5i4UPxp7qkCb6WxA3TYPgion4RUi`) is committed in `.env.example`, `DUAL_WRITE_GOVERNOR.md`, `AGENT_MAPPING.json`, and a mermaid diagram. No API secret is tracked (the secret-scan and `.gitignore` are doing their job), but a public repo for a system that will hold mental-health + financial data is itself the top risk. **This is decision D0 below.**
+**Both repositories are PUBLIC.** `nizamcore` is 92 MB with 48 open issues; a real Drive folder id (`<LIFE_DRIVE_FOLDER_ID>`) is committed in `.env.example`, `DUAL_WRITE_GOVERNOR.md`, `AGENT_MAPPING.json`, and a mermaid diagram. No API secret is tracked (the secret-scan and `.gitignore` are doing their job), but a public repo for a system that will hold mental-health + financial data is itself the top risk. **This is decision D0 below.**
 
 ---
 

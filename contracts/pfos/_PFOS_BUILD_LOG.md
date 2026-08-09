@@ -2676,3 +2676,206 @@ verify" are exactly the places where it could be wrong, and 002's existing-test 
   register because it is not a deployment gate - it is a cross-repo handoff. Until a human performs it,
   the correct status of all three changes is *emitted, unapplied*, and nothing here reports otherwise.
 - No outbound call from a server process and no production secret, unchanged.
+
+---
+
+## Policy hygiene - five owner-approved resolutions, none of them a numbered task (2026-08-09)
+
+> Spec: `.kiro/specs/06-two-agent-vps`. Owner-approved verbatim; this increment implements them and
+> re-litigates none. **No numbered task box was ticked** - task 9.0 (the no-deployment-particular
+> harness check), 9.1 (the AC04 floor) and 9.3 (completing the gate register) remain open and were
+> deliberately not started here.
+
+### Work
+
+**1. `scripts/server/` retired.** `Caddyfile`, `deploy.sh` and `harden.sh` are gone via `git rm`.
+They predate Phase 7 and are superseded by `ops/` plus `ops/GATE_REGISTER.md`, which is now the only
+deployment surface. Two proxy configurations in one repository is an operational hazard at G1 because
+an operator can install the wrong one, and the old one routed a single host to a single app under a
+real-looking example domain that named the owner. **The whole tracked tree was grepped for the three
+paths before deleting anything, and there were no references at all** - not in a doc, a contract, a
+README, a script, the harness or any checker. The three files referenced only each other, and
+`scripts/server/harden.sh` additionally carried a literal SSH public key, which is a second reason
+it had to go. Git history retains all three, so this is reversible. Two things that survive and are
+*not* the deleted file: `ops/Caddyfile` (the Phase 7.2 template, audited by
+`src/server/ops/caddyTemplate.ts`) and the many `/etc/caddy/Caddyfile` **container target paths** in
+`ops/docker-compose.yml` and the env templates, which name where a file is mounted inside a service
+rather than a file in this repository.
+
+**2. Storage identifiers redacted - six occurrences across four files.** The finding in
+`docs/NIZAM_TWO_AGENT_VPS_ARCHITECTURE.md` §0 is *kept intact*; only the literal changed. The
+security point was never the value - it is that the **other** repository commits that identifier in
+several of its files - and that point survives redaction word for word. The sweep then found five
+more, none of them in the file the owner named:
+
+| File | What | Now |
+|---|---|---|
+| `docs/NIZAM_TWO_AGENT_VPS_ARCHITECTURE.md` §0 | the other repository's folder identifier | `<LIFE_DRIVE_FOLDER_ID>` |
+| `contracts/pfos/_PFOS_CONTRACT_INDEX.md` header | the contract source folder identifier | `<PFOS_SOURCE_FOLDER_ID>` |
+| `contracts/pfos/_INGESTION_MANIFEST.json` `source_folder.id` | same folder identifier | `<PFOS_SOURCE_FOLDER_ID>` |
+| `contracts/pfos/_INGESTION_MANIFEST.json` `files[].source_id` x4 | four contract **file** identifiers | `<PFOS_SOURCE_FILE_ID_01..04>` |
+| `scripts/ingest/pfos-drive-pull.mjs` | the folder identifier as a hardcoded `--folder` default | resolved from `PFOS_SOURCE_FOLDER_ID` or `--folder`, and **fails closed** with an exit code when neither is supplied |
+| `scripts/server/harden.sh` | an SSH public key literal | file deleted under item 1 |
+
+The manifest change needed care, so it was made **at the source as well as in the artifact**: the
+tool now writes placeholders, so a re-ingest cannot quietly reintroduce the identifiers. Nothing was
+weakened by this: the manifest's job is to prove byte-identity to the source, and that proof is
+`source_name` + `bytes` + `sha256`, none of which the redaction touches. The identifiers were
+provenance labels. A new `id_note` field in the manifest says exactly that, so a later reader does
+not mistake a placeholder for missing data. No hash in the manifest or the contract index changed,
+because no contract file's bytes changed.
+
+**3. The eval set's brand names are synthetic.** `src/features/benchmark/dataset.ts` hardcoded six
+real bank names and seven real merchant names, used across the T1 extraction cases, plus a 32-row
+merchant-to-category table with real brands - one of which contained the **owner's own name**.
+Steering `pfos-current.md` forbids an organization-specific term in any tracked file and steering §0b
+forbids a real payee in a fixture, so this was a live violation in a public repository. The scheme:
+
+- `BANK_1`..`BANK_6`, `MERCHANT_A`..`MERCHANT_G`, continuing `MERCHANT_H`..`MERCHANT_AG` for the
+  classification table. `I` and `O` are skipped throughout, because a reader cannot tell them from
+  `1` and `0`.
+- **The variation the cases exist to exercise is preserved deliberately, not incidentally.** Two of
+  the seven merchants carry a second word (`MERCHANT_D STORE`, `MERCHANT_G LTD`) because two of the
+  originals did, and every extraction case declares that merchant **whitespace** may be normalized -
+  a set of single-token names would leave that clause with nothing to prove. Every token is
+  upper-case, so the clause that merchant **casing** may be normalized still has a non-canonical
+  form to normalize. In the classification table the **word-count shape of every row** is preserved
+  (two-word rows stay two words, `MERCHANT_AD COM BILL` and `MERCHANT_V AND CO` stay three),
+  because a classifier only ever shown a single token is not being asked the same question.
+- **The multilingual cases keep their teeth by keeping their scripts.** Row 1 stays fully Arabic -
+  an Arabic-script sender and an Arabic-script merchant - so the expected merchant is still a
+  non-Latin string and the declared allowable variation (merchant **transliteration** may vary,
+  critical fields may not) still has something to vary. The invented tokens read "bank alef" and
+  "merchant alef", the Arabic counterparts of `BANK_1` and `MERCHANT_A`. Row 2 stays **mixed**:
+  Arabic body, Latin sender and Latin merchant drawn from the sets above. Replacing the Arabic
+  merchant with a Latin token would have quietly deleted the property the category tests.
+- **Category table:** 32 rows unchanged, and the label of every row unchanged **positionally**, so
+  the distribution is identical - Groceries x3, Dining x3, Transport x3, Utilities x3, Shopping x3,
+  Health x3, Subscriptions x3, Housing x2, Travel x2, Clothing x2, Debt x2, Electronics x1,
+  Fitness x1, Bills x1. A label appearing once still discriminates alone; a label appearing three
+  times still forces a choice between three merchants. `BANK_1 LOAN` keeps the one row whose
+  merchant is a sender from `BANKS`, which is what makes `Debt` reachable from a name the extraction
+  set also uses.
+- **Nothing else changed.** Case count **219** (identical: 52 + 32 + 26 + 26 + 26 + 21 + 16 + 10 +
+  10), case ids identical, amounts, dates, masked account tails, severities, tiers, safety
+  constraints and every expected value other than the merchant label identical.
+
+**No integrity assertion was weakened and no hash needed re-pinning.** This was checked rather than
+assumed: `src/features/benchmark/datasetIntegrity.ts` pins **limits**, not names or hashes
+(`MAX_CASE_INPUT_CHARS`, `MAX_CASE_INPUT_LINES`, `MIN_OPAQUE_ID_RUN`, `MAX_DIGIT_RUN`) and its 28
+tests pin no literal name; `dataset.test.ts` pins the **contract 09 constants** (`210` and the nine
+per-category minimums) and no name; and
+`src/server/mocks/fixtures/benchmark-phase1-replay.json` keys its twelve recordings by **case id**
+(`bench:<model>:sms_0001`), carries no brand literal, no count and no hash, so the rename left it
+byte-identical and correct. Had any of the three pinned a hash, the honest move would have been to
+re-pin it to the newly computed value and say so; none did.
+
+**4. The WAL outcomes are ranked, with outcome B as the documented default.** The structure the owner
+asked to keep is kept: still an OPEN CONSTRAINT, still exactly two acceptable outcomes, still an
+operator determination at the first-backup step, still an absolute refusal of the file-copy fallback.
+What changed is that the two outcomes are no longer presented as equals. **Outcome B** - the snapshot
+statement is issued from inside the owning service, which already holds the shared-memory sidecar as
+its single writer, and the artifact is handed to the backup's scratch directory - is now the
+**documented default**, on the stated ground that it needs **no write grant** and therefore resolves
+the constraint **without widening a mount**: §3.2.2's read-only guarantee survives intact rather than
+with an exception carved into it. **Outcome A** - grant the backup write access to the sidecar and to
+nothing else - stays documented as the **fallback**, still acceptable, still bounded, but second.
+Mirrored in all three places the constraint is described: `ops/backup/backup.sh` (header),
+`ops/runbook/ROLLBACK.md` (§ the sidecar determination) and `ops/GATE_REGISTER.md`, where it did not
+previously appear at all and now does, as a ranked table under G8 at the first-backup step with a
+"record here when decided" line. That register entry is scoped to item 4 only; completing the rest of
+the register is still task 9.3.
+
+**The new property is checked rather than left to prose.** All three existing finding codes still
+pass and their negative cases still fire - `WAL_DETERMINATION_MISSING`, `WAL_OUTCOMES_INCOMPLETE` and
+`WAL_COPY_FALLBACK_NOT_REFUSED` anchor on sentences that were preserved **verbatim** ("This is an
+**operator determination**", "exactly two acceptable outcomes", "write access to the sidecar", "from
+inside the owning service", and the copy refusal in full). Ranking the outcomes introduced a
+property nothing asserted, so rather than leave it unchecked,
+`src/server/ops/runbookTemplate.ts` gained a fourth code, **`WAL_DEFAULT_OUTCOME_NOT_RANKED`**, which
+requires the determination to state both halves - that outcome B is the documented default *and*
+that outcome A is the fallback - because a document naming a default without saying which outcome it
+is would tell an operator only that somebody had a preference. It has **two** negative cases, each
+mutating the real file on disk in memory: one demotes the default to "**Another acceptable
+outcome:**", the other demotes the fallback to "**The other acceptable outcome:**". Both were written
+to break the ranking **and nothing else** - the phrases the completeness check reads survive, so each
+case fails on the ranking alone rather than on membership. The positive half is the existing
+assertion that the real documents produce an **empty** finding list.
+
+**5. `.secrets/KEYS_TODO.md` deleted.** It was gitignored, so nothing leaked, but it documented the
+finished Profile-A browser OAuth work, named a cloud project, and covered none of G1-G8 - so a human
+following it at gate time would have been reading the wrong document. `ops/GATE_REGISTER.md` is
+authoritative. **Nothing was carried across, and that was checked rather than assumed:** its three
+sections were the web OAuth client id, the browser API key and the dev-tier model key. The first two
+are Profile-A and not gates at all. The third is the dev-key carve-out, which the register already
+carries under "Context: the dev-key carve-out, and why it does not release G4", including the small
+periodic cap and the reason it does not release **G4**. Its closing "verify nothing leaked" grep is
+subsumed by AC09 (`secret-scan.mjs`), which runs on every gate rather than when somebody remembers.
+`.secrets/` remains gitignored; neither the file nor its contents were committed.
+
+### Verification
+
+- `npm run typecheck` **0 errors**; `npm run lint` **0 warnings** at `--max-warnings 0`.
+- `npm run test` - **1680 tests across 99 files**, all passing, up from 1678 by exactly the two new
+  `WAL_DEFAULT_OUTCOME_NOT_RANKED` negative cases. `src/server/ops/runbookTemplate.test.ts` is now
+  **69 tests** and its coverage assertion - which fails if a finding code has no negative case -
+  still passes with the new code included.
+- **The eval set still meets the bar: 219 cases against the `>=210` floor**, unchanged by the
+  rename, and every per-category minimum met (`sms_extraction` 52/50, `classification` 32/30,
+  `dedup` 26/25, `safe_to_spend_explanation` 26/25, `purchase_decision` 26/25, `forecast` 21/20,
+  `tool_call` 16/15, `multilingual` 10/10, `adversarial` 10/10). `auditEvalSet` reports **0
+  problems**, so every sanitization, structural and money gate still holds over every case.
+- `npm run verify:all -- --all` - **`HARNESS PASSED`, `19 of 19 executed checks passed`**. Before
+  this increment's commit the harness reported **17 of 19**, the two red checks being **AC14
+  (working tree clean)** and **AC15 (push ready)**, both reporting only this uncommitted work.
+- AC11 (`generic-only.mjs`) and AC09 (`secret-scan.mjs`) both pass over the reduced tree, and the
+  storage-identifier sweep now returns **nothing** across every tracked file.
+- The AC04 floor stays at **331**. Ratcheting it is task **9.1** and it happens there.
+- **No check was weakened.** `scripts/verify/all.mjs` was not touched. No assertion was loosened, no
+  test skipped or deleted, no floor lowered, and no scanner given an allowlist entry or an exemption.
+  Where the artifact and a checker disagreed the artifact changed, not the checker - and the one
+  checker change is an **addition** of a code with both halves, not a relaxation of an existing one.
+
+### Honest scope note
+
+**Item 3 was scoped to the eval set, and real brand names remain elsewhere in the repository.** This
+is a deliberate boundary, not an oversight, and it is recorded so nobody reads the gate as proof that
+none exist. `src/features/accounts/`, `src/lib/db/`, `tests/helpers/fixtures.ts` and a number of
+feature tests still use two real bank names, principally as the **domain account-type identifiers**
+`CIB_DEBIT` and `HSBC_CC`, which are part of the Profile-A data model rather than fixture decoration;
+the PFOS contracts under `contracts/pfos/01`-`04` and the research notes under `docs/research/`
+name real institutions throughout, and those are **ingested byte-faithful** documents and cited
+research whose bytes are checksummed in `_INGESTION_MANIFEST.json`. Renaming a domain type is a
+schema change and rewriting an ingested contract would break its hash; neither is one of the five
+approved resolutions, and neither was attempted. AC11's denylist does not currently carry these
+terms, so it did not and does not fail on them - that is the honest state, not a claim that it is
+the desired one.
+
+**Nothing was executed and nothing was provisioned.** No `ops/` artifact was run, no container was
+built or started, no store was opened, no provider was called, no network request was made, and no
+secret was read. `ops/backup/backup.sh`, `ops/runbook/ROLLBACK.md` and `ops/GATE_REGISTER.md` were
+edited **as text** and are read **as text** by their checkers. The WAL determination itself is
+**still not made** - the ranking states which outcome to reach for first; it does not make the
+operator's choice, and no code path behaves differently because of it.
+
+**One functional change rides along with item 2 and should be seen.** `scripts/ingest/pfos-drive-pull.mjs`
+no longer has a working default folder: an operator must now supply `PFOS_SOURCE_FOLDER_ID` or
+`--folder`, and the tool exits with a message and a non-zero code otherwise. That is the correct
+direction to fail, but it does mean a bare `node scripts/ingest/pfos-drive-pull.mjs` that used to
+work now stops. `--discover PFOS`, which needs no identifier, still finds it. The tool was **not
+run** in this increment, so that path is reasoned about rather than exercised.
+
+### Still gated
+
+- **G1-G8 are untouched**, and none was attempted: G1 provision and harden the host; G2 DNS for the
+  two hostnames; G3 create the two bots; G4 mint the two runtime keys with their weekly caps; G5 the
+  storage consent click; G6 register both webhooks; G8 generate the encryption keypair and keep the
+  private half off the box. G7 remains **closed as WONT-DO** per steering §0b.
+- **The write-ahead-log sidecar determination is a new, explicitly registered human step** under G8.
+  It is now ranked and recorded in three places, and it is still **undecided**. Until an operator
+  makes and records it, every rollback across a migration is blocked on a human rather than
+  available.
+- **Tasks 9.0, 9.1, 9.3 and 9.4 remain open**, and nothing here ticked or partially performed them.
+  The no-deployment-particular harness check does not exist yet; this increment removed particulars
+  by hand and by grep, which is exactly why 9.0 is worth having.
+- No outbound call from a server process and no production secret, unchanged.

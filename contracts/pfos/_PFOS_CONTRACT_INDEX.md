@@ -1,7 +1,9 @@
 # PFOS Contract Index
 
 > **Source of truth:** the owner's cloud drive folder `PFOS_Personal_CFO/01_Product_Blueprints`
-> (folder id `1w4ekuw9rSXktm2NO8rJL65YXUA--W0Tm`).
+> (folder id `<PFOS_SOURCE_FOLDER_ID>` - redacted; a storage folder identifier is a deployment
+> particular and this repository is public, steering §0b. The identifier lives in the operator's
+> environment as `PFOS_SOURCE_FOLDER_ID`, and the ingestion tool fails closed without it).
 > **Ingested:** 2026-08-05 by `scripts/ingest/pfos-drive-pull.mjs`, byte for byte, unmodified.
 > **Integrity:** every file below carries the SHA-256 of the exact bytes received.
 > Re-run the tool to refresh; it reports whether each file changed since the last pull.

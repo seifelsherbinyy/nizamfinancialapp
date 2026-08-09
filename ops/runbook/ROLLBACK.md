@@ -223,14 +223,22 @@ snapshot step, and the snapshot step in `ops/backup/` therefore **aborts loudly 
 instead of degrading.
 
 This is an **operator determination**, to be made once, before the first real backup, and recorded in
-`ops/GATE_REGISTER.md` (spec task 9.3 owns that entry). It has exactly two acceptable outcomes:
+`ops/GATE_REGISTER.md`. It has exactly two acceptable outcomes, and they are **ranked**:
 
-1. **Grant the backup service write access to the sidecar and to nothing else.** The store file
-   itself stays read-only; only the sidecar is writable. This keeps the snapshot in the backup
-   service and keeps §3.2.2's guarantee for the data.
-2. **Issue the snapshot statement from inside the owning service**, which already holds the sidecar
-   as the single writer (§3.2.4), and hand the resulting file to the backup service's scratch
-   directory. The backup service then never opens a store at all.
+1. **Outcome B is the documented default: issue the snapshot statement from inside the owning
+   service**, which already holds the sidecar as the single writer (§3.2.4), and hand the resulting
+   file to the backup service's scratch directory. The backup service then never opens a store at
+   all. **Why this is the default:** it needs no write grant, so it resolves the constraint without
+   widening a mount. §3.2.2's read-only guarantee survives intact rather than surviving with an
+   exception carved into it, and the smaller change is the one to prefer when both are correct.
+2. **Outcome A is the fallback: grant the backup service write access to the sidecar and to nothing
+   else.** The store file itself stays read-only; only the sidecar is writable. This keeps the
+   snapshot in the backup service and keeps §3.2.2's guarantee for the data. It remains acceptable
+   and remains bounded - but it does widen a mount, which is precisely what the default avoids, so
+   take it only when outcome B is not available.
+
+Both are recorded because the default can turn out to be unavailable in a particular deployment; the
+ranking states which to reach for first, not which is permitted.
 
 **What is not acceptable, under any circumstance, is falling back to a file copy.** A copy of a
 write-ahead-logged store that is being written is not a database: it is a fragment that may restore,

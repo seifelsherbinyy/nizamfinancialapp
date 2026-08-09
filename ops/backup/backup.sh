@@ -60,11 +60,21 @@
 # write-ahead-logged database must be able to write that database's shared-memory index sidecar. A
 # read-only mount does not permit that, and §3.2.2 requires the mount to be read-only. The two rules
 # meet here. The resolution is an operator determination at the first-backup step of
-# ops/GATE_REGISTER.md, and it has exactly two acceptable outcomes: either this service is granted
-# write access to the sidecar and nothing else, or the snapshot statement is issued from inside the
-# owning service - which already holds the sidecar as the single writer - and the result is handed
-# to the scratch directory below. What is NOT acceptable, under any circumstance, is falling back to
-# a copy. So the snapshot step here aborts loudly on a refused open instead of degrading.
+# ops/GATE_REGISTER.md, and it has exactly two acceptable outcomes, now RANKED:
+#
+#   OUTCOME B - THE DOCUMENTED DEFAULT. The snapshot statement is issued from inside the owning
+#   service, which already holds the shared-memory sidecar as its single writer, and the resulting
+#   artifact is handed to this script's scratch directory. Choose this one unless there is a reason
+#   not to. It needs NO write grant, so it resolves the constraint without widening a mount: the
+#   store mounts here stay read-only with no exception carved into them, and this service never
+#   opens a store at all. The narrower change is the better one.
+#
+#   OUTCOME A - THE FALLBACK. This service is granted write access to the sidecar and to nothing
+#   else; the store file itself stays read-only. It is still acceptable, and it is still bounded,
+#   but it does widen a mount, so it is the second choice rather than the first.
+#
+# What is NOT acceptable, under any circumstance, is falling back to a copy. So the snapshot step
+# here aborts loudly on a refused open instead of degrading.
 
 set -euo pipefail
 

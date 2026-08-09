@@ -2,18 +2,19 @@
   "tool": "scripts/ingest/pfos-drive-pull.mjs",
   "ingested_at": "2026-08-05T13:05:30.035Z",
   "source_folder": {
-    "id": "1w4ekuw9rSXktm2NO8rJL65YXUA--W0Tm",
+    "id": "<PFOS_SOURCE_FOLDER_ID>",
     "name": "01_Product_Blueprints",
     "modified": "2026-08-04T20:59:47.135Z"
   },
   "scope_used": "https://www.googleapis.com/auth/drive.readonly",
   "scope_note": "Read only scope is used by this local tool only. The shipped application keeps the per file scope.",
+  "id_note": "Every source identifier is redacted to an <ANGLE_BRACKET> placeholder. The repository is public and steering §0b forbids a storage folder or file identifier in a tracked file. Byte-identity to the source is proved by name, byte count and sha256 below, none of which the redaction touches; the identifiers were provenance labels only. The tool writes placeholders too, so a re-run does not reintroduce them.",
   "file_count": 4,
   "not_ingested": [],
   "files": [
     {
       "source_name": "01_PFOS_Product_Constitution_and_Problem_Solution_Logic.md",
-      "source_id": "1CrB356VDxA_-ONUJM4cOK6sd057CFejf",
+      "source_id": "<PFOS_SOURCE_FILE_ID_01>",
       "source_mime": "text/markdown",
       "source_modified": "2026-08-04T20:59:56.649Z",
       "source_version": "2",
@@ -26,7 +27,7 @@
     },
     {
       "source_name": "02_PFOS_Data_Architecture_Integrations_and_Security.md",
-      "source_id": "143M5S2y7Ub45zoVhs4cWvlVbEV8svbSe",
+      "source_id": "<PFOS_SOURCE_FILE_ID_02>",
       "source_mime": "text/markdown",
       "source_modified": "2026-08-04T21:00:02.739Z",
       "source_version": "2",
@@ -39,7 +40,7 @@
     },
     {
       "source_name": "03_PFOS_Financial_Intelligence_Decision_Forecasting_and_Learning.md",
-      "source_id": "1EfrYUo8g-rCOjmhS38B79dN1XbxbKvA_",
+      "source_id": "<PFOS_SOURCE_FILE_ID_03>",
       "source_mime": "text/markdown",
       "source_modified": "2026-08-04T21:00:09.160Z",
       "source_version": "2",
@@ -52,7 +53,7 @@
     },
     {
       "source_name": "04_PFOS_UX_UI_User_Journeys_Research_and_Delivery_Roadmap.md",
-      "source_id": "14Hr9pG-OlGry7f-UV7ilh4h7SmEcQ_l5",
+      "source_id": "<PFOS_SOURCE_FILE_ID_04>",
       "source_mime": "text/markdown",
       "source_modified": "2026-08-04T21:00:15.230Z",
       "source_version": "2",

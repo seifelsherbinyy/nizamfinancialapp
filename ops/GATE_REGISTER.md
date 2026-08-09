@@ -578,6 +578,36 @@ The scripts at the intended paths `ops/backup/` and `ops/restore/` (task 7.4), w
 recipient from the environment and never contain it, and the integrity check that gates trust in a
 restored store (**R21**). Both are text until G1 and G8 clear.
 
+### The write-ahead-log sidecar determination, at the first-backup step
+
+**Status: BLOCKED - awaiting human. One decision, made once, before the first real backup.**
+
+The engine documents that a reader of a write-ahead-logged store must be able to write that store's
+shared-memory index sidecar. The backup service's store mounts are **read-only**, without exception
+(contract 12 §3.2.2), and a read-only mount does not permit that write. The two rules meet at the
+snapshot step, so the snapshot step **aborts loudly on a refused open** rather than degrading.
+
+There are **exactly two acceptable outcomes**, and they are **ranked**:
+
+| | Outcome | Standing | Why |
+|---|---|---|---|
+| **B** | Issue the snapshot statement from inside the **owning service**, which already holds the sidecar as its single writer (§3.2.4), and hand the artifact to the backup service's scratch directory. The backup service never opens a store at all. | **DOCUMENTED DEFAULT - choose this** | It needs **no write grant**, so it resolves the constraint **without widening a mount**. §3.2.2's read-only guarantee survives intact rather than with an exception carved into it. |
+| **A** | Grant the backup service write access to the **sidecar only**. The store file itself stays read-only. | **Fallback** | Still acceptable and still bounded, but it widens a mount - which is exactly what the default avoids. Take it only when B is unavailable. |
+
+**Neither outcome is a file copy, and a file copy is not available as a third answer.** A copy of a
+write-ahead-logged store that is being written is not a database: it is a fragment that may restore,
+may fail to restore, or - the case that matters - may restore **wrongly** and look fine. Copying the
+sidecars alongside it does not help, because the copy is not atomic across the set. `ops/backup/`
+contains no copy tool and the audit fails that template if one appears.
+
+The same ranking is stated in `ops/backup/backup.sh` and in `ops/runbook/ROLLBACK.md`, and
+`src/server/ops/runbookTemplate.ts` fails closed (`WAL_DEFAULT_OUTCOME_NOT_RANKED`) if the runbook
+stops naming outcome B as the default or outcome A as the fallback.
+
+**Record here when decided:** "sidecar determination: outcome `<B|A>` taken on `<DATE>`; if A, the
+sidecar-only grant is `<PATH>` and no store file was made writable." Until it is recorded, every
+rollback across a migration is **blocked on a human**, not available.
+
 ---
 
 ## G7 - CLOSED, WONT-DO. Not a gate. Do not re-raise.

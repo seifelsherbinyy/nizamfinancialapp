@@ -322,6 +322,7 @@ export const RUNBOOK_FINDING_CODES = [
   'ROLLBACK_NOT_RECORDED',
   'WAL_DETERMINATION_MISSING',
   'WAL_OUTCOMES_INCOMPLETE',
+  'WAL_DEFAULT_OUTCOME_NOT_RANKED',
   'WAL_COPY_FALLBACK_NOT_REFUSED',
   'PROBE_INVOCATION_MALFORMED',
   // §7.5 disaster recovery
@@ -795,6 +796,22 @@ function auditRollback(
       note(
         'WAL_OUTCOMES_INCOMPLETE',
         'the sidecar determination does not name both acceptable outcomes - granting write access to the sidecar and nothing else, or issuing the snapshot from inside the owning service that already holds it as the single writer - so an operator meeting the constraint has no bounded choice to make',
+      );
+    }
+    // Naming two acceptable outcomes bounds the choice; RANKING them is what stops the operator
+    // making it under pressure, at the first-backup step, with no stated preference to fall back
+    // on. The owner ranked them: outcome B - snapshot from inside the owning service - is the
+    // documented default, because it needs no write grant and therefore resolves the constraint
+    // WITHOUT widening a mount; outcome A - a sidecar-only write grant - stays documented as the
+    // fallback. Both halves are asserted, because a document that named a default without saying
+    // which outcome it is would be no more use than one that named none.
+    if (
+      !/outcome B is the documented default/i.test(determination.flow) ||
+      !/outcome A is the fallback/i.test(determination.flow)
+    ) {
+      note(
+        'WAL_DEFAULT_OUTCOME_NOT_RANKED',
+        'the sidecar determination names two acceptable outcomes without ranking them: it must state that outcome B - issuing the snapshot from inside the owning service, which needs no write grant and so resolves the constraint without widening a mount - is the documented DEFAULT, and that outcome A - a sidecar-only write grant - is the FALLBACK. Two equal options at the first-backup step is a decision an operator makes under pressure with nothing to prefer',
       );
     }
     if (!/not acceptable, under any circumstance, is falling back to a file copy/i.test(determination.flow)) {

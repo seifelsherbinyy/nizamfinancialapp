@@ -1,6 +1,6 @@
 {
   "genesisHash": "0000000000000000000000000000000000000000000000000000000000000000",
-  "eventCount": 64,
+  "eventCount": 68,
   "events": [
     {
       "seq": 1,
@@ -833,6 +833,58 @@
       "prevHash": "13edf922406ba8417a6981fc3e0a4751418b9c89310e6077aa35fb69e333f4b9",
       "contentHash": "59a03b01a3c208842efbbea9da607cd9ba21de7e50e743c0cad3034fd65f8804",
       "recordedAt": "2026-08-09T10:42:00.594Z"
+    },
+    {
+      "seq": 65,
+      "kind": "PRODUCE",
+      "itemId": "9-policy",
+      "actor": "builder",
+      "artifactHash": "702aad5a0715301cb608abf70fa91d6352709b258618546d1ffb5ac4767cf596",
+      "disposition": null,
+      "confidence": null,
+      "note": "five owner-approved policy resolutions: retire scripts/server (no tracked references existed); redact six storage identifiers across four files and at the writer so a re-ingest cannot reintroduce them; synthetic BANK_1..6 / MERCHANT_A..AG in the eval set preserving casing, whitespace, script-mixing, word-count shape, 219 cases and every expected value but the label; rank the WAL outcomes with B as documented default and A as fallback in backup.sh, ROLLBACK.md and GATE_REGISTER.md; delete the gitignored .secrets/KEYS_TODO.md with nothing to carry across",
+      "prevHash": "59a03b01a3c208842efbbea9da607cd9ba21de7e50e743c0cad3034fd65f8804",
+      "contentHash": "52684a04ae7f7ad67e1814a379c712ffcf6b2b488e8ff4bfc4a4f61aea792cff",
+      "recordedAt": "2026-08-09T15:26:50.712Z"
+    },
+    {
+      "seq": 66,
+      "kind": "VERIFY",
+      "itemId": "9-policy",
+      "actor": "gate-runner",
+      "artifactHash": "702aad5a0715301cb608abf70fa91d6352709b258618546d1ffb5ac4767cf596",
+      "disposition": null,
+      "confidence": null,
+      "note": "typecheck 0; lint 0 at --max-warnings 0; 1680 tests across 99 files, up from 1678 by exactly the two new WAL_DEFAULT_OUTCOME_NOT_RANKED negative cases; runbookTemplate 69 tests with the code-coverage assertion still green; eval set 219 cases against the >=210 bar with every category minimum met and auditEvalSet reporting 0 problems; storage-identifier sweep now returns nothing across every tracked file; harness 17 of 19 pre-commit with only AC14 and AC15 red on this uncommitted work",
+      "prevHash": "52684a04ae7f7ad67e1814a379c712ffcf6b2b488e8ff4bfc4a4f61aea792cff",
+      "contentHash": "128c58a1e96030c550b61890e705edf8fed67fd97719d131cd2ce8eb51988260",
+      "recordedAt": "2026-08-09T15:27:02.965Z"
+    },
+    {
+      "seq": 67,
+      "kind": "APPROVE",
+      "itemId": "9-policy",
+      "actor": "reviewer",
+      "artifactHash": "702aad5a0715301cb608abf70fa91d6352709b258618546d1ffb5ac4767cf596",
+      "disposition": null,
+      "confidence": null,
+      "note": "no assertion loosened, no test skipped or deleted, no floor lowered, no scanner allowlisted or exempted; all.mjs untouched and the AC04 floor left at 331 for task 9.1; the one checker change is an ADDITION with both halves - WAL_DEFAULT_OUTCOME_NOT_RANKED plus two negative cases that break the ranking and nothing else, each leaving the completeness anchors intact; the three pre-existing WAL codes anchor on sentences preserved verbatim; no integrity hash needed re-pinning because datasetIntegrity pins limits not names, dataset.test pins the contract 09 constants, and the replay fixture keys by case id and carries no name, count or hash; no numbered task box ticked",
+      "prevHash": "128c58a1e96030c550b61890e705edf8fed67fd97719d131cd2ce8eb51988260",
+      "contentHash": "81abf41988a66299d620885f7d9b670346707d27bbdd256bce357dd0532d2f24",
+      "recordedAt": "2026-08-09T15:27:14.853Z"
+    },
+    {
+      "seq": 68,
+      "kind": "CERTIFY",
+      "itemId": "9-policy",
+      "actor": "reviewer",
+      "artifactHash": "702aad5a0715301cb608abf70fa91d6352709b258618546d1ffb5ac4767cf596",
+      "disposition": "RESOLVED",
+      "confidence": "VERIFIED",
+      "note": "policy hygiene increment; covers no numbered task - 9.0, 9.1, 9.3 and 9.4 remain open",
+      "prevHash": "81abf41988a66299d620885f7d9b670346707d27bbdd256bce357dd0532d2f24",
+      "contentHash": "7dbd82069156baedf5965f152e07220650a978876abf94e4ac3f524a7fb90f47",
+      "recordedAt": "2026-08-09T15:27:25.940Z"
     }
   ]
 }

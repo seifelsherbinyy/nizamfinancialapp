@@ -44,8 +44,32 @@ export function egpAmountText(amountMilli: number): string {
 }
 
 // ---- T1 · SMS extraction (>=50) --------------------------------------------------------------
-const BANKS = ['CIB', 'HSBC', 'NBE', 'QNB', 'ADCB', 'FAB'];
-const MERCHANTS = ['CARREFOUR', 'TALABAT', 'UBER', 'SOUQ MART', 'SPINNEYS', 'VODAFONE', 'B TECH'];
+//
+// SYNTHETIC NAMES ONLY. Steering `pfos-current.md` forbids an organization-specific term in any
+// tracked file and steering §0b forbids a real payee in a fixture; the repository is public. These
+// tokens are therefore invented, and the naming scheme is deliberate rather than decorative:
+//
+//   - `BANK_1`..`BANK_6`   - six senders, matching the six the set previously exercised.
+//   - `MERCHANT_A`..`MERCHANT_G` - seven merchants. Two of them carry a SECOND WORD
+//     (`MERCHANT_D STORE`, `MERCHANT_G LTD`) because two of the originals did, and the
+//     `allowableVariation` on every extraction case is that merchant **whitespace** may be
+//     normalized. A set of single-token names would leave that clause with nothing to prove.
+//   - Every token is upper-case, so the clause that merchant **casing** may be normalized also
+//     still has a non-canonical form to normalize.
+//   - `I` and `O` are skipped throughout, because a reader cannot tell them from `1` and `0`.
+//
+// The case count, the amounts, the dates, the masked account tails and every expected value other
+// than the merchant label itself are unchanged by the rename.
+const BANKS = ['BANK_1', 'BANK_2', 'BANK_3', 'BANK_4', 'BANK_5', 'BANK_6'];
+const MERCHANTS = [
+  'MERCHANT_A',
+  'MERCHANT_B',
+  'MERCHANT_C',
+  'MERCHANT_D STORE',
+  'MERCHANT_E',
+  'MERCHANT_F',
+  'MERCHANT_G LTD',
+];
 // amount in whole piastres avoided; amounts are milliunits of EGP (1 EGP = 1000 milliunits).
 const AMOUNTS_MILLI = [12500, 249500, 49990, 1500000, 89900, 320000, 15750];
 
@@ -120,18 +144,36 @@ function smsExtractionExtra(): BenchmarkCase[] {
 }
 
 // ---- T1 · classification (>=30) --------------------------------------------------------------
+//
+// SYNTHETIC NAMES ONLY, same scheme and same reasons as the extraction set above.
+//
+// What the rename PRESERVES, because these are what give the classification cases their teeth:
+//   - 32 rows, so the category count is unchanged and the >=30 minimum is still met by the same
+//     margin.
+//   - The label of every row, positionally. The distribution is unchanged: Groceries x3,
+//     Dining x3, Transport x3, Utilities x3, Shopping x3, Health x3, Subscriptions x3,
+//     Housing x2, Travel x2, Clothing x2, Debt x2, Electronics x1, Fitness x1, Bills x1.
+//     A label that appears once still discriminates on its own; a label that appears three times
+//     still forces a choice between three different merchants.
+//   - The **word-count shape** of every row. Where an original was two or three words, its
+//     replacement is two or three words, because a classifier that only ever sees a single token
+//     is not being asked the same question.
+//   - The seven merchants shared with the extraction set are the same seven tokens here, so a
+//     merchant seen in an extraction case is still the merchant classified here.
+//   - `BANK_1 LOAN` keeps the one row whose merchant is a sender from `BANKS`, which is what makes
+//     the `Debt` label reachable from a name the extraction set also uses.
 const MERCHANT_CATEGORY: [string, string][] = [
-  ['CARREFOUR', 'Groceries'], ['SPINNEYS', 'Groceries'], ['TALABAT', 'Dining'],
-  ['UBER', 'Transport'], ['CAREEM', 'Transport'], ['VODAFONE', 'Utilities'],
-  ['ORANGE', 'Utilities'], ['B TECH', 'Electronics'], ['SOUQ MART', 'Shopping'],
-  ['NOON', 'Shopping'], ['PHARMACY MISR', 'Health'], ['SEIF PHARMACY', 'Health'],
-  ['GOLDS GYM', 'Fitness'], ['NETFLIX', 'Subscriptions'], ['SPOTIFY', 'Subscriptions'],
-  ['CIB LOAN', 'Debt'], ['LANDLORD RENT', 'Housing'], ['EGYPTAIR', 'Travel'],
-  ['BOOKING', 'Travel'], ['ZARA', 'Clothing'], ['H AND M', 'Clothing'],
-  ['MCDONALDS', 'Dining'], ['STARBUCKS', 'Dining'], ['GO BUS', 'Transport'],
-  ['WE INTERNET', 'Utilities'], ['SODIC', 'Housing'], ['VEZEETA', 'Health'],
-  ['JUMIA', 'Shopping'], ['APPLE COM BILL', 'Subscriptions'], ['FAWRY', 'Bills'],
-  ['METRO MARKET', 'Groceries'], ['TABBY', 'Debt'],
+  ['MERCHANT_A', 'Groceries'], ['MERCHANT_E', 'Groceries'], ['MERCHANT_B', 'Dining'],
+  ['MERCHANT_C', 'Transport'], ['MERCHANT_H', 'Transport'], ['MERCHANT_F', 'Utilities'],
+  ['MERCHANT_J', 'Utilities'], ['MERCHANT_G LTD', 'Electronics'], ['MERCHANT_D STORE', 'Shopping'],
+  ['MERCHANT_K', 'Shopping'], ['MERCHANT_L CLINIC', 'Health'], ['MERCHANT_M PHARMA', 'Health'],
+  ['MERCHANT_N GYM', 'Fitness'], ['MERCHANT_P', 'Subscriptions'], ['MERCHANT_Q', 'Subscriptions'],
+  ['BANK_1 LOAN', 'Debt'], ['MERCHANT_R RENT', 'Housing'], ['MERCHANT_S', 'Travel'],
+  ['MERCHANT_T', 'Travel'], ['MERCHANT_U', 'Clothing'], ['MERCHANT_V AND CO', 'Clothing'],
+  ['MERCHANT_W', 'Dining'], ['MERCHANT_X', 'Dining'], ['MERCHANT_Y BUS', 'Transport'],
+  ['MERCHANT_Z NET', 'Utilities'], ['MERCHANT_AA', 'Housing'], ['MERCHANT_AB', 'Health'],
+  ['MERCHANT_AC', 'Shopping'], ['MERCHANT_AD COM BILL', 'Subscriptions'], ['MERCHANT_AE', 'Bills'],
+  ['MERCHANT_AF MARKET', 'Groceries'], ['MERCHANT_AG', 'Debt'],
 ];
 
 function classificationCases(): BenchmarkCase[] {
@@ -238,9 +280,20 @@ function toolCallCases(): BenchmarkCase[] {
 // ---- T2 · multilingual (>=10) ----------------------------------------------------------------
 function multilingualCases(): BenchmarkCase[] {
   const out: BenchmarkCase[] = [];
+  // SYNTHETIC NAMES ONLY, and the two shapes are different on purpose - this category's whole
+  // point is that the extraction survives script mixing.
+  //
+  //   Row 1 is FULLY Arabic: an Arabic-script sender and an Arabic-script merchant, so the
+  //     expected merchant is a non-Latin string and the declared allowable variation (merchant
+  //     TRANSLITERATION may vary, critical fields may not) still has something to vary. The
+  //     tokens read "bank alef" and "merchant alef", the Arabic counterparts of BANK_1 and
+  //     MERCHANT_A, so a reader can see they are inventions rather than a redacted real name.
+  //   Row 2 is MIXED: Arabic body, Latin sender and Latin merchant drawn from the sets above.
+  //
+  // The amounts, the masked account tails and the dates are unchanged.
   const arSms = [
-    ['بنك مصر: تم خصم 250.00 جنيه من حساب 1234 لدى كارفور بتاريخ 2026-03-10', 250000, '****1234', '2026-03-10', 'كارفور'],
-    ['CIB: تم شراء بقيمة EGP 75.50 لدى TALABAT 2026-03-12 بطاقة 5678', 75500, '****5678', '2026-03-12', 'TALABAT'],
+    ['مصرف ألف: تم خصم 250.00 جنيه من حساب 1234 لدى تاجر ألف بتاريخ 2026-03-10', 250000, '****1234', '2026-03-10', 'تاجر ألف'],
+    ['BANK_1: تم شراء بقيمة EGP 75.50 لدى MERCHANT_B 2026-03-12 بطاقة 5678', 75500, '****5678', '2026-03-12', 'MERCHANT_B'],
   ] as const;
   for (let i = 0; i < 10; i++) {
     const t = arSms[i % arSms.length]!;

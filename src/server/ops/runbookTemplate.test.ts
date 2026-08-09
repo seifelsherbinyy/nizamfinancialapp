@@ -162,6 +162,7 @@ const RECORDED_VERSION = '**Latest applied migration version:** 007';
 const RECORD_RULE = 'A rollback is recorded with **what was reverted and why**';
 const WAL_DETERMINATION = 'This is an **operator determination**';
 const WAL_OUTCOMES = 'exactly two acceptable outcomes';
+const WAL_DEFAULT_RANKING = '**Outcome B is the documented default:';
 const WAL_COPY_REFUSAL = '**What is not acceptable, under any circumstance, is falling back to a file copy.**';
 const PROBE_CALL = 'nizam-health-probe --store "${FINANCE_STORE_FILE}"';
 const RADIUS_FIRST_MITIGATION = '**Bounded per-service resources.**';
@@ -319,6 +320,19 @@ const NEGATIVE_CASES: readonly NegativeCase[] = [
     code: 'WAL_OUTCOMES_INCOMPLETE',
     why: 'an operator meeting the constraint needs a bounded choice, not an open one',
     overrides: { [ROLLBACK_DOC]: swap(WAL_OUTCOMES, 'a few acceptable outcomes') },
+  },
+  {
+    code: 'WAL_DEFAULT_OUTCOME_NOT_RANKED',
+    // The mutation demotes the default back to a bare alternative and touches nothing else: the
+    // phrase the outcome-completeness check reads ("from inside the owning service") survives, so
+    // this case fails on the ranking alone rather than on membership.
+    why: 'two equally-weighted outcomes leave the choice to be made at the first-backup step under pressure, with nothing stated to prefer',
+    overrides: { [ROLLBACK_DOC]: swap(WAL_DEFAULT_RANKING, '**Another acceptable outcome:') },
+  },
+  {
+    code: 'WAL_DEFAULT_OUTCOME_NOT_RANKED',
+    why: 'a default named without saying which outcome it is tells an operator only that somebody had a preference',
+    overrides: { [ROLLBACK_DOC]: swap('**Outcome A is the fallback:', '**The other acceptable outcome:') },
   },
   {
     code: 'WAL_COPY_FALLBACK_NOT_REFUSED',
