@@ -147,7 +147,7 @@
       startup refusal - see finding **F13**), **D-G5** with `BACKUP_FOLDER_REF` recorded as a folder
       the uploader creates on first run rather than a value the owner picks, and **D-ROTATE** as
       nothing rotated. No value, no secret and no deployment particular anywhere in it (R24).
-- [ ] 10.4 Write `.kiro/specs/06-two-agent-vps/DEPLOYMENT_VALUE_LEDGER.md` extending
+- [x] 10.4 Write `.kiro/specs/06-two-agent-vps/DEPLOYMENT_VALUE_LEDGER.md` extending
       `TELEGRAM_VALUE_LEDGER.md`'s 14 transport entries to all six services (§4): no entry has a
       default; negative rows asserted with `grep -c` -> 0 (no finance secret in the life file, no
       bot token or webhook secret in the proxy file, no webhook path in either agent file); shared
@@ -155,6 +155,23 @@
       `ALLOWED_USER_IDS` in both agent files); `KILL_SENTINEL_PATH` identical in all four honouring
       files and resolving inside the `kill-switch` mount; and a recorded home for `MAX_CONNECTIONS`
       (**F2**) - irrelevant in `longPoll`, homed in phase 2.
+      **62 entry-to-file assignments over 45 distinct entries**, all six services: life 19,
+      finance 17, backup 12, proxy 6, scheduler 5, bus 3. No entry has a default, asserted **once**
+      as an invariant with its one documented exception (`ABSENCE_IS_A_DECISION`, and only about
+      absence). Five negative assertions, each a `grep -c` -> 0, all falling out of ONE rule rather
+      than four. The full agreement set from `SHARED_ENTRY_AGREEMENTS` **plus the three deliberate
+      exclusions with their reasons** - `TELEGRAM_MODE` must NOT be equal because phase 1 runs
+      finance on `longPoll` while life idles, and `MAX_WORK_ITEMS` / `STORE_BUSY_TIMEOUT_MS` are
+      per-process capacity choices. `MAX_CONNECTIONS` recorded as having no referent in `longPoll`,
+      with `proxy.env` recommended for phase 2 and **nothing applied**. The mandate §3 placement map
+      is a table, with the encrypt-then-upload-then-shred ordering as the security property and the
+      `age` private key reaching none of the three destinations. Every asserted rule cites its
+      checker by name (`collectSharedEntryDisagreements`, `collectKillSentinelFindings`,
+      `collectForeignEntryFindings`, `collectServiceFindings`), and §9 carries an eight-item **"not
+      yet mechanical"** list rather than implying enforcement. Three findings recorded: **F13** one
+      cap entry over two units, **F14** `restore.sh` requiring five entries no template declares
+      (correct, and it must stay so), **F15** `backup.sh` asserting six of twelve. `ENTRY_SPECS`,
+      `SERVICE_ENTRY_NAMES` and the six templates were found to **agree** on all 45 and all 62.
 - [ ] 10.5 Live transport adapter behind the existing `TelegramPort`, implementing both modes (§6.2,
       §2, R26). In `longPoll` the offset advances **only after the update is durably enqueued** -
       that ordering is at-least-once becoming effectively-once.

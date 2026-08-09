@@ -3816,3 +3816,107 @@ are individually correct and together they cannot both take D-CAP's `2.50`. The 
 No value was obtained, read, generated or placed; no environment file exists on any host. No template under
 `ops/env/` was edited - the sheet is a reading of them, and if it ever disagrees with one, the template is
 authoritative and the sheet is wrong.
+
+---
+
+## Task 10.4 - the deployment value ledger, and the rules it admits are not yet mechanical (2026-08-10)
+
+**Authority:** `KIRO_SHIP_LIVE.prompt.md` rev 2 §4 (four rules the wire-up matrix must satisfy) and §3 (the
+placement map). **Artifact:** `.kiro/specs/06-two-agent-vps/DEPLOYMENT_VALUE_LEDGER.md`. **Task:** 10.4,
+ticked. **Extends** `TELEGRAM_VALUE_LEDGER.md`'s 14 transport entries to **62 entry-to-file assignments over
+45 distinct entries across all six services** - life 19, finance 17, backup 12, proxy 6, scheduler 5, bus 3.
+
+### The four §4 rules, each satisfied testably rather than asserted
+
+1. **No entry has a default.** Stated **once** as an invariant instead of 62 times, with its mechanism
+   (`classifyEntry` -> `collectServiceFindings` -> `refuseOnFindings`) and its **one** documented
+   exception: `ABSENCE_IS_A_DECISION` holds only `ALLOWED_USER_IDS`, and only about **absence** - an
+   unfilled placeholder is still a refusal there, because that is a template nobody completed rather than
+   a list somebody emptied.
+2. **Negative rows.** Five `grep -c` -> `0` assertions covering the mandate's four crossings, recorded as
+   **one rule rather than four**: `collectForeignEntryFindings` reports any entry present in one service's
+   environment that another declares and this one does not, so all four fall out of it and so does every
+   future one. The ledger keeps the reason the two G6 value kinds split in **opposite** directions - paths
+   to the proxy because routing is its job, secret tokens to the agents because a proxy that held the value
+   could compare it, and that comparison would then live where no test covers it.
+3. **Shared entries equal where shared.** The **full** eight-row set taken from `SHARED_ENTRY_AGREEMENTS`,
+   plus - and this is the half a shorter document would have dropped - **the three deliberate exclusions
+   with their reasons.** `TELEGRAM_MODE` must **not** be forced equal, because phase 1 runs the finance
+   agent on `longPoll` while the life agent idles and forcing agreement would refuse the phasing the owner
+   chose. `MAX_WORK_ITEMS` and `STORE_BUSY_TIMEOUT_MS` are per-process capacity choices.
+4. **`KILL_SENTINEL_PATH` identical in all four and inside the mount.** Recorded as **two** properties
+   because either alone is insufficient: four paths that agree and sit outside `/run/nizam-kill` are four
+   halts that do nothing, and four paths inside the mount that disagree are a halt that reaches some
+   writers and not others. A halt that reaches only some writers is not a halt.
+
+### `MAX_CONNECTIONS` (F2): a home recommended, and nothing applied
+
+Recorded as having **no referent** in `longPoll` rather than merely being unused - in that mode the provider
+delivers nothing, so there is no delivery concurrency to bound. The finding is that after a host rebuild
+G6's verification line cannot be re-run against the value actually set, because nothing on the host records
+it. The recommended phase-2 home is an operator-gated entry in **`proxy.env`**: it is already the file whose
+entire contents are the phase-2 webhook surface, it already carries the other two G6-gated entries, and G6
+is run from the host with values sourced from it. **No template was edited and no entry added** - the change
+belongs with the increment that closes **F12**, because both are port-and-registration facts that must agree
+with the firewall.
+
+### Three findings, none of them reconciled where it was found
+
+- **F13 - one cap entry, two units.** `loadAgentModelBinding` reads `FINANCE_WEEKLY_CAP` as a bare
+  micro-USD integer and **refuses a decimal rather than rounding**; `ops/GATE_REGISTER.md` G4 step 3
+  interpolates the **same placeholder** into the provider's key-creation body, where the field takes a
+  decimal. Both correct alone; D-CAP's figure cannot satisfy both spellings of one name. **The register was
+  not edited** - this task must not, and the register outranks the ledger on gate verification. Owner: task
+  **10.10**.
+- **F14 - `restore.sh` requires five entries no template declares**, and that is **correct and must stay
+  correct**: restore runs on the operator machine, and `AGE_IDENTITY_FILE` is a path to the **off-host
+  private half**, which the placement map forbids from ever reaching the host. Recorded because a reader
+  counting entries would otherwise think six were missing, and because it means the six templates are
+  **not** the whole configuration surface of this repository.
+- **F15 - `backup.sh` asserts six of `backup.env`'s twelve.** Five of the six it does not assert are the
+  storage credentials plus `BACKUP_FOLDER_REF`, and the script is deliberate: it names no credential entry,
+  because the `nizam-backup` uploader resolves them. The **residual gap** is that the uploader does not
+  exist yet (**O1**), so nothing today asserts those five before an upload is attempted. Owner: tasks
+  **10.8** and **10.9**.
+
+**And a non-finding worth recording.** `ENTRY_SPECS`, `SERVICE_ENTRY_NAMES` and the six templates were found
+to **agree** on all 45 entries and all 62 assignments, in both directions, each pair already asserted by an
+existing test. Task 10.2's observation that two sources of entry truth exist with neither named the
+authority is resolved by the ledger's precedence header: **secrecy and gate from `ENTRY_SPECS`, entry names
+and cross-file rules from `SERVICE_ENTRY_NAMES`**, and the templates above both.
+
+### The honest half: what the ledger says is NOT mechanically checked
+
+§9 carries an **eight-item** "not yet mechanical" list rather than letting a table of checker names imply
+enforcement. The two that matter most to a later reader: **nothing checks the six env files as they exist on
+the host** - every check runs over the templates or an injected `EnvSource`, and the `grep -c` proofs are
+commands for a human because the harness has no host; and **the four-way sentinel agreement is not asserted
+in phase 1**, because `collectSharedEntryDisagreements` correctly skips a rule with fewer than two holders
+and phase 1 runs one agent. Also listed: the encrypt-then-upload-then-shred ordering is implemented by
+`backup.sh` and read by no checker (ladder **L5** is the observation, blocked on G5 and G8); nothing asserts
+the private key is absent from the host or the storage (that is G8's line, and the empty output is the
+gate); F15's gap; F13's unresolved unit; `MAX_CONNECTIONS` still homeless; and `BACKUP_FOLDER_REF`
+unvalidatable before the first uploader run by construction.
+
+### Every asserted rule cites its checker
+
+`collectServiceFindings`, `collectSharedEntryDisagreements`, `collectKillSentinelFindings`,
+`collectForeignEntryFindings`, `refuseOnFindings`, `classifyEntry`, `auditEnvTemplates`,
+`scanForParticulars`, `KILL_SENTINEL_MOUNT_TARGET`, `KILL_SENTINEL_SERVICES`, `SHARED_ENTRY_AGREEMENTS`,
+`ABSENCE_IS_A_DECISION` - named, so a rename in code makes the document visibly wrong instead of quietly
+stale.
+
+### Gate result
+
+- `npm run verify:all -- --all` - **20 of 20 executed checks passed**, run after the commit because AC14 and
+  AC15 require a clean tree.
+- **No code changed**, so the test count is unmoved at **1829** and the AC04 `--min` floor stays **1829**.
+  Nothing lowered, allowlisted, skipped or exempted.
+- **R24 holds.** No token, domain, host address, numeric identifier, bot name, storage reference or real
+  monetary figure; every value is an `<ANGLE_BRACKET>` placeholder. The document sits under `.kiro/specs/`
+  rather than `ops/`, so it is outside AC18's scanned set - and it was written to pass that scan anyway,
+  because a document that would fail it is a document carrying something it should not.
+- **Two separate commits, deliberately.** 10.3 is an action sheet the owner works once; 10.4 is a reference
+  the build is held against. Merging them would have produced one document serving neither reader.
+- **No gate attempted, no checkbox ticked, `ops/GATE_REGISTER.md` untouched**, G7 still CLOSED - WONT-DO, no
+  outbound call, and the other repository not touched.

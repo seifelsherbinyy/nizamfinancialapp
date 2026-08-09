@@ -197,3 +197,18 @@ either contract governs, it reads `ENTRY_SPECS`, `SERVICE_ENTRY_NAMES` and the s
 (**F13** one cap entry over two units, **F14** `restore.sh` requiring five entries no template declares,
 **F15** `backup.sh` asserting six of `backup.env`'s twelve) are recorded in the task 10.4 ledger with the
 tasks that own their resolution, not reconciled where they were found.
+
+**The deployment value ledger, 2026-08-10 (task 10.4).** Contract 12 §3.2.7 (one environment file per
+service, read by no other), §5.2/§5.3 (no default for anything), §6.2 (per-agent cap isolation) and §8 (the
+halt in both forms) now have one reference document covering **all six** services rather than the transport
+alone: `.kiro/specs/06-two-agent-vps/DEPLOYMENT_VALUE_LEDGER.md` records 62 entry-to-file assignments over 45
+distinct entries, the five negative assertions that keep one service from holding another's secret, the full
+shared-entry agreement set **with its three deliberate exclusions and their reasons**, and the mandate §3
+placement map including the encrypt-then-upload-then-shred ordering and the `age` private key reaching none
+of the three destinations. Each asserted rule **cites the loader function that checks it**, and §9 lists
+eight rules that are **not** mechanically checked instead of implying they are. **No contract file was
+edited, no owning requirement range moved, and no `ops/` artifact was changed** - the ledger reads
+`ENTRY_SPECS`, `SERVICE_ENTRY_NAMES`, the six templates, `ops/docker-compose.yml`, `ops/GATE_REGISTER.md`
+and the two shell scripts, and defers to the register on gate verification. Findings **F13**, **F14** and
+**F15** are recorded there with the tasks that own them (10.10, none - it is correct as it stands, and 10.8
+plus 10.9 respectively), and `MAX_CONNECTIONS` (**F2**) has a recommended phase-2 home with nothing applied.
