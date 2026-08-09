@@ -1,7 +1,8 @@
 /**
  * NIZAM · Telegram request authenticity — constant-time token compare, then the allowlist
- * Implemented by: PFOS Contract 12 / Phase 4.1 (spec 06-two-agent-vps)
- * Owning requirements: R11 (secret-token header, constant-time), R12 (operator allowlist)
+ * Implemented by: PFOS Contract 12 / Phase 4.1, extended by Phase 10.5 (spec 06-two-agent-vps)
+ * Owning requirements: R11 (secret-token header, constant-time), R12 (operator allowlist),
+ *   R26 (the transport mode selects which gates are applicable)
  * Depends on: node:crypto, ../ports/telegram (types only), ../ports/errors (codes only)
  *
  * Contract 12 §5.2 and §5.3 in code, ported from the other repository's relay per §5.1: the
@@ -43,6 +44,37 @@
  * think is the right token. {@link secretTokenIsConfigured} is the whole of it, and it is
  * consulted first, so an unconfigured guard is a closed door rather than an open one.
  *
+ * ---
+ *
+ * **The mode axis (R26, design delta D1, added by Phase 10.5).** Two of the three gates above
+ * guard an *inbound HTTP request*. `longPoll` is outbound only: the agent calls the provider and
+ * reads updates back, so there is no request, no `X-Telegram-Bot-Api-Secret-Token` header to
+ * consult, and no door for an expected token to guard. Reusing this guard unchanged under
+ * `longPoll` therefore refuses **every** message the owner sends — `secretTokenHeader` is `null`,
+ * the token gate cannot pass, and the failure presents as a bot that was created, verified live,
+ * and is silently broken, with a symptom identical to a wrong token by design (rule 4 above).
+ *
+ * So {@link authorizeDelivery} takes the mode as an input, and
+ * {@link TELEGRAM_MODE_APPLICABLE_GATES} is the whole of the asymmetry: the mode selects **which
+ * gates are applicable**, and the applicable set is a property of the *mode*, never of the
+ * *values*. Three things follow, and each is asserted in `modeAwareGuard.negative.test.ts`:
+ *
+ *  - **`webhook` is untouched.** All three gates apply, read in the same order, so R11's
+ *    fail-closed clause still refuses an absent, empty, over-length, or out-of-charset expected
+ *    token. Nothing below reads the mode before deciding whether a *value* is usable.
+ *  - **`longPoll` keeps the allowlist as the whole guard**, and the allowlist refuses by default:
+ *    {@link senderIsAllowlisted} answers false for an empty list and for an empty sender
+ *    identifier, so an unconfigured `longPoll` deployment admits **nobody**. "Not applicable" is
+ *    not a default that opens a door, and there is no branch here that skips a gate because a
+ *    value was absent — the two rejected shapes in D1 are rejected in code, not just in prose.
+ *  - **An unrecognised mode is refused at its strictest.** The lookup is undefined for a mode this
+ *    module does not know, and the fallback is the full set rather than the empty one, so a typo
+ *    in configuration cannot open a gate. `parseTransportMode` already refuses such a value at
+ *    startup; this is the second belt.
+ *
+ * The refusal stays indistinguishable as to stage in both modes, because the decision type has no
+ * reason field and every refusal returns the one frozen value.
+ *
  * **§5.3, and why parsing cannot precede the allowlist here.** The allowlist is checked before
  * any parsing of content. This module makes that structural instead of procedural:
  * {@link TelegramAuthSubject} is a three-field projection of {@link TelegramDelivery} that
@@ -56,7 +88,7 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 import type { PortFailureCode } from '../ports/errors';
-import type { TelegramDelivery, TelegramTransportConfig } from '../ports/telegram';
+import type { TelegramDelivery, TelegramTransportConfig, TelegramTransportMode } from '../ports/telegram';
 
 /**
  * The header the provider echoes on every request (architecture §1.4). Public protocol: it is
@@ -158,6 +190,38 @@ export const TELEGRAM_AUTH_STAGES = ['configuration', 'token', 'allowlist'] as c
 export type TelegramAuthStage = (typeof TELEGRAM_AUTH_STAGES)[number];
 
 /**
+ * **Which gates apply in which mode (R26, D1).** The one place the asymmetry is written down.
+ *
+ * `webhook` applies all three, in {@link TELEGRAM_AUTH_STAGES}' order, which is R11 and §5.3
+ * unchanged. `longPoll` applies the allowlist alone, because the other two guard an inbound
+ * request that does not exist in an outbound-only transport — and the allowlist refuses by
+ * default, so removing the other two removes a gate and opens nothing.
+ *
+ * Written as data rather than as a branch for three reasons. It is enumerable, so a test can
+ * assert the table covers every member of {@link TELEGRAM_TRANSPORT_MODES} and no more. It is
+ * readable in one glance, so "which mode is weaker, and by exactly which gate" needs no tracing.
+ * And it cannot be satisfied by weakening the other mode: making `longPoll` pass by relaxing a
+ * *value* rule would show up as a change to {@link secretTokenIsConfigured}, which the webhook
+ * row still depends on.
+ */
+export const TELEGRAM_MODE_APPLICABLE_GATES: Readonly<Record<TelegramTransportMode, readonly TelegramAuthStage[]>> =
+  Object.freeze({
+    webhook: Object.freeze(['configuration', 'token', 'allowlist'] as const),
+    longPoll: Object.freeze(['allowlist'] as const),
+  });
+
+/**
+ * The gates a mode applies, at their strictest when the mode is not one this module knows.
+ *
+ * The fallback is the FULL set, never the empty one: a configuration carrying a mode nobody
+ * recognises must refuse more, not less. `parseTransportMode` refuses such a value at startup, so
+ * this is the second belt on the same door rather than the only one.
+ */
+export function applicableAuthStages(mode: TelegramTransportMode): readonly TelegramAuthStage[] {
+  return TELEGRAM_MODE_APPLICABLE_GATES[mode] ?? TELEGRAM_AUTH_STAGES;
+}
+
+/**
  * One audited refusal. The fact of the rejection, never the content (§5.3), and never the token
  * (§5.2): `tokenHeaderPresent` is a boolean, which is exactly enough to tell an absent header
  * from an empty one without recording either.
@@ -212,11 +276,18 @@ function bothHold(left: boolean, right: boolean): boolean {
   return (left ? 1 : 0) * (right ? 1 : 0) === 1;
 }
 
+/** The audit code each stage refuses with. A stage's code is fixed, so no call site chooses one. */
+const STAGE_FAILURE_CODES: Readonly<Record<TelegramAuthStage, TelegramAuthAuditLine['code']>> = Object.freeze({
+  configuration: 'TELEGRAM_CONFIG_FAILS_CLOSED',
+  token: 'TELEGRAM_REQUEST_REJECTED',
+  allowlist: 'TELEGRAM_REQUEST_REJECTED',
+});
+
 /**
- * **The guard (§5.2 then §5.3, in that order).**
+ * **The guard (§5.2 then §5.3, in that order; R26 for which gates apply).**
  *
- * Every gate is evaluated before any is consulted, then the verdicts are read in §5.3's
- * order — configuration, token, allowlist — so:
+ * Every gate is evaluated before any is consulted, then the verdicts of the gates the MODE
+ * applies are read in §5.3's order — configuration, token, allowlist — so:
  *
  *  - an unconfigured guard refuses everything, correct token included;
  *  - a bad token is refused whatever the allowlist says, which is what "the allowlist is
@@ -225,11 +296,18 @@ function bothHold(left: boolean, right: boolean): boolean {
  *    decision, so nothing has parsed the content by then;
  *  - and every refusal costs the same digest work, so no timing signal separates the stages.
  *
+ * `mode` is required and has **no default** (R26, D1). The three verdicts are still computed
+ * unconditionally in both modes — the digest work is performed even where its verdict is not
+ * read — so the mode changes which verdicts are *consulted* and changes nothing about how any of
+ * them is *reached*. Under `longPoll` the token verdict is therefore computed and discarded
+ * rather than skipped, which is why no value rule is relaxed to make that mode pass.
+ *
  * `audit` is optional because the decision must not depend on whether anyone is listening.
  */
 export function authorizeDelivery(
   subject: TelegramAuthSubject,
   policy: TelegramAuthPolicy,
+  mode: TelegramTransportMode,
   audit?: TelegramAuthAuditSink,
 ): TelegramAuthDecision {
   const tokenHeaderPresent = typeof subject.secretTokenHeader === 'string';
@@ -240,14 +318,24 @@ export function authorizeDelivery(
   const comparisonHolds = constantTimeTokenEquals(provided, typeof policy.expectedSecretToken === 'string' ? policy.expectedSecretToken : '');
   const tokenGatePasses = bothHold(configured, bothHold(tokenHeaderPresent, comparisonHolds));
   const senderGatePasses = senderIsAllowlisted(subject.senderId, policy.allowedSenderIds);
+  const verdicts: Readonly<Record<TelegramAuthStage, boolean>> = {
+    configuration: configured,
+    token: tokenGatePasses,
+    allowlist: senderGatePasses,
+  };
 
-  const refuse = (stage: TelegramAuthStage, code: TelegramAuthAuditLine['code']): TelegramAuthDecision => {
-    audit?.({ stage, code, botId: subject.botId, senderId: subject.senderId, tokenHeaderPresent });
+  const refuse = (stage: TelegramAuthStage): TelegramAuthDecision => {
+    audit?.({ stage, code: STAGE_FAILURE_CODES[stage], botId: subject.botId, senderId: subject.senderId, tokenHeaderPresent });
     return TELEGRAM_AUTH_REFUSED;
   };
 
-  if (!configured) return refuse('configuration', 'TELEGRAM_CONFIG_FAILS_CLOSED');
-  if (!tokenGatePasses) return refuse('token', 'TELEGRAM_REQUEST_REJECTED');
-  if (!senderGatePasses) return refuse('allowlist', 'TELEGRAM_REQUEST_REJECTED');
+  // §5.3's precedence, over the gates this mode applies. The iteration order is
+  // TELEGRAM_AUTH_STAGES' own, so the applicable table cannot reorder the precedence by
+  // listing its members differently.
+  const applicable = applicableAuthStages(mode);
+  for (const stage of TELEGRAM_AUTH_STAGES) {
+    if (!applicable.includes(stage)) continue;
+    if (!verdicts[stage]) return refuse(stage);
+  }
   return TELEGRAM_AUTH_GRANTED;
 }

@@ -28,7 +28,12 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { TELEGRAM_TRANSPORT_MODES, type TelegramTransportMode } from '../ports/telegram';
-import { authorizeDelivery, type TelegramAuthSubject } from '../telegram/auth';
+import {
+  authorizeDelivery as authorizeDeliveryInMode,
+  type TelegramAuthPolicy,
+  type TelegramAuthDecision,
+  type TelegramAuthSubject,
+} from '../telegram/auth';
 import {
   AGENT_ENTRY_NAMES,
   ALLOWLIST_DELIMITER,
@@ -56,6 +61,17 @@ const LIFE_KEY = 'key-test-life';
 const FINANCE_KEY = 'key-test-finance';
 const API_BASE = 'https://provider.invalid';
 const MODE: TelegramTransportMode = 'webhook';
+
+/**
+ * The loader assertions below are about the values a `webhook` deployment resolves, so the mode the
+ * guard applies (R26, Phase 10.5) is bound to `webhook` here rather than restated at each call.
+ * `longPoll`'s applicable-gate set is asserted in `telegram/modeAwareGuard.negative.test.ts`, and
+ * the loader itself is mode-agnostic: it refuses an unusable webhook secret in BOTH modes, which is
+ * deliberate — an entry the owner must fill even where nothing reads it (task 10.3).
+ */
+function authorizeDelivery(subject: TelegramAuthSubject, policy: TelegramAuthPolicy): TelegramAuthDecision {
+  return authorizeDeliveryInMode(subject, policy, MODE);
+}
 
 /** A complete, valid finance environment. Every case below is this, minus or plus one entry. */
 function financeEnv(overrides: Readonly<Record<string, string | undefined>> = {}): EnvSource {

@@ -3920,3 +3920,123 @@ stale.
   the build is held against. Merging them would have produced one document serving neither reader.
 - **No gate attempted, no checkbox ticked, `ops/GATE_REGISTER.md` untouched**, G7 still CLOSED - WONT-DO, no
   outbound call, and the other repository not touched.
+
+## Task 10.5 - the live transport adapter, and the mode axis the guard did not have (2026-08-10)
+
+> Owning contract: **PFOS 12** - Two-Agent VPS Deployment & Operations, §5 (transport), §2.3 (the
+> long-poll fallback), §5.5 (accept fast, process asynchronously). Spec:
+> `.kiro/specs/06-two-agent-vps/` task **10.5**, mandate `KIRO_SHIP_LIVE.prompt.md` §8 step 5.
+> Requirements: **R26** (the mode selects which gates apply), **R26.1** (the offset advances only
+> after the update is durably enqueued), with **R11**, **R12**, **R13**, **R14**, **R15** composed
+> unchanged. Design: delta **D1** (the taken shape) and **D2** (the durability boundary).
+
+### What was built
+
+`src/server/telegram/liveTransport.ts` - one module, behind the **existing** `TelegramPort`, both
+modes. `createLiveTelegramTransport(ctx)` returns `{ port, mode, currentOffset(), pollOnce() }`,
+where `port` is a `TelegramPort` assembled from three things that already existed: the synchronous
+accept path (`createInboundHandler`), the injected worker, and an outbound role that retries the
+provider's documented rate-limit refusal with bounded backoff.
+
+**The port's shape did not change.** Nothing was added to `ports/telegram.ts`, nothing was widened,
+and `TelegramAcceptDecision` still has no reason field. The adapter's own vocabulary - the polled
+update, the batch, the fetch request, the offset store, the two policies - lives in the adapter,
+because none of it is a port concern: it describes how one transport is *reached*, not what the three
+roles *are*.
+
+### The mode axis, which is the whole of the trap
+
+`authorizeDelivery` evaluated three gates unconditionally and read them in the order configuration,
+token, allowlist. `secretTokenIsConfigured` is consulted **first**, so an absent, empty, over-length
+or out-of-charset expected token refuses **every** request. That is right for `webhook` and it stays.
+Under `longPoll` there is no inbound request, so `secretTokenHeader` is `null` and there is no
+expected token to match - the unchanged guard would have refused every message the owner sent, and
+presented as a bot that was created, verified live and silently broken.
+
+So `authorizeDelivery` now takes the **mode** as a required third input, and
+`TELEGRAM_MODE_APPLICABLE_GATES` is the whole of the asymmetry, written as data rather than as a
+branch:
+
+| Mode | Gates applied | Consequence |
+|---|---|---|
+| `webhook` | configuration, token, allowlist | R11 untouched. All four refusal shapes still refuse. |
+| `longPoll` | allowlist | The allowlist is the whole guard, and it refuses by default. |
+| anything else | configuration, token, allowlist | The fallback is the **full** set, never the empty one. |
+
+Both shapes D1 rejected are unreachable, and by construction rather than by discipline. **No
+synthesised header:** `TelegramPolledUpdate` has no `secretTokenHeader` field at all, so there is
+nowhere for a later edit to put a manufactured one, and the accept path is handed `null` - which is
+what "the header was absent" already means. **No optional-token relaxation:**
+`secretTokenIsConfigured` is unchanged and the `webhook` row still depends on it, so weakening it to
+make `longPoll` pass would break the mode that still uses it.
+
+Fail-closed survives, which is the load-bearing claim. A `longPoll` deployment with nothing
+configured admits **nobody**: `senderIsAllowlisted` answers false for an empty list and for an empty
+sender identifier. The refusal stays indistinguishable as to stage in both modes, because the
+decision type has nowhere to put a reason and every refusal returns the one frozen value.
+
+### The offset is the durability boundary (R26.1, D2)
+
+`pollOnce` reads the offset from an injected store, fetches a batch, sorts it ascending, and for each
+update calls the accept path - which commits the dedup claim and the queue row in **one**
+transaction - and only then advances the offset, by one update at a time. Two properties fall out and
+both are asserted against the offset rather than against a sleep:
+
+- **A crash before the enqueue commits re-delivers.** The offset does not move, so the provider
+  serves the update again.
+- **A crash after it commits and before the offset advances re-delivers too**, and dedup absorbs it -
+  one queued row, not two.
+
+The batch **halts** at the first update whose work was not stored. That is not tidiness: the offset is
+monotonic, so advancing past a failed update to reach a later one would discard the failed one for
+good, and nothing would ever absorb that.
+
+### Two findings this task recorded
+
+- **F16 - the durability answer had to come from the audit path.** `TelegramAcceptDecision` has no
+  reason field, deliberately (§5.2), so the adapter cannot ask the decision whether a refusal was an
+  authorization refusal or a durability failure - and it needs to know, because one has no work to
+  lose and the other has work that was not stored. The **audit sink** is the separate path §5.3
+  already requires and it carries the stage, so the adapter interposes on the caller's sink, forwards
+  every line unchanged first, and reads exactly one bit: was the stage `enqueue`. Nothing about it
+  reaches the response. D2 did not anticipate this, and the alternative - adding a reason to the
+  decision - would have broken §5.2 to satisfy R26.1.
+- **F17 - a refused update must still advance the offset.** R26.1 says the offset advances only after
+  a durable enqueue, and read literally that would pin the offset on an update that will never be
+  enqueued at all. An unlisted sender would then wedge the poller forever - a livelock any stranger
+  could cause by messaging the bot once. A refusal has no work to lose, so the offset advances past
+  it; a durability failure does, so it does not. The requirement's intent is durability, and this is
+  the reading that serves it.
+
+### The provider limits, respected rather than restated
+
+Two of the seven limits in `ops/runbook/RATE_LIMIT_POSTURE.md` reach this module. **Limit 4**, the
+too-many-requests refusal: the advertised interval is honoured, not estimated, and the wait is the
+**longer** of that interval and the module's own bounded backoff - so an interval-less refusal cannot
+become a tight loop and an interval-bearing one is never under-waited. The budget is bounded and its
+exhaustion surfaces as a refusal; it never becomes a transport failure, because there is no code path
+here that reports one. **Limit 6**, the long-poll duration: a non-positive timeout is refused at
+construction, because short polling in production is a busy loop against a rate-limited endpoint.
+
+### No network, and none reachable
+
+The adapter's entire outside world is one injected interface, `TelegramTransportClient`. The module
+resolves no network module, names no endpoint, and holds no token literal, and that is asserted over
+its own source rather than trusted: no `node:http`, no `node:https`, no `fetch(`, no `setWebhook`.
+The tests drive it with a scripted client over an array. **No outbound call was made in this task.**
+
+### Gate result
+
+- `npm run verify:all -- --all` - **20 of 20 executed checks passed**, run after the commit because
+  AC14 and AC15 require a clean tree.
+- Tests **1829 -> 1847** passing, and the AC04 `--min` floor ratcheted **1829 -> 1847**. Up only.
+  Nothing lowered, allowlisted, skipped or exempted.
+- The durability ordering was **shown failing**: reversing it - advancing the offset before the accept
+  path returns - fails `halts the batch and leaves the offset where it was when the enqueue does NOT
+  commit`, and only that test. The mutation was reverted.
+- Three existing test files bind the mode to `webhook` in one place each rather than at forty call
+  sites, so every pinned R11 assertion reads exactly as it did and the fence stays legible.
+- **R24 holds.** No token, domain, host address, numeric identifier, bot name or monetary figure; the
+  test values are synthetic and obviously so.
+- **No gate attempted, no checkbox ticked in `ops/GATE_REGISTER.md`**, G7 still CLOSED - WONT-DO, no
+  DNS record, no published port, no credential read, and the other repository untouched.

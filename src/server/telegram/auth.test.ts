@@ -16,7 +16,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  authorizeDelivery,
+  authorizeDelivery as authorizeDeliveryInMode,
   authPolicyFromTransport,
   secretTokenIsConfigured,
   senderIsAllowlisted,
@@ -26,10 +26,29 @@ import {
   TELEGRAM_SECRET_TOKEN_HEADER,
   TELEGRAM_SECRET_TOKEN_MAX_LENGTH,
   type TelegramAuthAuditLine,
+  type TelegramAuthAuditSink,
+  type TelegramAuthDecision,
   type TelegramAuthPolicy,
   type TelegramAuthSubject,
 } from './auth';
 import type { TelegramTransportConfig } from '../ports/telegram';
+
+/**
+ * **Every assertion in this file is a `webhook` assertion**, and Phase 10.5's mode axis (R26) does
+ * not move one of them: all three gates apply in `webhook`, in the same order, so this file is the
+ * regression fence that shows R11 was not relaxed to let one code path serve both modes.
+ *
+ * The mode is bound here rather than spelled at each of the call sites below, so the fence reads as
+ * one decision instead of forty. `longPoll`'s half of the axis is asserted separately, against the
+ * guarded operation, in `modeAwareGuard.negative.test.ts`.
+ */
+function authorizeDelivery(
+  subject: TelegramAuthSubject,
+  policy: TelegramAuthPolicy,
+  audit?: TelegramAuthAuditSink,
+): TelegramAuthDecision {
+  return authorizeDeliveryInMode(subject, policy, 'webhook', audit);
+}
 
 const EXPECTED_TOKEN = 'synthetic-token-alpha_01';
 

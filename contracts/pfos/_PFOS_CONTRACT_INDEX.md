@@ -212,3 +212,18 @@ edited, no owning requirement range moved, and no `ops/` artifact was changed** 
 and the two shell scripts, and defers to the register on gate verification. Findings **F13**, **F14** and
 **F15** are recorded there with the tasks that own them (10.10, none - it is correct as it stands, and 10.8
 plus 10.9 respectively), and `MAX_CONNECTIONS` (**F2**) has a recommended phase-2 home with nothing applied.
+
+**R26 and R26.1 are now mechanical rather than documented, 2026-08-10 (task 10.5).** Contract 12 §5's transport
+guards and §2.3's long-poll fallback are held in code as **one mode axis** rather than as two code paths:
+`src/server/telegram/auth.ts` gains `TELEGRAM_MODE_APPLICABLE_GATES`, and `authorizeDelivery` takes the mode as
+a **required** input with no default - `webhook` applies configuration, token and allowlist exactly as **R11**
+requires, `longPoll` applies the allowlist alone because an outbound-only transport has no header to consult,
+and an unrecognised mode falls back to the **full** gate set rather than the empty one. The live adapter
+`src/server/telegram/liveTransport.ts` sits behind the **unchanged** `TelegramPort`, takes its whole outside
+world as one injected client so nothing resolves a network module, and advances the long-poll read offset **only
+after** the accept path's dedup-claim-plus-enqueue transaction has returned - halting the batch at the first
+update whose work was not stored, because the offset is monotonic. **No contract file was edited and no owning
+requirement range moved** - R26 and R26.1 were already in contract 12's `R6-R30` range recorded above. Two
+findings are recorded in the build log with their reasons: **F16**, the accept decision has no reason field by
+design, so the durability answer is read from the **audit** path §5.3 already requires rather than by adding one;
+and **F17**, a *refused* update must still advance the offset, or any unlisted sender wedges the poller forever.

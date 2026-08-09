@@ -1,7 +1,8 @@
 /**
  * NIZAM · Telegram transport barrel — contract 12 §5
- * Implemented by: PFOS Contract 12 / Phase 4.1-4.3 (spec 06-two-agent-vps)
- * Depends on: auth.ts, updateDedupRepo.ts, workQueueRepo.ts, acceptHandler.ts, workerRunner.ts
+ * Implemented by: PFOS Contract 12 / Phase 4.1-4.3, extended by Phase 10.5 (spec 06-two-agent-vps)
+ * Depends on: auth.ts, updateDedupRepo.ts, workQueueRepo.ts, acceptHandler.ts, workerRunner.ts,
+ *   liveTransport.ts
  *
  * One import site for the transport modules. ADDITIVE ONLY: a later phase appends its
  * exports here and never rewrites an existing line, because the modules in this directory
@@ -27,6 +28,7 @@ export {
 // that reports WHICH check refused: the decision type has no reason field (§5.2), and the stage
 // vocabulary belongs to the separate audit path a caller injects.
 export {
+  applicableAuthStages,
   authorizeDelivery,
   authPolicyFromTransport,
   constantTimeTokenEquals,
@@ -36,6 +38,7 @@ export {
   TELEGRAM_AUTH_GRANTED,
   TELEGRAM_AUTH_REFUSED,
   TELEGRAM_AUTH_STAGES,
+  TELEGRAM_MODE_APPLICABLE_GATES,
   TELEGRAM_AUTH_SUBJECT_KEYS,
   TELEGRAM_SECRET_TOKEN_HEADER,
   TELEGRAM_SECRET_TOKEN_MAX_LENGTH,
@@ -100,3 +103,29 @@ export {
   type WorkerRunContext,
   type WorkerRunner,
 } from './workerRunner';
+// Phase 10.5 — the live adapter, both modes, behind the SAME port. The outside world is one
+// injected interface (`TelegramTransportClient`), so nothing here resolves a network module; and
+// under `longPoll` the read offset advances only after the enqueue has committed (R26.1), which is
+// what turns the provider's at-least-once delivery into effectively-once.
+export {
+  createInMemoryOffsetStore,
+  createLiveTelegramTransport,
+  isRateLimitRefusal,
+  LiveTransportError,
+  sendBackoffMs,
+  sendRetryDelayMs,
+  TelegramRateLimitRefusal,
+  type LiveTransportErrorCode,
+  type PolledUpdateOutcome,
+  type PolledUpdateResult,
+  type TelegramFetchRequest,
+  type TelegramLiveTransport,
+  type TelegramLiveTransportContext,
+  type TelegramOffsetStore,
+  type TelegramPolledUpdate,
+  type TelegramPollPolicy,
+  type TelegramPollReport,
+  type TelegramSendRetryPolicy,
+  type TelegramTransportClient,
+  type TelegramUpdateBatch,
+} from './liveTransport';

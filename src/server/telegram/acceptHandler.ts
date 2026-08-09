@@ -2,7 +2,7 @@
  * NIZAM · Telegram accept path — authenticate, allowlist, de-duplicate, enqueue, acknowledge
  * Implemented by: PFOS Contract 12 / Phase 4.3 (spec 06-two-agent-vps)
  * Owning requirements: R15 (accept fast, process asynchronously);
- *   composes R11/R12 (auth.ts) and R13/R14 (updateDedupRepo.ts)
+ *   composes R11/R12/R26 (auth.ts) and R13/R14 (updateDedupRepo.ts)
  * Depends on: ./auth, ./updateDedupRepo, ./workQueueRepo,
  *   ../ports/telegram (TelegramInboundPort — the synchronous contract), ../ports/errors (codes only)
  *
@@ -21,7 +21,9 @@
  *
  *  1. **Authenticity and the allowlist**, delegated whole to {@link authorizeDelivery} — the token
  *     compare is constant-time and the allowlist is checked after it and before any parsing of
- *     content (§5.2, §5.3). This module does not re-implement either check and does not soften one.
+ *     content (§5.2, §5.3), and which gates apply comes from the transport configuration's own
+ *     mode (R26), so this path is the same path in both modes and neither mode has a branch of its
+ *     own here. This module does not re-implement either check and does not soften one.
  *     It passes a three-field subject that omits `rawBody`, so nothing here can parse the body: the
  *     content is carried to the queue as an opaque string and read for the first time by the worker,
  *     after the acknowledgement.
@@ -162,9 +164,13 @@ export function acceptDelivery(ctx: TelegramAcceptContext, delivery: TelegramDel
       tokenHeaderPresent: line.tokenHeaderPresent,
     });
   };
+  // The mode comes from the transport configuration, never from this module and never from the
+  // delivery: which gates apply is a property of how the deployment is reached (R26, D1), and a
+  // caller cannot choose a weaker set for a delivery it happens to be holding.
   const authorized = authorizeDelivery(
     { botId: delivery.botId, senderId: delivery.senderId, secretTokenHeader: delivery.secretTokenHeader },
     authPolicyFromTransport(ctx.transport),
+    ctx.transport.mode,
     forwardAuthRefusal,
   );
   if (!authorized.authorized) {

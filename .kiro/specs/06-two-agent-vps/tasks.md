@@ -172,9 +172,24 @@
       cap entry over two units, **F14** `restore.sh` requiring five entries no template declares
       (correct, and it must stay so), **F15** `backup.sh` asserting six of twelve. `ENTRY_SPECS`,
       `SERVICE_ENTRY_NAMES` and the six templates were found to **agree** on all 45 and all 62.
-- [ ] 10.5 Live transport adapter behind the existing `TelegramPort`, implementing both modes (§6.2,
+- [x] 10.5 Live transport adapter behind the existing `TelegramPort`, implementing both modes (§6.2,
       §2, R26). In `longPoll` the offset advances **only after the update is durably enqueued** -
       that ordering is at-least-once becoming effectively-once.
+      `src/server/telegram/liveTransport.ts`, plus the mode axis in `auth.ts`. **The port's shape did
+      not change**: the adapter returns a `TelegramPort` assembled from the existing synchronous
+      accept path, an injected worker, and a retrying outbound role. `authorizeDelivery` now takes
+      the **mode** as a required third input (D1's taken shape) and `TELEGRAM_MODE_APPLICABLE_GATES`
+      is the whole of the asymmetry - `webhook` applies all three gates unchanged, `longPoll` applies
+      the allowlist alone, and an unrecognised mode falls back to the **full** set rather than the
+      empty one. Neither rejected shape is reachable: no header is synthesised (the polled-update
+      type has no field to put one in) and no value rule is relaxed. The outside world is ONE
+      injected interface, so nothing resolves a network module; the offset lives in an injected store
+      and advances one update at a time, **after** the accept transaction returns. A batch **halts**
+      at the first update whose work was not stored, because the offset is monotonic. Finding
+      **F16**: the accept decision deliberately has no reason field, so the adapter reads the
+      **audit** path - the separate path §5.3 already requires - for the one bit it needs, whether a
+      refusal was the `enqueue` stage. Finding **F17**: a refusal must still advance the offset, or
+      any unlisted sender wedges the poller forever.
 - [ ] 10.6 Negative tests for both directions of the mode-aware guard (ladder **L1**): `longPoll`
       refuses an unlisted sender and accepts the owner with no secret-token header; an empty
       allowlist still refuses everyone; `webhook` still refuses absent, empty, over-length and

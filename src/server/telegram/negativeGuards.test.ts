@@ -47,13 +47,29 @@ import type { StoreHandle } from '../db/connection';
 import { openFinanceStore } from '../db/store';
 import type { TelegramAcceptDecision, TelegramDelivery, TelegramTransportConfig } from '../ports/telegram';
 import {
-  authorizeDelivery,
+  authorizeDelivery as authorizeDeliveryInMode,
   secretTokenIsConfigured,
   TELEGRAM_SECRET_TOKEN_MAX_LENGTH,
   type TelegramAuthAuditLine,
+  type TelegramAuthAuditSink,
+  type TelegramAuthDecision,
   type TelegramAuthPolicy,
   type TelegramAuthSubject,
 } from './auth';
+
+/**
+ * Phase 4.4's pins are all `webhook` pins, and Phase 10.5's mode axis (R26) leaves every one of
+ * them where it was: `webhook` applies all three gates in the same order. The mode is bound once
+ * here so the pinned assertions below read as they did, and so this file keeps being the place the
+ * provider's token rule is written down in literals rather than relative to a constant.
+ */
+function authorizeDelivery(
+  subject: TelegramAuthSubject,
+  policy: TelegramAuthPolicy,
+  audit?: TelegramAuthAuditSink,
+): TelegramAuthDecision {
+  return authorizeDeliveryInMode(subject, policy, 'webhook', audit);
+}
 import {
   acceptDelivery,
   TELEGRAM_ACCEPT_REJECTED,
