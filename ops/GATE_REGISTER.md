@@ -86,6 +86,24 @@ than the ones that were planned.
 If 9.3 finds a gate whose steps cannot be made exact without a deployment particular, the step stays a
 placeholder and the gap is recorded as a note - **not** resolved by inventing a value (R24).
 
+**What 9.3 resolved, recorded so a reader can tell a fill-in from a rewrite.** Every gate is still
+here, still numbered as it was, still `BLOCKED - awaiting human`, and G7 is still closed. What changed:
+
+- Four "intended path" phrasings became the authored paths. One of them named a path that **does not
+  exist** and was corrected to what Phase 7 actually delivered rather than to a file invented to match
+  the promise - see the correction recorded under G1's "Already built and waiting".
+- Nine entries that `ops/env/*.env.example` attributes to a gate had no step telling the operator to
+  set them. Each gate now names its own: G1 five, G2 one, G4 two, G5 two. G5's existing verification
+  line already *used* two of them, which is how a human following this file would have discovered the
+  gap - at the first unattended token refresh.
+- G6's step 2 said to store each webhook secret "beside the path". The templates deliberately put the
+  **paths** in the proxy's file and the **secrets** in the two agents' files, in opposite directions;
+  the step now says so, and a negative verification line asserts each file lacks the other's value.
+- Each added step has a verification line, and every added line reports a **count**, never a value.
+
+Nothing was renumbered, removed, softened, reopened, or marked satisfied, and no placeholder here
+resolves to anything real.
+
 ## How to use this register
 
 - Work top to bottom; the ordering is a dependency ordering (see the summary table).
@@ -219,6 +237,23 @@ denies) are the security policy itself - they are not derivable from the reposit
    install -d -m 700 -o root -g root /etc/<CONFIG_DIR>
    ```
    Each environment file inside it is `chmod 600`, owner `root` (`docs/PFOS_SECRETS_PLAN.md` §3, option A).
+   One file per service, read by no other service (contract 12 §3.2.7). `ops/docker-compose.yml`
+   names each of them by placeholder - `<LIFE_ENV_PATH>`, `<FINANCE_ENV_PATH>`, `<BUS_ENV_PATH>`,
+   `<SCHEDULER_ENV_PATH>`, `<PROXY_ENV_PATH>`, `<BACKUP_ENV_PATH>` - and those are the names the
+   verification lines below and in the other gates use.
+9. Record the five entries **this gate supplies**, each in the file of the service that owns it. They
+   are directory and path decisions, so they belong to the gate that creates the host, and a
+   deployment that skips this step fails at first start on an unset entry - there is no default for
+   any of them (`ops/env/*.env.example`, "no default for anything"):
+   - `LIFE_DATA_DIR` in `<LIFE_ENV_PATH>`, `FINANCE_DATA_DIR` in `<FINANCE_ENV_PATH>`,
+     `SIGNALS_DATA_DIR` in `<BUS_ENV_PATH>` - one store directory per service, and no file names
+     another service's (contract 12 §3.2.1).
+   - `BACKUP_WORK_DIR` in `<BACKUP_ENV_PATH>` - the scratch directory for the snapshot-encrypt-shred
+     sequence, and never a store.
+   - `KILL_SENTINEL_PATH` in all four halt-honouring files - `<LIFE_ENV_PATH>`, `<FINANCE_ENV_PATH>`,
+     `<SCHEDULER_ENV_PATH>`, `<BACKUP_ENV_PATH>` - as a path inside the sentinel mount the topology
+     declares. It is the **same** path in each by construction, because that volume is mounted at one
+     target in every consumer, read-only, so no service can clear its own halt (contract 12 §8).
 
 ### VERIFICATION
 
@@ -233,6 +268,20 @@ id <OPERATOR_USER>                                            # -> exists, non-z
 ```
 A password login attempt from another machine must be **refused**, not merely rejected after prompting.
 
+Then step 9, one line per entry this gate supplies. `-c` counts a matching assignment and prints no
+value, which is the only form a verification line in this file may take (R24):
+
+```
+grep -c '^LIFE_DATA_DIR='       <LIFE_ENV_PATH>       # -> 1
+grep -c '^FINANCE_DATA_DIR='    <FINANCE_ENV_PATH>    # -> 1
+grep -c '^SIGNALS_DATA_DIR='    <BUS_ENV_PATH>        # -> 1
+grep -c '^BACKUP_WORK_DIR='     <BACKUP_ENV_PATH>     # -> 1
+grep -c '^KILL_SENTINEL_PATH='  <LIFE_ENV_PATH> <FINANCE_ENV_PATH> <SCHEDULER_ENV_PATH> <BACKUP_ENV_PATH>
+# -> 1 for each of the four, and the four values are identical
+```
+And the negative, which is the isolation half: neither agent's file names the other's store directory -
+`grep -c FINANCE_DATA_DIR <LIFE_ENV_PATH>` -> `0`, and the same test in the other direction.
+
 ### Unblocks
 
 Everything runtime. Directly: the placement steps of G4, G5, G6, G8; spec Phase 7 execution
@@ -241,8 +290,20 @@ Everything runtime. Directly: the placement steps of G4, G5, G6, G8; spec Phase 
 ### Already built and waiting
 
 Nothing yet - G1 is the trust root, so it precedes every code path. What it will consume is the whole
-`ops/` template set (intended paths `ops/docker-compose.yml`, `ops/Caddyfile`, `ops/env/*.env.example`,
-`ops/systemd/`), authored as text in spec Phase 7 and never executed here.
+`ops/` template set, authored as text in spec Phase 7 and never executed here:
+`ops/docker-compose.yml` (task 7.1), `ops/Caddyfile` (task 7.2), the six `ops/env/*.env.example`
+templates (task 7.3), `ops/backup/backup.sh` and the drill under `ops/restore/` (task 7.4), and the
+three runbooks under `ops/runbook/` (task 7.6).
+
+**Correction, recorded rather than quietly dropped (spec task 9.3).** The seed of this section named a
+fifth intended path, a unit-file directory under `ops/`. **No such directory was authored, and none is
+needed.** Task 7.5 - "health endpoints, structured redacted logging, log rotation" - delivered those
+three things in the two places they actually belong rather than as unit files: the per-service health
+probe and the redacted structured logger under `src/server/ops/`, and, in `ops/docker-compose.yml`, one
+`healthcheck` block per service plus one log-rotation block per service with a fixed size and file
+count. The container runtime is what starts and restarts these services, and step 6 above confirms it
+is enabled at boot, so there is nothing for a unit file to do. The reference is corrected to what
+exists; no file was invented to satisfy it.
 
 ---
 
@@ -265,6 +326,11 @@ deliberately not in any secret tier the build can reach. A wrong record is publi
    resolvable or proxied (contract 12 §12, requirement **R9**). The full binding requirement - what the
    compose file must declare, what the proxy template must never contain, and how both are verified - is
    `ops/BUS_NETWORK_BINDING.md`, authored in spec Phase 3.3 and binding on tasks 7.1 and 7.2.
+4. Record the entry **this gate supplies**: `DOMAIN=<DOMAIN>` in `<PROXY_ENV_PATH>`. It is the only
+   entry the proxy template attributes to G2, and the two site addresses in `ops/Caddyfile` are derived
+   from it - `life.<DOMAIN>` and `money.<DOMAIN>` - so the two records created in step 1 and the value
+   recorded here cannot be allowed to disagree. No agent's environment file carries it; the proxy is
+   the only service that routes by hostname.
 
 ### VERIFICATION
 
@@ -272,6 +338,7 @@ deliberately not in any secret tier the build can reach. A wrong record is publi
 dig +short life.<DOMAIN>     # -> resolves to the host; record the fact, never the value
 dig +short money.<DOMAIN>    # -> resolves to the same host
 dig +short <BUS_HOSTNAME_THAT_MUST_NOT_EXIST>   # -> empty, and stays empty
+grep -c '^DOMAIN=' <PROXY_ENV_PATH>             # -> 1, and it is the name the two records resolve
 ```
 Then, after the proxy is up, a TLS handshake to each hostname must present a valid certificate for that
 name. Record "certificate valid for both names, issued `<DATE>`" - not the certificate.
@@ -283,9 +350,9 @@ the name resolves and terminates TLS).
 
 ### Already built and waiting
 
-The proxy template at the intended path `ops/Caddyfile` (spec task 7.2), which already carries the two
-host blocks and the two secret webhook paths as placeholders, and deliberately carries **no** route to
-the signal bus.
+The proxy template `ops/Caddyfile` (spec task 7.2), which already carries the two host blocks derived
+from `<DOMAIN>` and the two secret webhook paths as placeholders, and deliberately carries **no** route
+to the signal bus.
 
 ---
 
@@ -373,8 +440,16 @@ party who owns the money.
    loop in one agent cannot spend the other's allocation (requirement **R17**).
 3. Set the account-level privacy posture once, applying to both keys: training opt-out on, prefer
    providers that decline data collection, zero-retention where offered (requirement **R19**).
-4. Place each key in its own environment file - `<OR_KEY_LIFE>` in the life file, `<OR_KEY_FINANCE>` in
-   the finance file. Neither file contains the other agent's key (contract 12 T4).
+4. Place each key in its own environment file - `OR_KEY_LIFE=<OR_KEY_LIFE>` in the life file,
+   `OR_KEY_FINANCE=<OR_KEY_FINANCE>` in the finance file. Neither file contains the other agent's key
+   (contract 12 T4).
+5. Record the two cap entries **this gate also supplies**, each beside its own key:
+   `LIFE_WEEKLY_CAP=<LIFE_WEEKLY_CAP>` in `<LIFE_ENV_PATH>` and
+   `FINANCE_WEEKLY_CAP=<FINANCE_WEEKLY_CAP>` in `<FINANCE_ENV_PATH>`. Each must equal the
+   provider-side limit set for that agent's key in step 2, because these are the values the in-process
+   ledger enforces against and the two ceilings are meant to agree rather than to be belt and braces
+   that disagree. Neither file carries the other agent's cap: a cap that spanned both agents would make
+   one agent's runaway loop the other agent's outage (**R17**).
 
 ### VERIFICATION
 
@@ -382,10 +457,15 @@ party who owns the money.
 # per key, value read from the environment
 curl -sS <MODEL_API_BASE>/api/v1/key -H "Authorization: Bearer ${OR_KEY_FINANCE}"
 # -> limit == <FINANCE_WEEKLY_CAP>, limit_reset == "weekly", usage present
+
+# the recorded cap agrees with the provider-side limit just read back, in each file
+grep -c '^FINANCE_WEEKLY_CAP=' <FINANCE_ENV_PATH>   # -> 1
+grep -c '^LIFE_WEEKLY_CAP='    <LIFE_ENV_PATH>      # -> 1
 ```
-Then, in the console, confirm the training opt-out is on. Finally confirm the negative: the life
-environment file contains no finance key and vice versa -
-`grep -c OR_KEY_FINANCE /etc/<CONFIG_DIR>/life.env` -> `0`.
+Then, in the console, confirm the training opt-out is on. Finally confirm the negatives, run in both
+directions: the life environment file contains no finance key and no finance cap, and vice versa -
+`grep -c OR_KEY_FINANCE /etc/<CONFIG_DIR>/life.env` -> `0`, and
+`grep -c FINANCE_WEEKLY_CAP /etc/<CONFIG_DIR>/life.env` -> `0`.
 
 ### Unblocks
 
@@ -424,7 +504,14 @@ its uploads either fail or become orphaned, so the backup path uses a narrow-sco
    `DRIVE_REFRESH_TOKEN=<DRIVE_REFRESH_TOKEN>`, `chmod 600`, owner `root`.
 4. Record the destination folder reference as `BACKUP_FOLDER_REF=<BACKUP_FOLDER_REF>` in the same file.
    The reference is a deployment particular: it lives in the host environment and nowhere else.
-5. Confirm the grant can write to that folder and read nothing else.
+5. Record the client the grant was issued to, in the same file and nowhere else:
+   `GOOGLE_CLIENT_ID=<GOOGLE_CLIENT_ID>` and `GOOGLE_CLIENT_SECRET=<GOOGLE_CLIENT_SECRET>`. Both are
+   attributed to this gate by the backup template, and the refresh in the verification line below
+   **cannot be performed without them** - a deployment that placed only the refresh token would find
+   that out at the first unattended refresh, which is the worst moment to find it out. The operator
+   also resolves `STORAGE_TOKEN_URL=<STORAGE_TOKEN_URL>` in the same file from the storage provider's
+   published documentation, per the placeholder glossary above.
+6. Confirm the grant can write to that folder and read nothing else.
 
 ### VERIFICATION
 
@@ -437,6 +524,17 @@ curl -sS <STORAGE_TOKEN_URL> \
   -d "grant_type=refresh_token"
 # -> an access token is returned and its scope is the per-file scope ONLY
 ```
+The four entries this gate supplies must each be present in the backup file before that refresh is
+attempted, and the endpoint the operator resolved with them:
+
+```
+grep -c '^DRIVE_REFRESH_TOKEN=' <BACKUP_ENV_PATH>   # -> 1
+grep -c '^BACKUP_FOLDER_REF='   <BACKUP_ENV_PATH>   # -> 1
+grep -c '^GOOGLE_CLIENT_ID='    <BACKUP_ENV_PATH>   # -> 1
+grep -c '^GOOGLE_CLIENT_SECRET=' <BACKUP_ENV_PATH>  # -> 1
+grep -c '^STORAGE_TOKEN_URL='   <BACKUP_ENV_PATH>   # -> 1
+```
+
 Then upload a small synthetic probe file to `<BACKUP_FOLDER_REF>`, confirm it appears, delete it, and
 confirm a listing of any folder the grant did not create is **refused**. Record "per-file scope
 confirmed, out-of-scope listing refused".
@@ -449,7 +547,8 @@ be written and unit-tested against a mock storage port, but never run against re
 ### Already built and waiting
 
 The `DrivePort` interface and its deterministic mock (tasks 2.1-2.2), plus the snapshot-encrypt-shred
-script at the intended path `ops/backup/` (task 7.4). The per-file-scope posture is already asserted by
+script `ops/backup/backup.sh` (task 7.4), whose uploader step resolves this grant from the backup
+environment file and refuses any verdict other than a verified one. The per-file-scope posture is already asserted by
 the existing harness check AC08, so the grant this gate produces is checked against a rule that predates
 it.
 
@@ -468,11 +567,19 @@ through the agent's context.
 
 ### Steps
 
-1. Generate a high-entropy random path segment per bot, on the host, and store each in the host
-   environment as `<LIFE_WEBHOOK_PATH>` / `<MONEY_WEBHOOK_PATH>`. Use a random segment, **not** the bot
-   token, so the token never appears in a proxy log.
-2. Generate a secret token per bot (`<LIFE_WEBHOOK_SECRET>` / `<MONEY_WEBHOOK_SECRET>`) within the
-   provider's documented character set, and store it beside the path.
+1. Generate a high-entropy random path segment per bot, on the host, and store both in the **proxy's**
+   environment file: `LIFE_WEBHOOK_PATH=<LIFE_WEBHOOK_PATH>` and
+   `MONEY_WEBHOOK_PATH=<MONEY_WEBHOOK_PATH>` in `<PROXY_ENV_PATH>`. Use a random segment, **not** the
+   bot token, so the token never appears in a proxy log. Routing by the segment is the proxy's own job
+   (contract 12 §2.2.3) and neither agent ever needs to know its own, so neither agent's file carries
+   one.
+2. Generate a secret token per bot within the provider's documented character set, and store each in
+   **that agent's own** file, not beside the path: `LIFE_WEBHOOK_SECRET=<LIFE_WEBHOOK_SECRET>` in
+   `<LIFE_ENV_PATH>`, `MONEY_WEBHOOK_SECRET=<MONEY_WEBHOOK_SECRET>` in `<FINANCE_ENV_PATH>`. The split
+   is deliberate and is the opposite way round from the paths: the proxy passes the provider's
+   secret-token header through untouched and neither checks nor consumes it, and the constant-time
+   comparison **R11** requires lives in the agent. A proxy that held the value could compare it, and
+   the comparison would then exist somewhere no test covers.
 3. Register each webhook, from the host, with values sourced from the environment:
    ```
    curl -sS "<MSG_API_BASE>/bot${BOT_A_TOKEN}/setWebhook" \
@@ -497,6 +604,17 @@ curl -sS "<MSG_API_BASE>/bot${BOT_A_TOKEN}/getWebhookInfo"
 #    allowed_updates is the narrowed pair, max_connections == <MAX_CONNECTIONS>,
 #    pending_update_count == 0, and NO last_error_date / last_error_message
 ```
+Then the placement, in both directions, because step 1 and step 2 put their values in opposite files:
+
+```
+grep -c '^LIFE_WEBHOOK_PATH='    <PROXY_ENV_PATH>     # -> 1
+grep -c '^MONEY_WEBHOOK_PATH='   <PROXY_ENV_PATH>     # -> 1
+grep -c '^LIFE_WEBHOOK_SECRET='  <LIFE_ENV_PATH>      # -> 1
+grep -c '^MONEY_WEBHOOK_SECRET=' <FINANCE_ENV_PATH>   # -> 1
+grep -c WEBHOOK_PATH             <LIFE_ENV_PATH> <FINANCE_ENV_PATH>   # -> 0 in each
+grep -c WEBHOOK_SECRET           <PROXY_ENV_PATH>                     # -> 0
+```
+
 Then the negative cases, which are the point of the gate:
 - a request to the correct path **without** the secret-token header is refused (**R11**);
 - a request with a wrong secret token is refused, and the response distinguishes nothing about which
@@ -574,9 +692,12 @@ backup script may be written and tested against a mock, and no archive may be tr
 
 ### Already built and waiting
 
-The scripts at the intended paths `ops/backup/` and `ops/restore/` (task 7.4), which take the public
-recipient from the environment and never contain it, and the integrity check that gates trust in a
-restored store (**R21**). Both are text until G1 and G8 clear.
+The two scripts `ops/backup/backup.sh` and the drill under `ops/restore/` (task 7.4). The first takes
+the public recipient from `AGE_PUBLIC_KEY` in the backup environment file and never contains it, reads
+no identity file and no passphrase, and takes **no parameter at all** - so there is no parameter through
+which private key material could be introduced. The second references the off-host identity as a path,
+from `AGE_IDENTITY_FILE`, runs on the operator machine only, and carries the integrity check that gates
+trust in a restored store (**R21**). Both are text until G1 and G8 clear.
 
 ### The write-ahead-log sidecar determination, at the first-backup step
 
