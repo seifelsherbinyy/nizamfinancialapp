@@ -44,6 +44,32 @@ plus the text artifacts and the gate register needed to hand the remainder to a 
   identifiers are per-bot sequences and would otherwise collide.
 - **R15** WHEN an update is accepted, THEN the handler SHALL acknowledge promptly and process asynchronously,
   so a slow downstream call cannot cause a delivery retry.
+- **R25** WHEN the environment loader reads `ALLOWED_USER_IDS`, THEN it SHALL separate elements on any run of
+  commas, semicolons, or whitespace in any combination; SHALL accept an element only if it is a bare run of
+  digits; SHALL yield an empty list when the entry is absent, empty, or whitespace-only; and SHALL refuse a
+  malformed element or an unsubstituted placeholder as a startup failure with a named error code rather than
+  admitting it and refusing the sender at delivery time.
+
+> **Decision note - D-ALLOWLIST (AWAITING OWNER CONFIRMATION).** Raised as F1 in
+> `TELEGRAM_VALUE_LEDGER.md` §5 and as **D-ALLOWLIST** in `OPERATOR_STATE_2026-08-09.md` §3. The operator's
+> interim shape is one identifier, bare digits, no quotes, no brackets, no spaces. R25's delimiter is a strict
+> **superset** of that shape, so a value already written by hand keeps parsing to the same one-element list.
+> Alternatives rejected, and why:
+> - **A JSON array.** The environment template subset refuses a quoted value outright
+>   (`src/server/ops/envTemplates.ts`, `parseEnvTemplate`), so the file this entry lives in cannot hold one.
+> - **Comma only, or whitespace only.** Neither is a superset of the other, and an operator adding a second
+>   identifier will reach for whichever the rule excluded. That element then fails the digit shape and the
+>   boot is refused - safe, but for a reason the operator did not cause.
+> - **Accepting any non-empty element.** `senderIsAllowlisted` resolves membership by exact string identity, so
+>   a stray quote or bracket refuses the only sender on the list with a refusal that §5.2 makes deliberately
+>   indistinguishable from a wrong secret token. Refusing at startup is the only form of that mistake anybody
+>   can diagnose.
+> - **Stripping quotes or brackets leniently.** That silently rewrites an identifier the operator typed, and the
+>   exact-string comparison then cannot tell a rewritten identifier from a correct one.
+>
+> An **absent** entry still yields an empty list rather than a startup failure, because an empty allowlist is a
+> meaningful configuration - it means nobody - and `senderIsAllowlisted` already refuses every sender under it.
+> An **unfilled placeholder** is refused, because that is a mistake rather than a decision.
 
 ### Model routing (Contracts 09/10/11, extended)
 - **R16** WHEN a turn is classified `T0`, THEN no model SHALL be invoked.
