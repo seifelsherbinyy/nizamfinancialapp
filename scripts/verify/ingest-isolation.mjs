@@ -145,6 +145,8 @@ const BUNDLE_PROBES = [
   "MIGRATION_CHECKSUM_MISMATCH", // src/server/db/errors.ts, typed error code
   "TURN_MODEL_GRANT_NOT_MINTED", // src/server/routing/turnDispatch.ts, typed error code
   "ELIGIBILITY_REGISTRY_PROVISIONAL_FLAG_ABSENT", // src/server/routing/eligibilityRegistry.ts, typed error code
+  "queue_worker_not_reporting", // src/server/ops/healthProbe.ts, readiness failure code (task 7.5)
+  "no_field_beyond_the_record_shape", // src/server/ops/redactedLogger.ts, log line claim (task 7.5)
 ];
 
 const SOURCE_EXTS = [".ts", ".tsx"];

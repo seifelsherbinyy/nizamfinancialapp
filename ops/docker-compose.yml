@@ -1,0 +1,367 @@
+# NIZAM - two-agent host topology. TEMPLATE ONLY. NOTHING HERE IS EXECUTED BY AN AGENT.
+#
+# Owning contract: PFOS 12 - Two-Agent VPS Deployment & Operations, §2.1 (shape), §2.2 (invariants
+#   1-9), §3.1/§3.2 (isolation), §4.1 (the bus store), §7.3 (health and restart), §7.6 (this path).
+# Spec: .kiro/specs/06-two-agent-vps/ - task 7.1. Owning requirements R6, R9, R20, R22, R24.
+# Steering: .kiro/steering/two-agent-vps.md §2 (writing this file is permitted, running it is not),
+#   §4.1 (three stores, no process opens another agent's), §4.2 (the bus is the only channel), §7.
+# Binding requirement: ops/BUS_NETWORK_BINDING.md. Its six numbered items are structural in this file
+#   and are asserted by src/server/ops/composeTemplate.ts, which every test run re-checks.
+#
+# EVERY value that could identify or reach a deployment is an <ANGLE_BRACKET> placeholder that resolves
+# only in the operator's own session or in the host secret store (R24, steering §0b). That includes
+# image references, published ports, and configuration paths - not because an upstream image tag is
+# dangerous, but because "which values are harmless" is a judgement call and this invariant admits none
+# (contract 12 §10.1). The operator resolves each one at deploy time; none is ever written back here.
+#
+# Resource figures and log-rotation figures are NOT placeholders. They are capacity decisions already
+# published in docs/NIZAM_TWO_AGENT_VPS_ARCHITECTURE.md §4, they reveal nothing about a deployment, and
+# a template whose limits were placeholders could not be checked for the property §2.2.8 requires.
+#
+# Read the network table before changing anything:
+#
+#   network        internal  members                                    why
+#   -----------------------------------------------------------------------------------------------
+#   edge-life      no        caddy, life-agent                          the life agent's own
+#                                                                       proxy-facing network + egress
+#   edge-money     no        caddy, finance-agent                       the finance agent's own
+#                                                                       proxy-facing network + egress
+#   bus-internal   YES       signalbus, life-agent, finance-agent       the consent channel. The agents
+#                                                                       are the bus's only clients.
+#   ops-internal   YES       scheduler, life-agent, finance-agent       tick delivery, no egress
+#   egress-backup  no        backup                                     outbound to the storage
+#                                                                       provider, shared with nobody
+#
+# No NON-internal network holds both agents. The only network on which both agents sit is the internal
+# bus network, whose only other member is the bus itself. The proxy is on neither internal network, so
+# there is no path from a proxy rule to the bus even if one were written (R9, BUS_NETWORK_BINDING 1-3).
+
+name: "<STACK_NAME>"
+
+networks:
+
+  # The life agent's proxy-facing network. Not internal: the agent needs outbound reach to the
+  # messaging and model providers. The proxy is the only other member.
+  edge-life:
+    driver: bridge
+
+  # The finance agent's proxy-facing network. Separate from edge-life so the two agents share no
+  # non-internal network and cannot address each other over one (steering §4.2).
+  edge-money:
+    driver: bridge
+
+  # BUS_NETWORK_BINDING item 1. `internal: true` is the mechanism, not a label: an internal network
+  # has no gateway, so nothing on it can be reached from the host or from off the host, and nothing on
+  # it can reach out. Removing this flag silently converts refusal-at-the-network-layer into
+  # reachable-but-unauthenticated, which does not satisfy R9 (contract 12 §2.2.6).
+  bus-internal:
+    driver: bridge
+    internal: true
+
+  # Scheduler tick delivery. Also internal: the scheduler has no reason to reach anything outside the
+  # host, and the bus has no reason to see the scheduler (BUS_NETWORK_BINDING item 4 - the agents are
+  # the bus's only legitimate clients, so the scheduler is deliberately NOT on bus-internal).
+  ops-internal:
+    driver: bridge
+    internal: true
+
+  # The backup service's own egress network, with exactly one member. The backup needs outbound reach
+  # to the storage provider; it has no reason to be adjacent to an agent, the proxy, or the bus.
+  egress-backup:
+    driver: bridge
+
+volumes:
+
+  # Local volumes only, every one. A write-ahead-logged store on a network or synchronizing filesystem
+  # can be corrupted - the engine's own documented warning (contract 12 §3.2.5).
+  proxy-state:
+    driver: local
+  proxy-config:
+    driver: local
+  # life.db. Mounted into the life agent, and read-only into the backup. Never into the finance agent.
+  life-data:
+    driver: local
+  # finance.db. Mounted into the finance agent, and read-only into the backup. Never into the life agent.
+  finance-data:
+    driver: local
+  # signals.db, owned by the bus (contract 12 §4.1). BUS_NETWORK_BINDING item 5: no agent mounts this,
+  # read-only or otherwise. The backup holds it read-only, which §3.2.2 and §7.1 require of the backup
+  # for every store; the backup is not an agent and runs no application logic.
+  signal-data:
+    driver: local
+  # Scratch space for the snapshot-encrypt-shred sequence (task 7.4). Never a store.
+  backup-work:
+    driver: local
+  # The kill sentinel (contract 12 §8). Mounted READ-ONLY into every writer, so no service can clear
+  # its own halt: only the operator, on the host, creates or removes the sentinel.
+  kill-switch:
+    driver: local
+
+services:
+
+  # ---------------------------------------------------------------------------------------------
+  # caddy - the single public entry point. Terminates TLS, routes by hostname AND secret path
+  # segment (contract 12 §2.2.1-§2.2.4). The only service with a published port.
+  # It is on neither internal network, so it has no route to the bus (BUS_NETWORK_BINDING item 2).
+  # ---------------------------------------------------------------------------------------------
+  caddy:
+    image: "<PROXY_IMAGE_REF>"
+    restart: unless-stopped
+    env_file:
+      - "<PROXY_ENV_PATH>"
+    ports:
+      - "<TLS_PORT>:<PROXY_TLS_CONTAINER_PORT>"
+    networks:
+      - edge-life
+      - edge-money
+    volumes:
+      - "<PROXY_CONFIG_FILE>:/etc/caddy/Caddyfile:ro"
+      - "proxy-state:/data"
+      - "proxy-config:/config"
+    depends_on:
+      life-agent:
+        condition: service_healthy
+      finance-agent:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - "<PROXY_HEALTH_PROBE>"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+        reservations:
+          cpus: "0.10"
+          memory: 64M
+
+  # ---------------------------------------------------------------------------------------------
+  # life-agent - the other repository (Python + FastAPI), store life.db. Binds no public port; the
+  # proxy reaches it over edge-life. Attached to bus-internal because the agents are the bus's only
+  # legitimate clients (BUS_NETWORK_BINDING item 4).
+  # ---------------------------------------------------------------------------------------------
+  life-agent:
+    image: "<LIFE_IMAGE_REF>"
+    restart: unless-stopped
+    env_file:
+      - "<LIFE_ENV_PATH>"
+    networks:
+      - edge-life
+      - bus-internal
+      - ops-internal
+    volumes:
+      - "life-data:/data"
+      - "kill-switch:/run/nizam-kill:ro"
+    depends_on:
+      signalbus:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - "<LIFE_HEALTH_PROBE>"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.50"
+          memory: 2560M
+        reservations:
+          cpus: "0.25"
+          memory: 512M
+
+  # ---------------------------------------------------------------------------------------------
+  # finance-agent - this repository (Node + TypeScript), store finance.db. Same shape as the life
+  # agent, its own everything: process, store, volume, environment file, network to the proxy.
+  # ---------------------------------------------------------------------------------------------
+  finance-agent:
+    image: "<FINANCE_IMAGE_REF>"
+    restart: unless-stopped
+    env_file:
+      - "<FINANCE_ENV_PATH>"
+    networks:
+      - edge-money
+      - bus-internal
+      - ops-internal
+    volumes:
+      - "finance-data:/data"
+      - "kill-switch:/run/nizam-kill:ro"
+    depends_on:
+      signalbus:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - "<FINANCE_HEALTH_PROBE>"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.50"
+          memory: 2560M
+        reservations:
+          cpus: "0.25"
+          memory: 512M
+
+  # ---------------------------------------------------------------------------------------------
+  # signalbus - the consent channel, append-only, store signals.db.
+  #
+  # BUS_NETWORK_BINDING, all six items, live here:
+  #   1. bus-internal carries `internal: true`.
+  #   2. This service is on bus-internal and NOTHING else. In particular not on either edge network.
+  #   3. There is no `ports:` key. Not one bound to a loopback address either - a published port is
+  #      reachable from the host, and the host is what the proxy runs on.
+  #   4. Both agents are on bus-internal; nothing else is.
+  #   5. signal-data is mounted read-write here and nowhere else. No agent mounts it in any mode.
+  #   6. Its CPU and memory limit AND reservation are declared below, like every other service.
+  # ---------------------------------------------------------------------------------------------
+  signalbus:
+    image: "<BUS_IMAGE_REF>"
+    restart: unless-stopped
+    env_file:
+      - "<BUS_ENV_PATH>"
+    networks:
+      - bus-internal
+    volumes:
+      - "signal-data:/data"
+    healthcheck:
+      test:
+        - CMD
+        - "<BUS_HEALTH_PROBE>"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+        reservations:
+          cpus: "0.10"
+          memory: 64M
+
+  # ---------------------------------------------------------------------------------------------
+  # scheduler - timed work only. It mounts NO store: a cross-store mount would have to be read-only
+  # (contract 12 §3.2.2), and the scheduler has no read-only work to do in a store. It delivers ticks
+  # over ops-internal and is deliberately absent from bus-internal (BUS_NETWORK_BINDING item 4).
+  # ---------------------------------------------------------------------------------------------
+  scheduler:
+    image: "<SCHEDULER_IMAGE_REF>"
+    restart: unless-stopped
+    env_file:
+      - "<SCHEDULER_ENV_PATH>"
+    networks:
+      - ops-internal
+    volumes:
+      - "kill-switch:/run/nizam-kill:ro"
+    depends_on:
+      life-agent:
+        condition: service_healthy
+      finance-agent:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - "<SCHEDULER_HEALTH_PROBE>"
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+        reservations:
+          cpus: "0.05"
+          memory: 64M
+
+  # ---------------------------------------------------------------------------------------------
+  # backup - snapshot, public-key encrypt, shred, verified upload (task 7.4, R20). It is the one
+  # service permitted a cross-store view, and every store mount is READ-ONLY (contract 12 §3.2.2,
+  # §7.1). It runs no application logic and is not an agent. It is on its own egress network only,
+  # so it is adjacent to no agent, no proxy, and not to the bus.
+  # ---------------------------------------------------------------------------------------------
+  backup:
+    image: "<BACKUP_IMAGE_REF>"
+    restart: unless-stopped
+    env_file:
+      - "<BACKUP_ENV_PATH>"
+    networks:
+      - egress-backup
+    volumes:
+      - "life-data:/stores/life:ro"
+      - "finance-data:/stores/finance:ro"
+      - "signal-data:/stores/signal:ro"
+      - "backup-work:/work"
+      - "kill-switch:/run/nizam-kill:ro"
+    healthcheck:
+      test:
+        - CMD
+        - "<BACKUP_HEALTH_PROBE>"
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+        reservations:
+          cpus: "0.05"
+          memory: 64M
+
+# Reservation total, which must fit the host with headroom (contract 12 §2.2.8 - limits may
+# oversubscribe, reservations may not):
+#   cpus    0.10 + 0.25 + 0.25 + 0.10 + 0.05 + 0.05 = 0.80
+#   memory  64M + 512M + 512M + 64M + 64M + 64M     = 1280M
+# Limit total is deliberately higher than the reservation total (cpus 4.75, memory 6656M): the bursts
+# are short and not simultaneous for a single operator, and a ceiling that could not burst would make
+# the reservation pointless. Both totals are asserted against the declared host budget by
+# src/server/ops/composeTemplate.ts, so a later edit cannot quietly oversubscribe the reservations.
+#
+# The optional shared model router (contract 12 §2.2.7) is NOT declared. Adopting it would co-locate
+# both model keys in one process, and §6.2 keeps the library-first shape as the default. If it is ever
+# adopted it is internal-only and gets its own limit and reservation like everything else.

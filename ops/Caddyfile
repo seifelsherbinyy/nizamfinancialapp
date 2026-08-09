@@ -1,0 +1,179 @@
+# NIZAM - the single public entry point. TEMPLATE ONLY. NOTHING HERE IS EXECUTED BY AN AGENT.
+#
+# Owning contract: PFOS 12 - Two-Agent VPS Deployment & Operations.
+#   §2.2.1 one public port, and no agent process binds a public port itself.
+#   §2.2.2 TLS is terminated here and provisioned automatically; no certificate material is
+#          generated, stored, or renewed by application code, and none is ever tracked.
+#   §2.2.3 two hostnames, one per agent, and routing is by hostname AND by a high-entropy secret
+#          path segment - never by hostname alone.
+#   §2.2.4 the secret path segment is not the bot token, because the token would then sit in proxy
+#          access logs.
+#   §2.2.5 / §2.2.6 the consent channel is never published, and reaching it from outside its
+#          internal network is refused at the network layer rather than authenticated and denied.
+#   §7.6   names this path and governs its content.
+# Spec: .kiro/specs/06-two-agent-vps/ - task 7.2. Owning requirements R9, R11, R22, R24.
+# Steering: .kiro/steering/two-agent-vps.md §0b (no deployment particular in a tracked file),
+#   §2 (writing this file is permitted, running it is not), §7 (placeholders only).
+#
+# Binding requirement: ops/BUS_NETWORK_BINDING.md, section "What Phase 7 must NOT do (7.2)". Its
+#   three prohibitions are structural in this file - see "What is deliberately absent" at the end -
+#   and each is asserted by src/server/ops/caddyTemplate.ts, which every test run re-checks.
+#   That file also wires check 5 of the same document, "the proxy configuration names the bus
+#   nowhere at all", as a case-insensitive string match over this text that fails closed.
+#
+# Companion: ops/docker-compose.yml mounts this file at /etc/caddy/Caddyfile read-only, and puts
+#   the proxy on the two agents' proxy-facing networks and on neither internal network. The two
+#   upstream names below are the agent service names that file declares; the checker reads both
+#   files and reports a finding if they disagree, because a route to a service the topology does
+#   not define is a deployment that cannot start.
+#
+# EVERY value that could identify or reach a deployment is an <ANGLE_BRACKET> placeholder that
+# resolves only in the operator's own session or in the host secret store (R24, steering §0b).
+# That includes the hostnames, the upstream container ports, and the certificate-authority contact
+# address - not because a contact address is dangerous, but because "which values are harmless" is
+# a judgement call and this invariant admits none (contract 12 §10.1). The operator resolves each
+# one at deploy time; none is ever written back here.
+#
+# THE TWO SECRET PATH SEGMENTS ARE PLACEHOLDERS AND NOTHING ELSE. <LIFE_WEBHOOK_PATH> and
+# <MONEY_WEBHOOK_PATH> are generated on the host at deploy time under gate G6
+# (ops/GATE_REGISTER.md) and live only in the host environment. There is no example of one here,
+# no redacted stand-in of the right length, and no comment showing its shape or width. Steering
+# §0b is categorical about this, and the practical reason is that a plausible-looking example is
+# precisely the thing that gets copied into a real deployment.
+#
+# The routing table, in full - there is nothing else:
+#
+#   hostname          method + path                     upstream          everything else
+#   -------------------------------------------------------------------------------------------
+#   life.<DOMAIN>     POST /tg/<LIFE_WEBHOOK_PATH>      life-agent        connection closed
+#   money.<DOMAIN>    POST /tg/<MONEY_WEBHOOK_PATH>     finance-agent     connection closed
+#   any other host    -                                 -                 no certificate exists
+
+{
+	# No administration endpoint. Caddy's admin API is a local control plane that can replace this
+	# entire configuration at run time; nothing in this deployment uses it, so it is absent rather
+	# than merely firewalled. Same argument as consent-by-absence in contract 12 §4.3, one layer
+	# down: the safest control plane is the one that does not exist.
+	admin off
+
+	# §2.2.2. The contact address the certificate authority registers is a placeholder like every
+	# other value here (R24). No certificate, key, or account material is tracked.
+	email <ACME_CONTACT>
+
+	# §2.2.1 permits exactly one published port, the standard TLS one, and ops/docker-compose.yml
+	# publishes that one and no other. The cleartext port is therefore unreachable, so the
+	# redirect hosts Caddy would otherwise stand up on it would be dead configuration.
+	auto_https disable_redirects
+}
+
+# ---------------------------------------------------------------------------------------------
+# life.<DOMAIN> - the life agent: the other repository, Python + FastAPI, store life.db,
+# reachable from here over its own proxy-facing network and over no other.
+# ---------------------------------------------------------------------------------------------
+life.<DOMAIN> {
+	tls {
+		issuer acme {
+			# The cleartext port is not published (§2.2.1), so the challenge that needs it can
+			# never complete. Disabling it makes issuance deterministic on the TLS port instead
+			# of leaving it to a failed attempt and a retry.
+			disable_http_challenge
+		}
+	}
+
+	# Hostname AND secret path segment, which is the whole of §2.2.3. The path matcher carries no
+	# trailing wildcard, so it is an exact match: the one address gate G6 registers, and not
+	# everything that merely begins with it. The method is narrowed to the one the provider uses,
+	# so a read of the secret path is answered exactly like an unknown path.
+	@life_webhook {
+		method POST
+		path /tg/<LIFE_WEBHOOK_PATH>
+	}
+
+	handle @life_webhook {
+		# The upstream names the service ops/docker-compose.yml declares, resolved on the agent's
+		# own proxy-facing network. Headers pass through untouched, because the provider's
+		# X-Telegram-Bot-Api-Secret-Token must arrive intact: the proxy neither checks it nor
+		# consumes it. That check is the code half of the same guard and lives in
+		# src/server/telegram/auth.ts (R11, phase 4.1). Two independent layers, and neither
+		# substitutes for the other - the secret path segment stops an unaddressed request from
+		# reaching the handler at all, and the header check stops a guessed path from being
+		# enough on its own.
+		reverse_proxy life-agent:<LIFE_CONTAINER_PORT>
+	}
+
+	# Deny by default. Every other request to this hostname arrives here, including one whose path
+	# differs from the secret segment by a single character, and the connection is closed with no
+	# HTTP response at all.
+	handle {
+		abort
+	}
+}
+
+# ---------------------------------------------------------------------------------------------
+# money.<DOMAIN> - the finance agent: this repository, Node + TypeScript, store finance.db. Same
+# shape as the life agent, its own everything: hostname, secret path segment, upstream, network.
+# ---------------------------------------------------------------------------------------------
+money.<DOMAIN> {
+	tls {
+		issuer acme {
+			disable_http_challenge
+		}
+	}
+
+	@money_webhook {
+		method POST
+		path /tg/<MONEY_WEBHOOK_PATH>
+	}
+
+	handle @money_webhook {
+		reverse_proxy finance-agent:<FINANCE_CONTAINER_PORT>
+	}
+
+	handle {
+		abort
+	}
+}
+
+# ---------------------------------------------------------------------------------------------
+# What is deliberately absent, and why absence is the mechanism rather than a gap
+# ---------------------------------------------------------------------------------------------
+#
+# 1. NO ROUTE TO THE CONSENT CHANNEL - ops/BUS_NETWORK_BINDING.md prohibition 1. There is no site
+#    block, no route, no handle, and no reverse-proxy directive naming it, under any hostname, any
+#    path, any port. Not commented out, and not "for local debugging": a commented-out route is a
+#    route someone uncomments. The topology makes it impossible as well as absent - the proxy sits
+#    on neither internal network (ops/docker-compose.yml), so it has no path to that service even
+#    if a rule were written. Refusal at the network layer, rather than an authentication check on
+#    a reachable port, is what R9 requires (§2.2.6), and an authentication check is code: it can
+#    be misordered, disabled under load, or forgotten on a new route. There is nothing to check
+#    here because there is no connection to check.
+#
+# 2. NO THIRD HOSTNAME - prohibition 2. Exactly the two above, one per agent (§2.2.3).
+#
+# 3. NO WILDCARD OR CATCH-ALL UPSTREAM - prohibition 3. Each hostname carries exactly one
+#    reverse-proxy directive and it names one service explicitly. The two fallback handle blocks
+#    carry no upstream at all; they terminate. A catch-all upstream is how a service name gets
+#    resolved by accident, which is the accident prohibition 3 exists to prevent.
+#
+# 4. NO PUBLIC HEALTH ROUTE. §7.3 requires every long-running service to expose a health endpoint
+#    that reports actual readiness and that the orchestrator restarts on (R22), and the
+#    orchestrator polls it inside the container - ops/docker-compose.yml declares that probe per
+#    service. Publishing it here would route by hostname alone, which §2.2.3 forbids in the same
+#    sentence that requires the path segment.
+#
+# 5. NO ACCESS LOG. The request URI carries the secret path segment, so a per-request access log
+#    would persist on disk exactly the kind of value §2.2.4 keeps out of proxy logs; that clause
+#    forbids using the token as the path for this reason, and the reason applies one layer up to
+#    the segment itself. Caddy writes no access log unless one is declared, so none is declared.
+#    If an operator ever needs one, it must not record the URI.
+#
+# HOW AN UNKNOWN HOST AND AN UNKNOWN PATH ARE ANSWERED, AND WHY THE SAME WAY. A hostname that is
+# not one of the two matches no site block, so no certificate exists for it and the TLS handshake
+# fails: the request never becomes an HTTP request. A known hostname with any other path reaches
+# that hostname's fallback handle, and abort closes the connection with no HTTP response. Both
+# outcomes are a closed connection carrying no status, no body, and no header, so neither says
+# whether the hostname was right, whether the path was close, or whether an agent is behind it.
+# That symmetry is the point: a secret path segment is only worth having while a wrong guess is
+# not an oracle. It is also why there is no catch-all site block for unknown hostnames - one would
+# be a third site block, which prohibition 2 forbids, and it would have to answer something,
+# where absence answers nothing.

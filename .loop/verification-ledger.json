@@ -1,6 +1,6 @@
 {
   "genesisHash": "0000000000000000000000000000000000000000000000000000000000000000",
-  "eventCount": 56,
+  "eventCount": 60,
   "events": [
     {
       "seq": 1,
@@ -729,6 +729,58 @@
       "prevHash": "927bb148f4ae862951e915318ffe12aeb6a98f0ea82dfcb24b8bde51cf0aa7c2",
       "contentHash": "67c83ee12e36eaaa864412c16d6b14fb64a7cf58e908380e7a6ca761dc90573e",
       "recordedAt": "2026-07-29T14:40:43.096Z"
+    },
+    {
+      "seq": 57,
+      "kind": "PRODUCE",
+      "itemId": "7.6",
+      "actor": "builder",
+      "artifactHash": "c2d95c009597dc4039ecd46a12994405a66257651a529e61ae9f3150e5b4278b",
+      "disposition": null,
+      "confidence": null,
+      "note": "rollback + disaster-recovery + rate-limit-posture runbooks; runbookTemplate structural checker cross-reading restore.sh, migrations, topology, gate register and the probe parser",
+      "prevHash": "67c83ee12e36eaaa864412c16d6b14fb64a7cf58e908380e7a6ca761dc90573e",
+      "contentHash": "cfb3d317671688ad7ee15d14a98879fd3131c7e01ea4737dc77097b8db7e45a2",
+      "recordedAt": "2026-08-09T10:00:09.785Z"
+    },
+    {
+      "seq": 58,
+      "kind": "VERIFY",
+      "itemId": "7.6",
+      "actor": "gate-runner",
+      "artifactHash": "c2d95c009597dc4039ecd46a12994405a66257651a529e61ae9f3150e5b4278b",
+      "disposition": null,
+      "confidence": null,
+      "note": "typecheck 0; lint 0; 1606/1606 tests across 98 files (runbookTemplate 67, all 52 finding codes with a named negative case); harness 19 of 19 after commit, 17 of 19 before it with only AC14 and AC15 red",
+      "prevHash": "cfb3d317671688ad7ee15d14a98879fd3131c7e01ea4737dc77097b8db7e45a2",
+      "contentHash": "657998cc0307a000af9370ea5b0c6e87a1033311dc85c4e279dbc35900386cff",
+      "recordedAt": "2026-08-09T10:00:17.277Z"
+    },
+    {
+      "seq": 59,
+      "kind": "APPROVE",
+      "itemId": "7.6",
+      "actor": "reviewer",
+      "artifactHash": "c2d95c009597dc4039ecd46a12994405a66257651a529e61ae9f3150e5b4278b",
+      "disposition": null,
+      "confidence": null,
+      "note": "every finding code fires on a mutated real file and each document reports an empty list as it stands; no assertion loosened, no test skipped, no scanner exempted, AC04 floor left at 331 for task 9.1; nothing executed - the runbooks and restore.sh are read as text",
+      "prevHash": "657998cc0307a000af9370ea5b0c6e87a1033311dc85c4e279dbc35900386cff",
+      "contentHash": "9c32d3ac5149d412433073c73f640904839ed997a3ec58d85007b6955256baf5",
+      "recordedAt": "2026-08-09T10:01:30.637Z"
+    },
+    {
+      "seq": 60,
+      "kind": "CERTIFY",
+      "itemId": "7.6",
+      "actor": "reviewer",
+      "artifactHash": "c2d95c009597dc4039ecd46a12994405a66257651a529e61ae9f3150e5b4278b",
+      "disposition": "RESOLVED",
+      "confidence": "VERIFIED",
+      "note": "covers: 7.6",
+      "prevHash": "9c32d3ac5149d412433073c73f640904839ed997a3ec58d85007b6955256baf5",
+      "contentHash": "27b07136fbdbe35fb6d3264cb38d29cedc2d6e2d3a8718a9f7a26dbde7e0ec6d",
+      "recordedAt": "2026-08-09T10:01:30.757Z"
     }
   ]
 }

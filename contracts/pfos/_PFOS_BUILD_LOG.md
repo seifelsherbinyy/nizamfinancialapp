@@ -2420,3 +2420,108 @@ would have been the easy over-correction.
   the developer environment, and supply the transport function, if and when the owner authorizes the live
   benchmark spend.
 - No outbound call from a server process and no production secret, unchanged.
+
+---
+
+## Task 7.6 - the rollback and disaster-recovery runbooks, and the rate-limit posture, checked by reading them (2026-08-09)
+
+**Why.** Contract 12 §7.4 and §7.5 are procedures, and §5.5/§2.3 is a posture. All three are prose, and
+prose is the one artifact in this repository with no compiler. Steering §2 permits writing an ops
+document and forbids running it, so the only remaining way to know a runbook still describes the system
+it claims to describe is to READ it - mechanically, on every test run, against the artifacts it quotes.
+A runbook does not rot by becoming wrong on its own terms; it rots by staying internally consistent
+about a system that moved underneath it. A migration lands and the recorded schema version goes stale.
+The restore template's step order is revised and the runbook still quotes the old one. A service is
+renamed and the image reference an operator is told to change no longer exists. Each of those is
+silent, and each surfaces at the exact moment nobody has time to notice it.
+
+### Work
+
+- `ops/runbook/ROLLBACK.md` (274 lines) - §7.4. Rollback by image tag, never by rebuild; a rollback
+  **across** a migration refuses to reverse the migration and routes through the restore drill instead;
+  the write-ahead-log sidecar determination with its outcomes enumerated and the copy-only fallback
+  refused; deployment order for a change that carries a migration; promotion kept separate from
+  rollback; and the rollback recorded afterwards. Every `### Step N` block carries a `**VERIFY:**` line,
+  because a step whose result an operator cannot check is a step they will believe they completed.
+- `ops/runbook/DISASTER_RECOVERY.md` (188 lines) - §7.5. Blast radius with its four mitigations named;
+  a recovery objective bound to the backup **cadence** rather than to a wished-for number; the rebuild
+  path in order; coverage of all three stores; secrets stated as **unrecoverable** rather than as
+  restorable; degraded operation while the endpoint is unavailable, with every transport guard still
+  intact; and the drill named as the prerequisite rather than as the recovery.
+- `ops/runbook/RATE_LIMIT_POSTURE.md` (164 lines) - §5.5/§2.3. Each documented provider limit carries a
+  `Documented:` line with its quantity and its provenance, then the posture taken against it. A refusal
+  is handled as a **queue** failure rather than as a lost update; `Retry-After` is honoured rather than
+  guessed at; the connection ceiling is deliberately low; and the long-poll degraded mode is named as
+  the configuration choice §2.3 makes it, not as a code path. **No number here was discovered by
+  exceeding a limit.** A limit is documentation; probing it is a live call, which §2 forbids.
+- `src/server/ops/runbookTemplate.ts` - the structural checker. It parses the three documents into a
+  narrow markdown subset (`## ` sections, `### Step N -` / `### Limit N -` blocks, fenced code) and
+  reports **52 finding codes**. It prefers cross-reading a real artifact over asserting a copy: the
+  drill sequence quoted in ROLLBACK.md is compared against `ops/restore/restore.sh` **through that
+  template's own parser** (`parseShellScript`, `RESTORE_SEQUENCE`); the recorded migration version
+  against the migration series; every image reference against the topology's declarations; every
+  `${ENTRY}` and `<PLACEHOLDER>` against a vocabulary assembled from `ops/env/**`, the topology, the
+  gate register and the two shell templates; every gate named against `ops/GATE_REGISTER.md`; and the
+  health-probe invocation by the probe's **own** parser (`parseProbeInvocation`). R24 is not
+  reimplemented - the one no-deployment-particular scan in `./composeTemplate` is called and its
+  findings re-reported, with a code this checker has no equivalent for becoming
+  `PARTICULAR_SCAN_UNMAPPED` rather than being dropped, because silently discarding a finding from a
+  fail-closed scan turns a widened rule into a narrowed one.
+- **It fails closed.** An unreadable document, an unreadable companion, a document outside the subset,
+  a missing section, a section nobody declared, an out-of-order procedure, and a step with no
+  verification line are all findings rather than skips.
+
+### Verification
+
+- `npm run typecheck` 0 errors; `npm run lint` 0 warnings at `--max-warnings 0`.
+- `src/server/ops/runbookTemplate.test.ts` - **67 tests**. Every one of the **52** finding codes has a
+  negative case: the test mutates the **real** file on disk in memory and asserts the code **by name**,
+  and a closing coverage assertion fails if any code has no case, so the count cannot drift. The
+  mutations are the ones that matter rather than the ones that are easy - the drill pair swapped to
+  `decrypt_artifact -> verify_artifact_integrity` (integrity after trust), a secret entry given a
+  pasted value, a migration reversal permitted, the connection ceiling raised, the transport mode left
+  unnamed. Each of the three documents also asserts an **empty** finding list as it stands, which is
+  the assertion that makes the other 52 mean anything: a checker that reports nothing on a mutated file
+  and nothing on a clean one has proven nothing.
+- Suite **1606 tests across 98 files**, all passing; `src/server/ops/` contributes **344** of them
+  (`composeTemplate` 64, `backupScripts` 58, `caddyTemplate` 50, `envTemplates` 44, `redactedLogger`
+  37, `healthProbe` 24, `runbookTemplate` 67).
+- `npm run verify:all -- --all` - **`HARNESS PASSED`, `19 of 19 executed checks passed`**. Before this
+  increment's commit the harness reported **17 of 19**, the two red checks being **AC14 (working tree
+  clean)** and **AC15 (push ready)**, both reporting the same uncommitted Phase-7 work and nothing else.
+- The AC04 floor stays at **331**. Ratcheting it to 1606 is task **9.1** and it happens there; raising
+  it here would take a close-out decision early.
+- **No check was weakened.** `scripts/verify/all.mjs` was not touched, no assertion was loosened, no
+  test was skipped or deleted, and no scanner was given an exemption. The only harness edit in this
+  increment is task 7.5's, which **adds** two bundle probes to `scripts/verify/ingest-isolation.mjs`
+  (`queue_worker_not_reporting`, `no_field_beyond_the_record_shape`) so AC08's browser-bundle check
+  fails if either 7.5 module reaches the app bundle.
+- Every tracked file in this commit was re-scanned for a deployment particular before staging: no
+  hostname or domain, no address literal, no Drive id, no bot handle or numeric id, no port, no
+  encryption public key, no monetary figure, no secret value. `ops/**` is `<ANGLE_BRACKET>`
+  placeholders throughout - including the two webhook path segments, for which there is deliberately
+  no example, no redacted stand-in of the right length, and no comment showing the shape.
+
+### Honest scope note
+
+**Nothing was executed.** No shell ran, no container was built or started, no store was opened by an
+ops artifact, and no network call was made from any machine in this task. The three runbooks are
+validated **as text, by their own checker**: `runbookTemplate.ts` reads them with `readFileSync` and
+parses strings. `ops/restore/restore.sh` is likewise read as text and never invoked, and the
+health-probe invocation quoted inside ROLLBACK.md is checked by parsing the string - the probe is not
+run. So what is proven here is that the documents say what contract 12 requires and that they still
+agree with the artifacts they quote. What is **not** proven is that any procedure in them works: no
+rollback has been performed, no restore drill has been rehearsed, no degraded long-poll mode has been
+entered, and not one of the documented provider limits has been observed in the wild. Their first real
+execution will be by a human, on a host that does not exist yet, and this task's value is that the
+document they open on that day will not be describing a system from two months earlier.
+
+### Still gated
+
+- **G1-G8 are untouched**, and none was attempted: G1 provision and harden the host; G2 DNS for the two
+  hostnames; G3 create the two bots; G4 mint the two runtime keys with their weekly caps; G5 the
+  storage consent click; G6 register both webhooks; G8 generate the encryption keypair and keep the
+  private half off the box. G7 remains **closed as WONT-DO** per steering §0b.
+- The runbooks name those gates as prerequisites and refuse to stand in for them; every gate reference
+  in the prose is checked against `ops/GATE_REGISTER.md`, so a runbook cannot quietly invent one.
+- No outbound call from a server process and no production secret, unchanged.

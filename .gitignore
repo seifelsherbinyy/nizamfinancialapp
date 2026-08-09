@@ -22,6 +22,16 @@ Thumbs.db
 # awake. It holds no project role, is imported by nothing, and belongs to whoever is sitting at the
 # machine — not to the build. Ignored rather than tracked so it stops failing AC14 (clean tree).
 jiggle.ps1
+# the same script, rewritten. `awake.ps1` supersedes `jiggle.ps1`, `awake.cmd` is the shortcut that
+# launches it, and `_archive/` holds the two earlier drafts (`awake.v1.ps1`, `awake.v2.ps1`) that
+# their author kept rather than discarded. Same reasoning as above and for the same reason: they
+# nudge the pointer on one workstation, nothing in the build imports them, and they carry no
+# deployment particular and no secret. Ignored rather than tracked so they stop failing AC14
+# (clean tree). Deliberately NOT deleted — superseded or not, they belong to whoever is sitting at
+# the machine, and a build gate is not a licence to remove another person's local tooling.
+awake.ps1
+awake.cmd
+_archive/
 # continuation analysis + build session inputs (tooling, not app code)
 outputs/
 Execute and build.md

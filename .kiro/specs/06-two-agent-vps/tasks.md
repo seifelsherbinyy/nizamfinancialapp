@@ -54,12 +54,12 @@
       the registry stays `provisional: true` and the determination is recorded in `ops/GATE_REGISTER.md`.
 
 ## Phase 7 - Ops artifacts (TEXT ONLY, never executed) → R20-R22
-- [ ] 7.1 `ops/docker-compose.yml` with per-service resource limits/reservations + healthchecks + internal network
-- [ ] 7.2 `ops/Caddyfile` with the two hosts and secret webhook paths
-- [ ] 7.3 `ops/env/*.env.example` for life/finance/scheduler/backup - placeholders only
-- [ ] 7.4 `ops/backup/` consistent-snapshot + public-key-encrypt + shred; `ops/restore/` with integrity check
-- [ ] 7.5 Health endpoints + structured redacted logging + log rotation config
-- [ ] 7.6 Rollback and disaster-recovery runbook; rate-limit posture per Telegram's documented limits
+- [x] 7.1 `ops/docker-compose.yml` with per-service resource limits/reservations + healthchecks + internal network
+- [x] 7.2 `ops/Caddyfile` with the two hosts and secret webhook paths
+- [x] 7.3 `ops/env/*.env.example` for life/finance/scheduler/backup - placeholders only
+- [x] 7.4 `ops/backup/` consistent-snapshot + public-key-encrypt + shred; `ops/restore/` with integrity check
+- [x] 7.5 Health endpoints + structured redacted logging + log rotation config
+- [x] 7.6 Rollback and disaster-recovery runbook; rate-limit posture per Telegram's documented limits
 
 ## Phase 8 - Cross-repo handoff (steering §6)
 - [ ] 8.1 `ops/nizamcore-patches/001-fastapi-wrapper.patch` (wrap `handle_update`, add health endpoint)
