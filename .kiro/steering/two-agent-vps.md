@@ -78,10 +78,41 @@ The wall is no longer "do not build the area". It is now a **network + secret bo
   G8 generate the age keypair and move the private key off the box.
   (**G7 repo-privatization is CLOSED as WONT-DO** per §0b - do not re-raise it.)
 - Any outbound network call from a **server** process.
-- Any use of a **production** secret.
+- Any **mutating** use of a **production** secret. (Read-only use is carved out below; that carve-out is
+  the whole of the exception and nothing else in this column moves.)
 
 **Never, under any circumstance:** invent a secret value, commit a real secret, place a key on Drive, weaken
 a gate to make it pass, or claim a gated item is done.
+
+### 2a. The read-only carve-out (owner decision, STANDING as of 2026-08-10) - this resolves F11
+
+**Authority:** `.kiro/specs/06-two-agent-vps/KIRO_SHIP_LIVE.prompt.md` §0 item 3, dated 2026-08-10, which
+carries owner authority and makes standing the waiver already exercised for the two read-only bot probes.
+**Reconciles with:** `.kiro/steering/cloudflare-dns.md` item 5 ("reads are free, writes are gated"), which
+said the same thing for one provider while this file's GATED column said the opposite for all of them.
+`OPERATOR_STATE_2026-08-09.md` §6 records that as **F11** - steering contradicting steering with no
+precedence line to resolve it. This sub-section is the resolution: **one rule, not two.** Do not re-raise it.
+
+**Reads are free.** A **read-only** operation against a live provider, using a credential that **already
+exists**, is permitted at the owner's direction, and that direction is now standing for the Phase 10 task.
+It is a read when it cannot change any state the provider holds. Examples, and the list is illustrative
+rather than exhaustive: a status or health probe, `getMe`, `getWebhookInfo`, a zone or record **listing**, a
+DNS **resolution**, `git clone` or `git fetch` of a repository. Confirm a credential by making a scoped call,
+never by echoing it - the value still never reaches a message, a log, a commit or a report.
+
+**Mutations are owner-in-the-loop.** Any operation that **spends money**, **publishes a public record**, or
+**grants a third party access** comes to the owner first. So does any operation that **creates, rotates or
+destroys a credential**, and any **write to a repository this session does not own**. Concretely and without
+inference: `setWebhook`, creating or editing a DNS record, publishing a host port, minting or revoking a key
+or token (see `cloudflare-dns.md` item 3 for the standing **D-ROTATE** deferral), a model call charged to a
+**production** key, an upload, and a push. Presenting a mutation as a diagnostic does not make it a read.
+
+**What this carve-out does NOT touch.** The fail-closed rules are unchanged and are restated here so no
+reader mistakes a narrower gate for a looser posture: **never invent a secret value** (not even a plausible
+placeholder of the right shape); **never commit a real secret**; **never place a key in the backup storage**;
+**never weaken a gate to make it pass**; **never claim a gated item is done** - a gate is done when observed
+and the observation is recorded. G1-G8 keep their numbers, their steps and their states; **G7 stays CLOSED as
+WONT-DO** per §0b. A read does not advance a gate. It produces evidence about one.
 
 ## 3. Benchmark deadlock: the dev-key carve-out
 
@@ -126,7 +157,7 @@ and the log agree.
 
 ## 6. Cross-repo rule (Kiro edits ONE repo)
 
-Kiro is open on `nizamfinancialapp` and **must not** clone, modify, or push `nizamcore`. Changes needed
+Kiro is open on `nizamfinancialapp` and **must not** modify or push `nizamcore`. Changes needed
 there (the FastAPI wrapper, per-bot dedup namespacing, the signalbus target in `EGRESS_MATRIX`) are emitted
 as a reviewable patch series plus a README under:
 
@@ -135,6 +166,17 @@ ops/nizamcore-patches/NNN-<slug>.patch
 ```
 
 applied later in a separate Kiro session opened on `nizamcore`.
+
+**Where §2a lands on this rule, written down rather than left to be inferred.** A `git clone` or `git fetch`
+of the other repository is a **read**; a modify or a push is a **mutation**. So:
+
+- **Permitted:** a read-only `clone` or `fetch` of `nizamcore`, into a location **outside this repository's
+  tracked tree**, so nothing it brings can be committed here by accident.
+- **Still forbidden without the owner's explicit authorisation:** modifying it, committing in it, or pushing
+  it. The three change specifications in `ops/nizamcore-patches/` stay **emitted and unapplied** until that
+  authorisation exists - it is the §7 blocker of the owner mandate, and the recommended path is that phase 1
+  ships the finance agent on bot B only while the life agent follows.
+- The permission to read is not a licence to exercise it for no reason. Read it when a task needs to see it.
 
 ## 7. Gate discipline
 

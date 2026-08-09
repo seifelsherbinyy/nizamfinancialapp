@@ -115,7 +115,7 @@
 > record, or publish a host port in this phase.
 > Gate after every task: `npm run verify:all -- --all` at 20 of 20. Test floor ratchets up only.
 
-- [-] 10.0 Author the requirements this phase adds - **R26** mode-aware delivery authorization
+- [x] 10.0 Author the requirements this phase adds - **R26** mode-aware delivery authorization
       (`longPoll` has no secret-token header, so the check is not applicable and the allowlist is the
       whole guard; `webhook` keeps refusing an absent/empty/over-length/out-of-charset token
       unchanged); **R27** the environment loader covers all six services and still names every
@@ -124,7 +124,7 @@
       **R29** the finance-agent process refuses to boot on an incomplete environment, honours the
       kill sentinel, and binds no public port in `longPoll`; **R30** the host firewall and the compose
       port bindings must agree (closes **F12**). Record the design delta in `design.md`.
-- [ ] 10.1 Reconcile the two steering files so they stop disagreeing (§8 step 1, §1): add the
+- [-] 10.1 Reconcile the two steering files so they stop disagreeing (§8 step 1, §1): add the
       read-only carve-out to `.kiro/steering/two-agent-vps.md` §2 and cite it as the resolution of
       **F11** (reads free, mutations owner-in-the-loop); edit `.kiro/steering/cloudflare-dns.md`
       item 3 to record the **D-ROTATE** deferral so no later session rotates unilaterally.

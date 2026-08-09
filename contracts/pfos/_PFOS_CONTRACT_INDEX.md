@@ -141,6 +141,16 @@ note, R26-R30 the owner mandate `KIRO_SHIP_LIVE.prompt.md` rev 2 - so nothing wa
 contract would have to govern. The `<..._IMAGE_REF>` placeholders R28 speaks to, and the single published port
 R30 speaks to, are both in `ops/docker-compose.yml` and neither was changed by this increment.
 
+**Steering reconciliation, 2026-08-10 (task 10.1).** The file both contracts are subordinate to gained a
+sub-section: `.kiro/steering/two-agent-vps.md` **§2a** carries the standing read-only carve-out - reads against
+a live provider with an existing credential are free at the owner's direction; mutations that spend money,
+publish a public record, grant a third party access, or create/rotate/destroy a credential remain
+owner-in-the-loop - which resolves finding **F11**, and §6 now splits the cross-repo rule along the same line
+(a `clone` or `fetch` is a read, a modify or push is a mutation). `.kiro/steering/cloudflare-dns.md` item 3
+records the **D-ROTATE** deferral and item 5 cites §2a. **Neither contract file was edited**, and no owning
+requirement range moved: the carve-out narrows *when a human is in the loop*, not *what contract 06 or 12
+governs*, and every fail-closed rule those contracts rely on is restated unchanged inside §2a.
+
 Both are subordinate to `.kiro/steering/two-agent-vps.md`, and to `money-rules.md` and `drive-db.md`
 which nothing overrides. Contract 12 is subordinate to contract 06 wherever it touches the finance
 data tier. Neither invents policy that an upstream contract governs; where either had to choose, the

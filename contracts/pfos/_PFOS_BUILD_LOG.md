@@ -3496,3 +3496,138 @@ no checkbox was ticked here.
   has not happened.
 - The three cross-repo changes are still *emitted, unapplied*. The mandate's §7 blocker stands: option **(b)**
   is recommended, phase 1 ships the finance agent on bot B only.
+
+## Task 10.1 - the two steering files reconciled, so a session reads one rule instead of two (2026-08-10)
+
+**Spec:** `.kiro/specs/06-two-agent-vps`. **Authority:** `KIRO_SHIP_LIVE.prompt.md` rev 2, 2026-08-10 - §0
+item 3 (the standing waiver), §1 (**D-ROTATE** and **F11**), §11 (the prohibitions). **Scope:** steering text
+only. Two files changed, four entries between them. **No code, no test, no `ops/` artifact and no contract file
+was touched**, and nothing was executed - see the scope note below.
+
+### The defect this closes
+
+`OPERATOR_STATE_2026-08-09.md` §6 records it as **F11**: *steering contradicted steering and no precedence
+line resolved it.* `.kiro/steering/two-agent-vps.md` §2 put "any use of a **production** secret" in its
+STOP-and-record column. `.kiro/steering/cloudflare-dns.md` item 5 said "reads are free, writes are gated" and
+declared precedence only against `docs/CLOUDFLARE_DNS_SETUP_G2.md` - **not** against `two-agent-vps.md`. Both
+files are canonical, both load, and they disagreed on whether an agent may authenticate with the owner's token
+in order to **read**. The question had been answered once already by exception - the two read-only bot probes
+were labelled *owner-directed*, which is a waiver rather than a rule - so the next session would have obeyed
+whichever file it happened to read first. A second, separate defect sat in `cloudflare-dns.md` item 3, which
+still read as an instruction to **rotate** after the owner had deferred rotation: a later session could have
+rotated unilaterally, in good faith, and taken the deployment's own credentials out from under it.
+
+### Edit 1 - `.kiro/steering/two-agent-vps.md`, new §2a plus one line of §2 and three bullets of §6
+
+The GATED bullet now reads "any **mutating** use of a production secret", and says in place that the carve-out
+below is the whole of the exception so nothing else in that column moves. **§2a** is the new sub-section, and
+it states the rule with its boundary rather than as a general loosening:
+
+| Half of the rule | What it says |
+|---|---|
+| **Reads are free** | A read-only operation against a live provider using an **existing** credential is permitted at the owner's direction, and that direction is **standing**. The test is stated, not just illustrated: it is a read when it cannot change any state the provider holds. Named examples: a status or health probe, `getMe`, `getWebhookInfo`, a zone or record **listing**, a DNS **resolution**, `git clone`, `git fetch`. A credential is still confirmed by a scoped call, never by echoing it. |
+| **Mutations are owner-in-the-loop** | Anything that **spends money**, **publishes a public record**, or **grants a third party access** goes to the owner first - and so does anything that **creates, rotates or destroys a credential**, and any **write to a repository this session does not own**. Named concretely so nothing has to be inferred: `setWebhook`, a DNS record, publishing a host port, minting or revoking a token, a model call charged to a production key, an upload, a push. Presenting a mutation as a diagnostic does not make it a read. |
+
+It cites **§0 item 3 dated 2026-08-10** as the authority, names `cloudflare-dns.md` item 5 as the file it
+reconciles with, and states that it **resolves F11**. The fail-closed rules are restated inside it as
+explicitly untouched - never invent a secret value, never commit a real secret, never place a key in the backup
+storage, never weaken a gate, never claim a gate is done - with the line that matters for a reader in a hurry:
+**a read does not advance a gate; it produces evidence about one.** G1-G8 keep their numbers, steps and
+states, and **G7 stays CLOSED - WONT-DO**.
+
+**§6 was amended because the carve-out made the cross-repo question live rather than theoretical.** It had
+forbidden "clone, modify, or push" as one undivided prohibition; under §2a a clone or fetch is a **read** and a
+modify or push is a **mutation**, so leaving it undivided would have left the next session to infer the split.
+It now says so: a read-only `clone` or `fetch` is permitted **into a location outside this repository's tracked
+tree**, so nothing it brings can be committed here by accident; modifying, committing in, or pushing it stays
+forbidden without the owner's explicit authorisation; and the three change specifications in
+`ops/nizamcore-patches/` stay **emitted and unapplied** until that authorisation exists. A closing line notes
+that a permission to read is not a reason to exercise it.
+
+### Edit 2 - `.kiro/steering/cloudflare-dns.md`, item 3 rewritten and item 5 extended
+
+Item 3 keeps its force as a **prohibition on disclosure** and resequences only the remedy. Its first sentence
+is unchanged - the token is never read into a message, a log, a commit or a report, confirmed by a scoped call,
+and `docs/CLOUDFLARE_DNS_SETUP_G2.md` step 7 states this as a rule that was **violated on 2026-08-09**. The
+one word that changed there is the tail: the token is now described as **disclosed** rather than "compromised
+until rotated", because "until rotated" was the clause that read as an instruction. Then four things are added:
+
+- **Rotation is deferred by owner decision dated 2026-08-10 (D-ROTATE)**, until the deployment has been tested
+  in practical use and the owner reports it working; rotation then becomes the **final acceptance test** rather
+  than a step that was skipped. The disclosed tokens are the tokens this deployment uses.
+- **No session may rotate unilaterally** - not the zone token, not either bot token - citing
+  `KIRO_SHIP_LIVE.prompt.md` §1 **D-ROTATE** and §11 ("do not rotate anything").
+- **The compensating control**, stated as not optional: while the disclosed tokens are live, `getWebhookInfo`
+  is checked **on every run** as the detection control. A deferral without its compensating control is just an
+  unrotated credential.
+- **The cross-reference**: creating, rotating or destroying a credential is a **mutation**, so the boundary
+  lives in `two-agent-vps.md` §2a.
+
+Item 5 now says that "reads are free, writes are gated" is the **general rule** rather than one provider's
+local habit, cites §2a for the boundary, and records that it resolves **F11** - the citation the requirements
+table names as this task's obligation.
+
+### Verification against the ruling table, done before the harness
+
+`requirements.md`'s decision note names the two obligations this task carries, and both were checked against
+the edits rather than assumed:
+
+- **D-ROTATE row** - "Task 10.1 edits `.kiro/steering/cloudflare-dns.md` item 3 to record the deferral."
+  Recorded, with all three components the row states: deferred until practical-use testing; rotation becomes
+  the final acceptance test; `getWebhookInfo` checked on every run while the disclosed tokens are live.
+- **F11 row** - "Task 10.1 adds the read-only carve-out to `.kiro/steering/two-agent-vps.md` §2 and cites it
+  from `.kiro/steering/cloudflare-dns.md` item 5." Both done, and the mutation clause is worded to the row's
+  own three triggers: spends money, publishes a public record, grants a third party access.
+
+**Nothing in the ruling table had to be reconciled**, and no requirement, design line or gate register entry
+was edited by this task.
+
+### The third file that did NOT have to change, checked rather than assumed
+
+`.kiro/steering/cloudflare-dns.md` declares its own precedence: `docs/CLOUDFLARE_DNS_SETUP_G2.md` wins on gate
+G2 and on the token. That document was **read** for the disagreement the mandate anticipated, and there is
+none: its step 7 states the non-disclosure rule ("do not paste the token into a chat, including to an
+assistant... it never needs the value") and states **no rotation instruction anywhere in the file** - a search
+for `rotat` matches once, in section 6's argument about a log the deployment "cannot rotate", which is about
+the intermediary's logs and not about this credential. So the deferral has nothing there to disagree with, and
+**`docs/CLOUDFLARE_DNS_SETUP_G2.md` was not modified.** Item 3 now says this in place, so the next reader does
+not have to repeat the check.
+
+### Gate result
+
+- `npm run verify:all -- --all` - **20 of 20 executed checks passed**, run after the commit because **AC14**
+  and **AC15** require a clean tree. The pre-commit run was 18 of 20 with exactly those two failing on the
+  three uncommitted entries, which is the expected shape and not a regression.
+- `npm run test` - **1792 passing**, unchanged: this increment adds no behaviour and therefore no test. The
+  AC04 `--min` floor stays at **1790**, was not ratcheted because nothing grew, and was **not lowered**.
+- **AC09**, **AC11** and **AC18** pass over the changed files, which were written to that standard rather than
+  checked into it: no domain, no host address, no port number, no storage identifier, no bot name, no numeric
+  identifier, no token, no monetary figure other than the owner's own published cap figures, and no deployment
+  particular of any kind (**R24**). Every value is named by entry name or by `<ANGLE_BRACKET>` placeholder.
+- **No check was weakened.** `scripts/verify/all.mjs` was not touched; no assertion loosened, no test skipped
+  or deleted, no floor lowered, no scanner allowlisted.
+
+### Honest scope note
+
+**Nothing was executed and nothing was attempted.** No credential was created, rotated or destroyed. No
+credential value was read. `setWebhook` was not run; no DNS record was created; no host port was published; no
+outbound network call was made at all. **No clone or fetch of the other repository was performed** - this task
+wrote the rule permitting one, and deliberately did not exercise it. `ops/GATE_REGISTER.md` was not opened for
+edit: nothing was softened, renumbered, removed or reopened, no checkbox was ticked, and **G7 stays
+CLOSED - WONT-DO**.
+
+Four tracked files are in this increment: the two steering files, this log, and the PFOS contract index. The
+spec's `tasks.md` also carries the orchestrator's own in-progress marker for this row, uncommitted on disk when
+this task began; it rides along so the tree is clean for **AC14**. **Task status transitions belong to the
+orchestrator and no checkbox was ticked here.**
+
+### Still gated, unchanged by this task
+
+- **G1-G8 untouched and unattempted.** Every open one stays `BLOCKED - awaiting human`. **G2 and G6 remain
+  deferred** by the phase-1 `longPoll` decision - deferred, not cancelled.
+- **O1 and F12 are untouched.** They close at tasks 10.7, 10.8 and 10.2, not here.
+- **The rotation itself is now a scheduled acceptance test, not a closed item.** D-ROTATE defers it; it is not
+  done, and the compensating `getWebhookInfo` check is a control rather than a substitute.
+- The three cross-repo changes stay **emitted and unapplied**. §2a now permits reading that repository; the
+  mandate's §7 authorisation is still what is needed to write to it, and option **(b)** remains the
+  recommendation.
