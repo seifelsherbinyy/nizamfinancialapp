@@ -184,3 +184,16 @@ contracts — and **not** this PFOS index. It asserts exactly five contract rows
 are deliberately **not** added to that file: doing so would break the check. This index and
 `_PFOS_BUILD_LOG.md` are the PFOS-track ledger and are kept mutually consistent by hand; the Phase 0
 section of that log records the same two contracts and this reconciliation.
+
+**The owner's fill-in sheet, 2026-08-10 (task 10.3).** Contract 12 §3.2.7's one-file-per-service placement
+rule and R23's "every value traces to a human gate" now have a single operator-facing companion:
+`.kiro/specs/06-two-agent-vps/OWNER_FILL_IN_SHEET.md` lists all **62** entry-to-file assignments across the
+six `ops/env/` files with each entry's gate, its `secret` flag, where the value comes from, one `grep -c`
+proof that reports a count rather than a value, and **when** it is needed - `phase 1`, `phase 1 - fill,
+unused`, or `phase 2` - so the `longPoll` phasing recorded above is visible per entry instead of as a
+footnote. **No contract file was edited and no owning requirement range moved:** the sheet restates nothing
+either contract governs, it reads `ENTRY_SPECS`, `SERVICE_ENTRY_NAMES` and the six templates and defers to
+`ops/GATE_REGISTER.md` on gate verification in its own header. Three source disagreements it turned up
+(**F13** one cap entry over two units, **F14** `restore.sh` requiring five entries no template declares,
+**F15** `backup.sh` asserting six of `backup.env`'s twelve) are recorded in the task 10.4 ledger with the
+tasks that own their resolution, not reconciled where they were found.

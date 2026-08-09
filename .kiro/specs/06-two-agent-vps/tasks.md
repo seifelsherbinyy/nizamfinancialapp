@@ -128,13 +128,25 @@
       read-only carve-out to `.kiro/steering/two-agent-vps.md` §2 and cite it as the resolution of
       **F11** (reads free, mutations owner-in-the-loop); edit `.kiro/steering/cloudflare-dns.md`
       item 3 to record the **D-ROTATE** deferral so no later session rotates unilaterally.
-- [-] 10.2 Extend `src/server/config/environment.ts` from the two agents to all six services
+- [x] 10.2 Extend `src/server/config/environment.ts` from the two agents to all six services
       (life, finance, proxy, bus, scheduler, backup), keeping both proven properties: one
       `process.env` bridge in the whole of `src/`, and every missing entry named in one message.
       Tests included. (§6.1, R27)
-- [ ] 10.3 Emit **one** fill-in sheet: every entry the owner must supply, grouped by env file, each
+- [x] 10.3 Emit **one** fill-in sheet: every entry the owner must supply, grouped by env file, each
       with its gate, its `secret` flag, and its proof command. One pass, not six round trips.
       (§8 step 3)
+      `.kiro/specs/06-two-agent-vps/OWNER_FILL_IN_SHEET.md`. All **62** entry-to-file assignments
+      across the six files, in the order the owner works them (finance, bus, scheduler, backup,
+      life, proxy) rather than in template order - which is gate order and phase order at once.
+      Every row carries its gate, its `secret` flag, where the value comes from, and one `grep -c`
+      -> 1 proof that reports a **count and never a value**. Each row also carries **when**: `phase
+      1`, `phase 1 - fill, unused` (the loader requires it or the boot refuses, but nothing in
+      `longPoll` reads it), or `phase 2` - so the owner is never asked for a value he cannot obtain.
+      All six `proxy.env` entries and both webhook secrets are marked accordingly. **D-CAP** is
+      carried with the unit stated (the entry is a bare micro-USD integer, so a literal `2.50` is a
+      startup refusal - see finding **F13**), **D-G5** with `BACKUP_FOLDER_REF` recorded as a folder
+      the uploader creates on first run rather than a value the owner picks, and **D-ROTATE** as
+      nothing rotated. No value, no secret and no deployment particular anywhere in it (R24).
 - [ ] 10.4 Write `.kiro/specs/06-two-agent-vps/DEPLOYMENT_VALUE_LEDGER.md` extending
       `TELEGRAM_VALUE_LEDGER.md`'s 14 transport entries to all six services (§4): no entry has a
       default; negative rows asserted with `grep -c` -> 0 (no finance secret in the life file, no
@@ -179,6 +191,43 @@
       `BLOCKED - awaiting human`, `BLOCKED - awaiting build`, `NOT STARTED`; `Evidence` mandatory for
       `OBSERVED` (a row with no evidence is `NOT STARTED`). Close with three lines: what is live, the
       single next blocking action and whose it is, and the count of §5's seven conditions observed.
+- [ ] 10.16 **The cross-repo interop contract** (owner clarification 2026-08-10, and **R31**). The owner
+      defines "clone and migrate both repositories" as *making the two understand each other* - feeding
+      information and communicating - **not** a code migration and not a repository move. So the
+      deliverable is a contract, not a git operation: author `ops/INTEROP_CONTRACT.md` naming every
+      thing the two agents exchange and every thing they must never exchange. It is the ONE document
+      both repositories read, and it must be applicable from the other side without this repository
+      being present. Content: the signal envelope schema as the sole channel (steering §4.2); the
+      band-not-figure rule (§4.3 - a payload may carry `green|amber|red` or `downshift`, never a
+      balance, a due date, an account identifier, or free text over 120 characters, and the field does
+      not exist rather than being filtered); `BUS_INTERNAL_ENDPOINT` as the only address either side
+      dials; the `producer_only` refusal; `strict_local_maximum` never crossing; per-agent store and
+      key isolation; and the three `ops/nizamcore-patches/` change specifications as the mechanism by
+      which the other side acquires its half. Record that a read-only clone or fetch of the other
+      repository is permitted at an **ignored** path (steering §6, as amended by task 10.1) and that
+      modify/push stays owner-gated. **Option (b) is authorised**: phase 1 ships the finance agent on
+      bot B only; bot A stays created, hardened and idle.
+- [ ] 10.17 **Full-scope split, recorded for the life side** (owner clarification, and **R32**). The
+      owner states the same treatment is owed to the life/therapy agent ("myNIZAM") so the full NIZAM
+      scope exists with features split across the two bots **by functionality**. Author
+      `ops/AGENT_CAPABILITY_SPLIT.md`: one table, every capability, which bot owns it, and which
+      contract governs it - finance (budgeting, transactions, obligations, safe-to-spend, forecast,
+      net worth, decisions) against life (journaling, recovery, WHOOP context, therapy). For each
+      capability record whether it needs a cross-agent signal and, if so, which band. Any capability
+      that would need a figure to cross is recorded as **refused by construction** with the reason,
+      not deferred. This task authors the split; it does **not** implement the life side, which is
+      option (a) work in the other repository.
+- [ ] 10.18 **Owner-only web access to the app on the host** (owner request, and **R33**). The static
+      SPA already builds (AC05/AC05b/AC06). Serve it on the host reachable by the owner and **nobody
+      else**, and record the access-control decision with its threat model. Phase 1 has no domain, no
+      certificate and no proxy, so the recommended resolution is **bind to loopback only and reach it
+      over the operator's existing administrative tunnel** - it publishes no host port, needs no
+      domain, and is owner-only by construction rather than by a password that can leak. Evaluate and
+      record why the alternatives were not taken for phase 1 (a public port plus basic auth; an
+      identity-aware proxy; a private overlay network), and state what phase 2 changes. **Never** make
+      the app publicly reachable without an explicit owner decision, and never add a default that
+      opens it. The app is local-first over the owner's own storage, so this task adds a static file
+      server, not an API.
 - [ ] 10.15 Cross-repo (**§7, owner blocker**): the life agent is Python and lives in the other
       repository, which `.kiro/steering/two-agent-vps.md` §6 forbids this session from modifying. The
       three change specifications in `ops/nizamcore-patches/` are written and unapplied. Recommended
@@ -196,10 +245,10 @@
     { "wave": 5, "tasks": ["10.6"] },
     { "wave": 6, "tasks": ["10.7"] },
     { "wave": 7, "tasks": ["10.8"] },
-    { "wave": 8, "tasks": ["10.9", "10.11"] },
+    { "wave": 8, "tasks": ["10.9", "10.11", "10.18"] },
     { "wave": 9, "tasks": ["10.12"] },
     { "wave": 10, "tasks": ["10.13"] },
-    { "wave": 11, "tasks": ["10.14", "10.15"] }
+    { "wave": 11, "tasks": ["10.14", "10.15", "10.16", "10.17"] }
   ]
 }
 ```

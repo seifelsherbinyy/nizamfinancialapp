@@ -3739,3 +3739,80 @@ object. That is deliberate: three of those four services are not this repository
 object holding their values would put `DRIVE_REFRESH_TOKEN` and `GOOGLE_CLIENT_SECRET` into a shape something
 could log. **R29's boot refusal is task 10.7**, which is where `requireServiceEnvironment` gets called by a
 process. **Ladder rung L0 is now passable** and task 10.12 is where it is recorded as observed.
+
+---
+
+## Task 10.3 - one fill-in sheet, so the owner is asked once and never for a value he cannot get (2026-08-10)
+
+**Authority:** `KIRO_SHIP_LIVE.prompt.md` rev 2 §8 step 3 - "every entry the owner must supply, grouped by
+file, with its gate, its `secret` flag, and the proof command. One pass, not six round trips."
+**Artifact:** `.kiro/specs/06-two-agent-vps/OWNER_FILL_IN_SHEET.md`. **Task:** 10.3, ticked.
+
+### What it is, and what it deliberately is not
+
+It is an **action sheet for the owner**: sixty-two entry-to-file assignments across the six environment
+files, ordered by the sequence he should work them rather than by template order. It is **not** the wire-up
+matrix - that is task 10.4's `DEPLOYMENT_VALUE_LEDGER.md`, written in the next increment as a separate
+commit, because the two documents answer different questions for different readers. This one is worked top
+to bottom once and then thrown away; that one is a reference the build is held against.
+
+### The three things it does that a list of entry names would not
+
+1. **It says when.** Every row carries `phase 1`, `phase 1 - fill, unused`, or `phase 2`. The middle
+   marker is the one that mattered to get right: `FINANCE_CONTAINER_PORT` and `MONEY_WEBHOOK_SECRET` are
+   **required by the loader or the boot refuses**, and are read by **nothing** in `longPoll`. A sheet that
+   only marked them "phase 2" would produce a deployment that will not start; a sheet that marked them
+   "phase 1" without qualification would imply they do something. Both webhook secrets are additionally
+   recorded as **host-generated rather than provider-issued**, which is why the owner can supply them now
+   with no domain even though their *use* is deferred with G6.
+2. **It states the unit where the unit is the trap.** See F13 below. `2.50` typed literally into
+   `FINANCE_WEEKLY_CAP` is a startup refusal, and the sheet says so in place rather than in a footnote.
+3. **Its proof commands report counts.** Every one is `grep -c` -> `1`, with a negative block per file
+   returning `0`. That is the only form R24 permits: it answers "did the value land" without the value
+   reaching a terminal, a log, or a report. Where a proof line could disagree with `ops/GATE_REGISTER.md`,
+   the sheet states in its own header that **the register wins and the sheet is the bug**.
+
+### The order, which is not the template order
+
+`finance` -> `bus` -> `scheduler` -> `backup` -> `life` -> `proxy`. Under mandate §7 option **(b)** the
+finance agent is the only process phase 1 runs, the bus and scheduler are what it talks to, backup is
+durability (ladder L5), and the last two files belong to work that has not started - all nineteen `life`
+entries and all six `proxy` entries. Listing them in full anyway is deliberate: the owner should never work
+a file twice.
+
+### Sources, in precedence order, all re-read rather than trusted
+
+`src/server/ops/envTemplates.ts` (`ENTRY_SPECS` - gate and secrecy), `src/server/config/environment.ts`
+(`SERVICE_ENTRY_NAMES` - entry names and the cross-file rules), the six `ops/env/*.env.example` templates
+(the authoritative `what:` / `gate:` / `secret:` annotations), `ops/docker-compose.yml`,
+`ops/GATE_REGISTER.md`, and `ops/backup/backup.sh` plus `ops/restore/restore.sh`. The three disagreements
+that re-reading turned up are recorded as **F13**, **F14** and **F15** in task 10.4's ledger rather than
+reconciled silently here, because two of the three need a decision this task does not own.
+
+**F13, in short, because it changes what the owner types.** `LIFE_WEEKLY_CAP` and `FINANCE_WEEKLY_CAP`
+carry one entry name over **two units**: `loadAgentModelBinding` reads a bare integer of the spend ledger's
+micro-USD and **refuses a decimal rather than rounding it**, while `ops/GATE_REGISTER.md` G4 step 3
+interpolates the same placeholder into the provider's key-creation body, where the field is a decimal. Both
+are individually correct and together they cannot both take D-CAP's `2.50`. The register was **not edited**
+(this task must not), so the sheet carries the conversion and the finding carries the decision to 10.10.
+
+### Gate result
+
+- `npm run verify:all -- --all` - **20 of 20 executed checks passed**, run after the commit because AC14
+  and AC15 require a clean tree.
+- **No code changed**, so the test count is unmoved at **1829** and the AC04 `--min` floor stays **1829**.
+  Nothing was lowered, allowlisted, skipped or exempted.
+- **R24 holds.** No token, domain, host address, numeric identifier, bot name, storage reference or real
+  monetary figure. Every value is an `<ANGLE_BRACKET>` placeholder; the D-CAP figure appears only as the
+  policy ruling already tracked in `requirements.md`, and the micro-USD conversion is expressed by pointing
+  at `MICRO_USD_PER_USD` in `src/features/routing/spendLedger.ts` rather than by writing an integer out.
+- **No gate was attempted, no checkbox ticked, and `ops/GATE_REGISTER.md` was not edited.** G7 stays
+  CLOSED - WONT-DO. No outbound call was made: nothing was registered, resolved, published or uploaded.
+- The orchestrator's uncommitted rows **10.16**, **10.17** and **10.18** plus the wave-graph update were
+  carried into this commit rather than dropped or rewritten.
+
+### What it did not do
+
+No value was obtained, read, generated or placed; no environment file exists on any host. No template under
+`ops/env/` was edited - the sheet is a reading of them, and if it ever disagrees with one, the template is
+authoritative and the sheet is wrong.
