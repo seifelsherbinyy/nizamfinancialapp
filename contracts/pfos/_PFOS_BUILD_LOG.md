@@ -3368,3 +3368,131 @@ report's honest limits and in the gate register, and both stay open.
 - The three cross-repo changes are still *emitted, unapplied*, and applying them is a human step in
   another repository, in a session opened on that repository.
 - No outbound call from a server process and no production secret, unchanged.
+
+---
+
+## Task 10.0 - the five requirements Phase 10 adds, and the one place the mandate disagreed with the disk (2026-08-10)
+
+**Spec:** `.kiro/specs/06-two-agent-vps`. **Authority:** `KIRO_SHIP_LIVE.prompt.md` rev 2, 2026-08-10, which
+carries owner authority and rules on seven decisions. **Scope:** documentation only - requirements and design
+text. **No implementation code was written**, no Dockerfile was created, and neither the environment loader
+nor the transport was touched; those are tasks 10.2, 10.5, 10.7 and 10.8.
+
+### What was authored
+
+Six criteria in `.kiro/specs/06-two-agent-vps/requirements.md`, in the existing EARS
+`WHEN/WHERE ... THEN ... SHALL ...` form and inside the existing section grouping:
+
+| Id | Section it joined | What it requires |
+|---|---|---|
+| **R26** | Transport (Contract 12) | Delivery authorization is **mode-aware in both directions**. In `longPoll` the secret-token check is **not applicable** and the allowlist is the whole guard, so an unlisted sender is still refused and an empty allowlist still refuses everyone. In `webhook` an absent, empty, over-length or out-of-charset token still refuses everything, and no clause may be read as relaxing R11. The refusal stays indistinguishable as to stage in both modes. |
+| **R26.1** | Transport (Contract 12) | Dedup on the `(bot, update)` pair applies in **both** modes, and in `longPoll` the read offset advances **only after the update is durably enqueued**. |
+| **R27** | Configuration, process and images (new) | The loader covers all six services; preserves exactly **one** `process.env` bridge in the whole of `src/`; names **every** missing entry in **one** message; supplies no default; and treats an unsubstituted `<ANGLE_BRACKET>` value as a failure rather than a value. |
+| **R28** | Configuration, process and images (new) | Every image this repository owns has a Dockerfile and a build path producing the tag `ops/docker-compose.yml` references. Closes **O1**'s image half. |
+| **R29** | Configuration, process and images (new) | The finance-agent process refuses to boot on an incomplete environment, honours the kill sentinel in both forms, binds **no** public port in `longPoll`, and listens on `FINANCE_CONTAINER_PORT` in `webhook`. Closes **O1**'s process half. |
+| **R30** | Configuration, process and images (new) | The host firewall posture and the compose port bindings must **agree**, and the certificate-challenge resolution must be **recorded** in `ops/GATE_REGISTER.md`. Closes **F12**. |
+
+Three prose blocks carry the reasoning that does not belong inside a criterion, in R25's established style:
+a **trap note** under R26 explaining why the requirement is mode-aware rather than shared; a **finding note**
+under R28 citing O1; and a **finding note** under R30 setting out the F12 gap and both admissible
+resolutions.
+
+**A decision note recording the seven owner rulings as settled**, each with the artifact that must change for
+it to be carried out: **D-ROTATE** deferred, rotation becoming the final acceptance test; **F11** reads free
+and mutations owner-in-the-loop; **D-CAP** a hard USD 5.00 per week **in total**, two keys at 2.50 each;
+**D-WAL** outcome B, widening no mount; **D-BENCH** authorized, one Phase-1 pass on the dev key;
+**D-ALLOWLIST** comma-separated with surrounding whitespace trimmed and a single bare identifier parsing;
+**D-G5** the consent screen published to production and `BACKUP_FOLDER_REF` a folder the uploader creates on
+first run.
+
+**And the phasing, recorded so a deferral is not later read as a cancellation.** Phase 1 is `longPoll`, so
+**G2, G6 and the entire proxy path are deferred, not cancelled**; in phase 1 the `caddy` service stays down
+and `<TLS_PORT>` is not bound. F12 must be closed **before** phase 2 begins, because it is the phase-2
+prerequisite that currently looks satisfied and is not.
+
+### The design delta
+
+Appended to `.kiro/specs/06-two-agent-vps/design.md` as a new section; **nothing above it was revised**,
+because nothing above it turned out to be wrong - what Phase 10 changes is the order of delivery, not the
+shape. Six parts: **D1** the transport mode as a first-class axis, with the three shapes considered and why
+two were rejected (synthesising a header makes the guard lie; making the expected token optional is the door
+R11 exists to close); **D2** offset advance as the durability boundary, and why the dedup key does not change;
+**D3** the loader's growth to six services plus the aggregate refusal, with two constraints on how the
+aggregate is built (a code per finding, and entry names only); **D4** the process entrypoint and what
+`longPoll` removes from it; **D5** images and the port posture, holding the `signalbus` no-published-port
+comment as correct and unchanged; **D6** four added test cases, the webhook ones named as the regression fence.
+
+### The one thing the mandate got wrong, reported rather than smoothed
+
+Mandate §6.1 states that the environment loader "names **every** missing entry at once" and marks it
+**Confirmed**. **It does not, and the disk says so.** `readRaw` in `src/server/config/environment.ts` throws
+`EnvConfigError` on the **first** absent entry, and that error carries a single `entry` field. The module's own
+note describes the situation accurately - it calls `describeConfiguredPresence` the answer to "which entry am
+I missing", "which is exactly the question a loader that refuses on the FIRST missing entry answers one item
+at a time". So the all-entries facility exists, returns a boolean per entry, and is **not on the refusal
+path**.
+
+Two consequences, both recorded rather than worked around. R27 is authored as the **target** behaviour, since
+it is what ladder rung **L0** observes and what the mandate intends; and task 10.2 therefore has real work in
+it - collect across all required entries, refuse once naming every finding - rather than a re-confirmation of
+a property that was reported as already holding. The other property §6.1 asserts **is** true as stated:
+`process.env` appears in exactly one non-test expression under `src/`, `processEnvSource()`, isolated so the
+tree scan has exactly one permitted hit.
+
+### Reconciliations made, and the one deliberately not made
+
+- **`_PFOS_CONTRACT_INDEX.md`** - contract 12's owning-requirement range read `R6-R24` while the spec already
+  carried **R25**, so it had drifted by one before this increment. Now `R6-R30`, covering both the drift and
+  the six new criteria, with the reconciliation recorded in place. **The contract file itself was not edited.**
+- **R25's decision note** was labelled `AWAITING OWNER CONFIRMATION`. D-ALLOWLIST is now settled, so the label
+  was corrected to `SETTLED 2026-08-10` with a pointer to the ruling. **R25's criterion text is unchanged**:
+  its delimiter is a strict **superset** of the ruling, so every value the ruling admits already parses to the
+  same list, and the ruling forbids nothing R25 accepts. Leaving the stale label would have left two blocks in
+  one file disagreeing, which is the exact failure mode this spec keeps flagging elsewhere.
+- **Not made:** `ops/GATE_REGISTER.md` was **not touched**. No gate was renumbered, softened, reordered,
+  reopened or ticked; G7 stays **CLOSED - WONT-DO**. R30 obliges a line there, and that line belongs to task
+  10.8 which makes the choice - writing it now would record a resolution nobody has chosen.
+
+### Verification
+
+- `npm run verify:all -- --all` - **`HARNESS PASSED`, `20 of 20 executed checks passed`**.
+- `npm run test` - **1792 passing**, unchanged by this increment, which adds no test because it adds no
+  behaviour. The AC04 `--min` floor stays at **1790** and needed no ratchet; it was not lowered.
+- **AC09**, **AC11** and **AC18** pass over the four changed files, and they were written to that standard
+  rather than checked into it: no domain, no host address, no port number, no storage identifier, no bot name
+  or numeric identifier, no token, no monetary figure other than the owner's own published cap figures, and no
+  deployment particular of any kind (**R24**). Every value referenced is named by entry name or by
+  `<ANGLE_BRACKET>` placeholder.
+- `node scripts/loop/verify-ledger.mjs` - exit **0**: 80 events, chain **intact**, 20 certificates,
+  `uncovered: none`. The ledger required **no append** for this increment and was **not hand-edited**; AC13
+  passes as "intact and covering" over the tree as changed.
+- **No check was weakened.** `scripts/verify/all.mjs` was not touched. No assertion was loosened, no test
+  skipped or deleted, no floor lowered, no scanner allowlisted or exempted.
+
+### Honest scope note
+
+**Nothing was executed and nothing was attempted.** No gate was performed, simulated or claimed; no container
+was built; no provider was called; no network request was made; no secret was read; `setWebhook` was not run;
+no DNS record was created; no port was published. The other repository was not cloned, read, modified or
+pushed. Four tracked files changed - the spec's `requirements.md`, `design.md` and `tasks.md`, plus this log
+and the PFOS contract index - and **no file under `src/`, `tests/` or `ops/` was touched**, so **AC10** had no
+new file to declare a contract and phase for.
+
+**The `tasks.md` change in this increment is not this task's own edit.** The Phase 10 task rows and the task
+dependency graph were authored by the orchestrator before this task ran and were uncommitted on disk; they are
+included in this increment's commit so the tree is clean for **AC14** and so the rows that define R26-R30 are
+committed alongside the requirements that answer them. Task status transitions belong to the orchestrator, and
+no checkbox was ticked here.
+
+### Still gated
+
+- **G1-G8 untouched and unattempted; every open one stays `BLOCKED - awaiting human`.** G7 remains closed as
+  WONT-DO and was not re-raised. **G2 and G6 are deferred by the phase-1 `longPoll` decision, not cancelled**,
+  and the deferral is recorded in the requirements rather than left implicit.
+- **O1 is not closed by this task** - it is now *specified* (R28, R29) and closes when 10.7 and 10.8 land.
+- **F12 is not resolved by this task** - R30 asserts that the firewall and the bindings must agree and that
+  the choice must be recorded; **task 10.8 makes the choice**.
+- The eligibility registry is still `provisional: true`; D-BENCH authorizes the run that lifts it, and the run
+  has not happened.
+- The three cross-repo changes are still *emitted, unapplied*. The mandate's §7 blocker stands: option **(b)**
+  is recommended, phase 1 ships the finance agent on bot B only.

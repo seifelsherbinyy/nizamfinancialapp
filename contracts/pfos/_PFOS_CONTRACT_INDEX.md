@@ -126,9 +126,20 @@ expected to evolve here, so no SHA is pinned that would silently go stale.
 | # | File | Bytes at authoring | Owning requirements | Scope it governs |
 |---|------|--------------------|---------------------|------------------|
 | 06 | `06_PFOS_Database_and_Knowledge_Model.md` | 34,327 | R1, R2, R3, R4, R5 (and R6 jointly with 12) | Store topology and per-agent isolation, `finance.db` schema, the money persistence boundary (integer milliunits across the store edge), migrations, the token-spend ledger that supplies `modelPolicy`, the knowledge model, retention, and what may never be stored |
-| 12 | `12_PFOS_Two_Agent_VPS_Deployment_and_Operations.md` | 76,544 | R6-R24 (R6 jointly with 06; R16-R19 extend 09/10/11 rather than replacing them) | Two-agent topology on one host, isolation, the consent bus and what may cross it, transport security and de-duplication, deployment-level model-routing governance, operations (backup, restore, health, rollback, disaster recovery), the kill switch, the human gate register, and the public-repository posture |
+| 12 | `12_PFOS_Two_Agent_VPS_Deployment_and_Operations.md` | 76,544 | R6-R30 (R6 jointly with 06; R16-R19 extend 09/10/11 rather than replacing them) | Two-agent topology on one host, isolation, the consent bus and what may cross it, transport security and de-duplication, deployment-level model-routing governance, operations (backup, restore, health, rollback, disaster recovery), the kill switch, the human gate register, and the public-repository posture |
 
 Requirement identifiers refer to `.kiro/specs/06-two-agent-vps/requirements.md`.
+
+**Owning-requirement range, reconciled 2026-08-10.** Contract 12's row above read `R6-R24` while the spec
+already carried **R25** (the allowlist delimiter, authored with the transport value ledger), so the range had
+drifted by one before this increment. Phase 10 then added **R26, R26.1, R27, R28, R29 and R30** - mode-aware
+delivery authorization, the six-service environment loader, a Dockerfile per owned image, the finance-agent
+process contract, and the firewall/port-binding agreement. The row now reads **R6-R30**, which covers both the
+pre-existing drift and the new requirements. **The contract file itself was not edited**: R25-R30 are
+requirements of the spec that contract 12 owns, and each records its own authority in place - R25 its decision
+note, R26-R30 the owner mandate `KIRO_SHIP_LIVE.prompt.md` rev 2 - so nothing was invented here that the
+contract would have to govern. The `<..._IMAGE_REF>` placeholders R28 speaks to, and the single published port
+R30 speaks to, are both in `ops/docker-compose.yml` and neither was changed by this increment.
 
 Both are subordinate to `.kiro/steering/two-agent-vps.md`, and to `money-rules.md` and `drive-db.md`
 which nothing overrides. Contract 12 is subordinate to contract 06 wherever it touches the finance

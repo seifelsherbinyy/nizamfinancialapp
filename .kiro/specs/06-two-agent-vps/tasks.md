@@ -108,6 +108,117 @@
       `ops/GATE_REGISTER.md`; the honest limits carried forward unsoftened from the build log; and the
       19 → 20 check count change with the documents that moved with it.
 
+## Phase 10 - Ship live on long-poll (owner mandate `KIRO_SHIP_LIVE.prompt.md` rev 2, 2026-08-10)
+> Authority: that prompt carries owner authority and rules on seven decisions (D-ROTATE, F11, D-CAP,
+> D-WAL, D-BENCH, D-ALLOWLIST, D-G5). Its §2 is the unlock: **phase 1 ships on `longPoll`**, so G2, G6
+> and the whole proxy path are **deferred, not cancelled**. Do not run `setWebhook`, create a DNS
+> record, or publish a host port in this phase.
+> Gate after every task: `npm run verify:all -- --all` at 20 of 20. Test floor ratchets up only.
+
+- [-] 10.0 Author the requirements this phase adds - **R26** mode-aware delivery authorization
+      (`longPoll` has no secret-token header, so the check is not applicable and the allowlist is the
+      whole guard; `webhook` keeps refusing an absent/empty/over-length/out-of-charset token
+      unchanged); **R27** the environment loader covers all six services and still names every
+      missing entry at once from a single `process.env` bridge; **R28** every image the repository
+      owns has a Dockerfile and a build path producing the tag compose references (closes **O1**);
+      **R29** the finance-agent process refuses to boot on an incomplete environment, honours the
+      kill sentinel, and binds no public port in `longPoll`; **R30** the host firewall and the compose
+      port bindings must agree (closes **F12**). Record the design delta in `design.md`.
+- [ ] 10.1 Reconcile the two steering files so they stop disagreeing (§8 step 1, §1): add the
+      read-only carve-out to `.kiro/steering/two-agent-vps.md` §2 and cite it as the resolution of
+      **F11** (reads free, mutations owner-in-the-loop); edit `.kiro/steering/cloudflare-dns.md`
+      item 3 to record the **D-ROTATE** deferral so no later session rotates unilaterally.
+- [ ] 10.2 Extend `src/server/config/environment.ts` from the two agents to all six services
+      (life, finance, proxy, bus, scheduler, backup), keeping both proven properties: one
+      `process.env` bridge in the whole of `src/`, and every missing entry named in one message.
+      Tests included. (§6.1, R27)
+- [ ] 10.3 Emit **one** fill-in sheet: every entry the owner must supply, grouped by env file, each
+      with its gate, its `secret` flag, and its proof command. One pass, not six round trips.
+      (§8 step 3)
+- [ ] 10.4 Write `.kiro/specs/06-two-agent-vps/DEPLOYMENT_VALUE_LEDGER.md` extending
+      `TELEGRAM_VALUE_LEDGER.md`'s 14 transport entries to all six services (§4): no entry has a
+      default; negative rows asserted with `grep -c` -> 0 (no finance secret in the life file, no
+      bot token or webhook secret in the proxy file, no webhook path in either agent file); shared
+      entries asserted equal where shared (`LIFE_CONTAINER_PORT`, `FINANCE_CONTAINER_PORT`,
+      `ALLOWED_USER_IDS` in both agent files); `KILL_SENTINEL_PATH` identical in all four honouring
+      files and resolving inside the `kill-switch` mount; and a recorded home for `MAX_CONNECTIONS`
+      (**F2**) - irrelevant in `longPoll`, homed in phase 2.
+- [ ] 10.5 Live transport adapter behind the existing `TelegramPort`, implementing both modes (§6.2,
+      §2, R26). In `longPoll` the offset advances **only after the update is durably enqueued** -
+      that ordering is at-least-once becoming effectively-once.
+- [ ] 10.6 Negative tests for both directions of the mode-aware guard (ladder **L1**): `longPoll`
+      refuses an unlisted sender and accepts the owner with no secret-token header; an empty
+      allowlist still refuses everyone; `webhook` still refuses absent, empty, over-length and
+      out-of-charset tokens; the same update twice produces one effect in both modes.
+      **Do not relax the webhook path to let one code path serve both.**
+- [ ] 10.7 Build the finance-agent entrypoint (§6.3, R29). `src/server/telegram/index.ts` is a
+      barrel, not a main: add a process that wires `acceptHandler` + `workerRunner` +
+      `routing/turnDispatch`, refuses to boot on an incomplete environment, and honours the sentinel.
+      Binds no public port in `longPoll`; listens on `FINANCE_CONTAINER_PORT` in `webhook`.
+- [ ] 10.8 A Dockerfile per image this repository owns, plus a build path producing the tags compose
+      references (six `<*_IMAGE_REF>` placeholders today build nothing - **O1**). Decide and record
+      the **F12** resolution: publish 80 as a second port on `caddy`, **or** rely on TLS-ALPN-01 on
+      `<TLS_PORT>` alone and state in `ops/GATE_REGISTER.md` that 80 is then not required. The
+      firewall and the port bindings must agree. (R28, R30)
+- [ ] 10.9 Wire the **existing** `ops/backup/backup.sh` and `ops/restore/restore.sh`. Do not write a
+      second backup mechanism; if they need a change, change them. (§6.5)
+- [ ] 10.10 Add the per-agent weekly cap companion the code lacks: **D-CAP** is a hard USD 5.00 per
+      week **in total**, two keys at **2.50** each. `WEEKLY_BUDGET_USD = 5` stays as the total.
+- [ ] 10.11 Tell the owner exactly which gate steps to perform, with the command for each: **G1**
+      hardening plus `/etc/<CONFIG_DIR>`; **G4** two keys at 2.50 with training opt-out; **G5** with
+      the consent screen published to production (**D-G5**); **G8** the `age` keypair.
+      (§8 step 7 - an instruction sheet, never an attempt)
+- [ ] 10.12 Run the test ladder, stopping at the first rung that fails (§9). **L0** config refusal and
+      **L1** guards are runnable now. **L2** compose, **L3** transport, **L4** routing and safety are
+      `BLOCKED - awaiting human` until G1/G3-placement/G4 clear. Record each rung's observation.
+- [ ] 10.13 Exercise backup and **one** restore (**L5**). A backup that has not been restored is not a
+      backup - `ops/runbook/DISASTER_RECOVERY.md` makes the drill the prerequisite, not the recovery.
+      `BLOCKED - awaiting human` on G5 + G8.
+- [ ] 10.14 Write and keep current `.kiro/specs/06-two-agent-vps/LIVE_PROGRESS.md` (§10): one row per
+      gate G1-G8, per ladder rung L0-L5, and per §6 build item; `State` exactly one of `OBSERVED`,
+      `BLOCKED - awaiting human`, `BLOCKED - awaiting build`, `NOT STARTED`; `Evidence` mandatory for
+      `OBSERVED` (a row with no evidence is `NOT STARTED`). Close with three lines: what is live, the
+      single next blocking action and whose it is, and the count of §5's seven conditions observed.
+- [ ] 10.15 Cross-repo (**§7, owner blocker**): the life agent is Python and lives in the other
+      repository, which `.kiro/steering/two-agent-vps.md` §6 forbids this session from modifying. The
+      three change specifications in `ops/nizamcore-patches/` are written and unapplied. Recommended
+      option **(b)**: phase 1 ships the finance agent on bot B only; bot A stays created, hardened and
+      idle. `BLOCKED - awaiting owner` for option (a).
+
+## Task Dependency Graph
+```json
+{
+  "waves": [
+    { "wave": 1, "tasks": ["10.0"] },
+    { "wave": 2, "tasks": ["10.1"] },
+    { "wave": 3, "tasks": ["10.2"] },
+    { "wave": 4, "tasks": ["10.3", "10.4", "10.5", "10.10"] },
+    { "wave": 5, "tasks": ["10.6"] },
+    { "wave": 6, "tasks": ["10.7"] },
+    { "wave": 7, "tasks": ["10.8"] },
+    { "wave": 8, "tasks": ["10.9", "10.11"] },
+    { "wave": 9, "tasks": ["10.12"] },
+    { "wave": 10, "tasks": ["10.13"] },
+    { "wave": 11, "tasks": ["10.14", "10.15"] }
+  ]
+}
+```
+
+```
+10.0 ──> 10.1 ──> 10.2 ──> 10.3
+                    │
+                    ├──> 10.4
+                    ├──> 10.5 ──> 10.6 ──> 10.7 ──> 10.8 ──> 10.12 (L0, L1 only)
+                    └──> 10.10 ──┘                    │
+                                                      ├──> 10.9 ──> 10.13  [gated: G5, G8]
+                                                      └──> 10.11 [owner action sheet]
+
+10.14  depends on every row above; rewritten after each run (cumulative record)
+10.15  no dependency; blocked on the owner, and nothing else blocks on it
+```
+Gated beyond this repository: 10.12 rungs **L2-L4** need G1 + G3 placement + G4; 10.13 needs G5 + G8.
+Everything else is buildable now behind the existing port and mock boundary.
+
 ## Gate
 - [x] `npm run verify:all -- --all` passes all checks after every phase
       `HARNESS PASSED`, **20 of 20 executed checks passed**, at the close of this increment.
