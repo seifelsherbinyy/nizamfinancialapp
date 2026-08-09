@@ -310,6 +310,30 @@ count. The container runtime is what starts and restarts these services, and ste
 is enabled at boot, so there is nothing for a unit file to do. The reference is corrected to what
 exists; no file was invented to satisfy it.
 
+### Recorded observation - a host now exists (2026-08-09)
+
+**Status: BLOCKED - awaiting human**
+
+A host has been created at the chosen provider and reports active. This meets only the *precondition*
+of G1 - that there be a machine to harden - and settles nothing else. The hardening checklist in the
+steps above (the operator account, key-only login, default-deny firewall, container runtime, swap, and
+the root-owned `/etc/<CONFIG_DIR>` that four other gates write into) has not been worked, so G1 stays
+`BLOCKED - awaiting human`. No particular of that host - its address, its name, its region, any
+credential - is written here or in any tracked file (R24); those are recorded in an untracked operator
+file outside the tracked tree, and the operator resolves them from there when running the steps.
+
+One correction to step 4 the operator should apply before running it: the firewall must also allow the
+plain-HTTP ACME challenge port (80), not only `<TLS_PORT>` and `<ADMIN_PORT>`. Automatic certificate
+issuance - which G2 unblocks and G6 depends on - performs an HTTP-01 challenge on that port, so a
+firewall that opens only the TLS and administrative ports leaves the proxy unable to obtain its own
+certificate. Opening it is the operator's decision to record, not a change an agent may make.
+
+A second observation, recorded so it is not mistaken for the backup guarantee: the provider offers its
+own snapshot and automated backup, and both may be left enabled for host rebuild. Neither satisfies G8.
+They are readable by the provider and are not encrypted to a recipient whose private half is off the
+host, so they are a convenience, not the "a host compromise yields ciphertext only" guarantee G8 makes.
+G8 is still required in full.
+
 ---
 
 ## G2 - Records for the two hostnames

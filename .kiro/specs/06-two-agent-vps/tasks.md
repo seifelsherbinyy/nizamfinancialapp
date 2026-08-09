@@ -124,6 +124,8 @@
       files under `src/server/**`. All three pass, and none was allowlisted or exempted.
 
 ## Waiting on user input (do NOT attempt - steering §2)
+> External state as of 2026-08-09 is recorded in `OPERATOR_STATE_2026-08-09.md` (a recorded observation, not a task edit): the G1 host now exists but is unhardened; two build-side findings (O1 no container images / no finance-agent entrypoint; O2 provisional registry) and four owed owner decisions (D-CAP, D-WAL, D-BENCH, D-G5) are logged there. No box below was ticked and no gate was attempted.
+
 - [ ] G1 provision + harden the VPS
 - [ ] G2 DNS for the two hostnames
 - [ ] G3 create the two bots in BotFather
