@@ -18,7 +18,7 @@
 |---|---|---|
 | G1 provision + harden | precondition met, hardening outstanding | **The host now exists** (provider, active). Steps 2-9 + `/etc/<CONFIG_DIR>` not yet worked. Recorded observation added under G1 in the register. Status stays `BLOCKED - awaiting human`. |
 | G2 DNS for two hostnames | **no zone yet** | Still blocked on the single missing input: a domain / DNS zone does not yet exist. Intended host Cloudflare. Records must be **A -> host, grey cloud (DNS only)**. |
-| G3 two bots | nothing but a place to put tokens | Creation is unblocked and can be done today; only **placement** needs G1's config dir. A step-by-step walkthrough (`docs/TELEGRAM_BOTS_SETUP_G3.md`) and a transport value ledger (`TELEGRAM_VALUE_LEDGER.md`, this folder) were authored 2026-08-09 and carry three findings: F1 the allowlist delimiter is undeclared and nothing reads the environment yet (decision **D-ALLOWLIST**), F2 `MAX_CONNECTIONS` is verified against a value stored nowhere, F3 G3's verification does not assert G3 step 3 although `getMe` makes it machine-checkable. |
+| G3 two bots | hardening + verification + a place to put tokens | **Two bot identities now exist** (created 2026-08-09), so the creation half has moved; Hardening, distinctness and the operator identifier were then **verified live** at 23:57 local on 2026-08-09 (see §4). G3 stays `BLOCKED` on two things only: **placement** (needs G1's config dir) and **rotation** of the two disclosed tokens. Only **placement** needs G1's config dir. A step-by-step walkthrough (`docs/TELEGRAM_BOTS_SETUP_G3.md`) and a transport value ledger (`TELEGRAM_VALUE_LEDGER.md`, this folder) were authored 2026-08-09 and carry three findings: F1 the allowlist delimiter is undeclared and nothing reads the environment yet (decision **D-ALLOWLIST**), F2 `MAX_CONNECTIONS` is verified against a value stored nowhere, F3 G3's verification does not assert G3 step 3 although `getMe` makes it machine-checkable. |
 | G4 two model keys + caps | **D-CAP ruling** (see §3) | Unchanged, and now carries an unresolved decision the register's step does not name. |
 | G5 storage consent | nothing but G1 | Unchanged. Two traps re-confirmed live (§3, D-G5). |
 | G6 register webhooks | G1 + G2 + G3 | Unchanged. Last of the reachability chain. |
@@ -78,12 +78,84 @@ affordable. Still an owner decision, because it spends the owner's money.
 | **D-BENCH** | Authorize one Phase-1 benchmark pass from the dev machine (~1/3 of the dev key's USD 1 weekly allowance) or leave the registry provisional. | A provisional registry can never promote a model, so routing stays off either way (register "dev-key carve-out"). |
 | **D-G5** | Two G5 traps to apply when doing the consent grant: (1) the OAuth consent screen must be **published to production**, not left in "Testing", or the refresh token expires in 7 days and the unattended uploader dies silently on day 8 - safe because `drive.file` is non-sensitive and needs no review; (2) `BACKUP_FOLDER_REF` must be a folder the **uploader creates on first run**, not a hand-made one, because `drive.file` reaches only files the app created. | Not blocking today, but both make G5 pass on day 1 and fail later. |
 
-## 4. What an agent did in this snapshot, and did not
+## 4. Recorded observation - the G3 creation half happened, and what it left open
+
+Two bot identities were created on 2026-08-09 and recorded in `outputs/BOT_SETUP_WORKSHEET.local.md`
+(untracked). Their names also appear in `.secrets/MANIFEST.json` and `.secrets/telegram-bots.env`, both
+untracked; a scan of all 400 tracked files for the two tokens, the two bot identifiers, the two bot names
+and the operator identifier returned **zero hits**, so no particular is in any tracked file (R24).
+
+**G3 is not satisfied by creation alone.** Four halves of it were unobserved at creation time; all four
+have since been observed live, and two obligations remain open - **placement** (blocked on G1) and
+**rotation** of the two disclosed tokens:
+
+1. **Hardening applied and verified by change.** `/setjoingroups` to Disable is confirmed on both bots:
+   `getMe.can_join_groups` was observed `true` on a first probe and `false` on a second, so the change is
+   evidenced rather than assumed. `can_read_all_group_messages` is `false` on both, which is the wanted
+   value, and is also the provider default - so the value is proven and the `/setprivacy` action is not
+   distinguishable from it.
+2. **Verified with `getMe`, twice.** `ok: true` and `is_bot: true` on both tokens, and both hardening
+   fields read back as above. Both tokens returning `ok: true` is also independent proof that **neither
+   has been rotated yet**.
+3. **Distinctness proven.** The two `result.id` values were compared and differ, so the per-bot
+   de-duplication key is safe.
+4. **The operator identifier has been read** via `getUpdates` on **both** bots, which returned one update
+   each from the same non-bot sender - a free cross-check that one operator owns both. The value is
+   recorded once in `outputs/BOT_SETUP_WORKSHEET.local.md` and appears nowhere tracked. It was read
+   **before** G6, and `getWebhookInfo` confirms `url` is empty on both bots, so no webhook exists and
+   `getUpdates` is still available.
+
+**How this was observed, and by whom.** The register reserves `getMe` and `getUpdates` for the operator;
+the owner explicitly directed an agent to run them on his behalf, so these are **agent-run,
+owner-directed** observations rather than operator-run ones, and are labelled that way in the worksheet.
+Probe time 2026-08-09 23:57 local. `getWebhookInfo` was added to the probe because the earlier claim that
+no webhook existed had been inferred rather than checked.
+
+### Disclosure obligation - both tokens must be rotated before G6
+
+Both tokens were disclosed to a third-party assistant chat at creation time, and are currently held in
+`.secrets/telegram-bots.env` on the development machine. Two consequences, and neither is optional:
+
+- **Rotate both with BotFather `/token` before G6 registers a webhook.** Rotation is free while nothing
+  depends on the values; after G6 it costs a same-sitting update of the environment file and the webhook
+  registration, or that bot goes dark. A disclosed bot token lets a holder register its own webhook and
+  receive every delivery, which is exactly the reachability G6 exists to control.
+- **`.secrets/` is the wrong class of home for this credential.** `docs/PFOS_SECRETS_PLAN.md` scopes the
+  development machine's `.secrets/` to dev, browser-safe, low-privilege credentials, and states that
+  production secrets never live there. A bot token reaches the deployment, so its two legitimate homes
+  are the password manager and `/etc/<CONFIG_DIR>/*.env` at mode 600 owned by root.
+
+**The repository itself is clean, verified five ways at this snapshot:** `.secrets/` is ignored
+(`.gitignore:54`); no tracked path matching `secret` exists other than the plan document and the scanner;
+the history of `.secrets` is empty, so it was never committed in any branch; no tracked file contains
+either bot name or any token-shaped string; and the repository's own `scripts/verify/secret-scan.mjs`
+reports a pass with no secrets and no real ledger data tracked, across 400 tracked files.
+
+### O1 re-proved with counts, not impressions
+
+Re-checked at this snapshot, because O1 is the finding most likely to be waved away: `process.env`
+appears in **zero** non-test files under `src/`; there is **no** HTTP listener anywhere in `src/`
+(`createServer`, `.listen(`, `Bun.serve`, `node:http` and every server framework return no non-comment
+hit); there is **no** Dockerfile or Containerfile in the tree; and `ops/docker-compose.yml` carries
+**six** image-reference placeholders. The transport logic itself is complete and heavily tested (auth,
+de-duplication, work queue, worker runner, accept handler), which is what makes the absence easy to
+miss: the code exists, the process does not.
+
+One consequence for **D-ALLOWLIST**: `senderIsAllowlisted` in `src/server/telegram/auth.ts` resolves
+membership with an exact-string `includes` against a `readonly string[]`. Whatever loader is specified
+must split the entry into strings that match the provider's identifier rendering exactly. A stray space
+or a quote inside the value refuses the only sender on the list, and that refusal is deliberately
+indistinguishable from a wrong secret token.
+
+## 5. What an agent did in this snapshot, and did not
 
 **Did:** recorded the host-exists observation under G1 (no particular, status unchanged, harness
 `gateRegister.test.ts` 43/43 green, AC18 particular-scan green); wrote this observation; wrote the
-human handoff; kept every particular in the two untracked `outputs/` files.
+human handoff; kept every particular in the two untracked `outputs/` files; audited the repository for
+a leaked bot credential five independent ways and re-proved O1 by count (section 4).
 
 **Did not:** provision, harden, create a bot, mint a key, register a webhook, generate a keypair,
-apply any cross-repo patch, or tick any box in `tasks.md`. Those remain the owner's, exactly as the
+apply any cross-repo patch, or tick any box in `tasks.md`. It also did not **read** either bot token,
+call the provider with one, or rotate one: the credential audit counted entry names and never a value,
+and every provider call in gate G3 belongs to the owner's own session (steering section 2). Those remain the owner's, exactly as the
 register requires.

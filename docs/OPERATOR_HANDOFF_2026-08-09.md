@@ -1,8 +1,10 @@
 # Operator handoff - two-agent VPS - 2026-08-09
 
 **BLUF.** The host is bought and live, so gate G1's precondition is met but its hardening is not done.
-Every other gate is unchanged. Two things beyond the gates still block a running deployment, and four
-decisions are owed. Nothing here contains a deployment particular - those are in the untracked file
+Two bots now exist, are hardened, and were verified live at 23:57 on 2026-08-09 along with your allowlist
+identifier, so G3 is down to two open items: rotate both tokens (they were disclosed in a chat) and place
+them once G1 exists. Two things beyond the gates still block a running
+deployment, and four decisions are owed. Nothing here contains a deployment particular - those are in the untracked file
 `outputs/DEPLOYMENT_PARTICULARS.local.md` (gitignored). This repo is public; keep it that way.
 
 Authoritative sources this summarises, in fetch order for a Kiro session:
@@ -19,11 +21,27 @@ Authoritative sources this summarises, in fetch order for a Kiro session:
 |---|---|---|
 | G1 host | **host exists, active; not hardened** | SSH in, run register G1 steps 2-9 (operator user, key-only login, default-deny firewall, container runtime, swap, root-owned config dir). |
 | G2 DNS | **blocked: no domain yet** | Own a domain, point two A records at the host, **grey cloud**, no bus record. This is the one input that unblocks the reachability chain. |
-| G3 bots | **creatable now**; placement needs G1's config dir | Two bots in BotFather, join-groups off, privacy on, your numeric id as the allowlist. Tokens sit in the password manager until `/etc/<CONFIG_DIR>` exists. Steps: `docs/TELEGRAM_BOTS_SETUP_G3.md`. |
+| G3 bots | **two bots exist and are verified; both tokens still disclosed** | Verified live 2026-08-09 23:57: join-groups off on both (observed `true` then `false`, so the change is evidenced), privacy value correct, `ok`/`is_bot` true, the two bot ids differ, your numeric id read via `getUpdates` on both bots, and `getWebhookInfo` confirms no webhook exists. Open: **rotate both with `/token`**, move the new tokens to the password manager rather than `.secrets/`, then place them once G1 exists. Steps: `docs/TELEGRAM_BOTS_SETUP_G3.md`. |
 | G4 keys | **blocked on D-CAP below** | Two OpenRouter keys with weekly caps + training opt-out. |
 | G5 storage | ready once G1 exists | Google `drive.file` consent, **publish the consent screen**, let the uploader create the folder. |
 | G6 webhooks | needs G1+G2+G3 | Register both, verify with getWebhookInfo. Last step. |
 | G8 backup key | ready once G1 exists | `age` keypair on this laptop, private half to the password manager + one offline copy. The provider's own snapshot does **not** count. |
+
+## Do this first: rotate both bot tokens
+
+Both were pasted into an assistant chat when the bots were created, so treat both as public. A holder of
+a bot token can register its own webhook and receive everything you send that bot, which is precisely the
+reachability gate G6 exists to control. Rotation is BotFather `/token`, it is free while no webhook is
+registered, and it costs nothing to do twice.
+
+The repository is clean and was checked five ways: `.secrets/` is gitignored, was never committed on any
+branch, no tracked file holds either bot name or a token-shaped string, and the repo's own secret scanner
+passes over all 400 tracked files. The exposure is the chat and the plaintext file on this laptop, not
+the repository.
+
+Also move the new tokens out of `.secrets/`. `docs/PFOS_SECRETS_PLAN.md` scopes that directory to
+low-privilege development credentials only. A bot token has exactly two homes: your password manager, and
+`/etc/<CONFIG_DIR>/*.env` at mode 600 owned by root once G1 creates it.
 
 ## One correction to the register's G1 step 4
 
@@ -51,6 +69,11 @@ its own certificate. Recorded under G1 in the register too.
 
 ## What I need from you
 
-Domain + registrar. Your numeric Telegram id. Which Google account owns backups. The D-CAP ruling.
-Then I can prep the G2 records (with a `Zone DNS Edit`-scoped token, path in the worksheet) and draft
-the finance-agent entrypoint + Dockerfiles as a spec increment for O1.
+Confirmation that both tokens are rotated. Domain plus registrar. Which Google account owns backups. The
+D-CAP ruling. (Your numeric Telegram id is no longer needed - it was read from your own bots and is
+recorded in the untracked worksheet.) Then I can prep the G2 records (with a `Zone DNS Edit`
+scoped token, path in the worksheet) and draft the finance-agent entrypoint plus Dockerfiles as a spec
+increment for O1.
+
+Never paste a token, a webhook secret or a refresh token into a chat, including to an assistant. If you
+need something confirmed, the answer is always a count or an observation, never the value.
