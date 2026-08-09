@@ -1,6 +1,6 @@
 {
   "genesisHash": "0000000000000000000000000000000000000000000000000000000000000000",
-  "eventCount": 72,
+  "eventCount": 76,
   "events": [
     {
       "seq": 1,
@@ -937,6 +937,58 @@
       "prevHash": "1a645cfa44c2b12ea1ca22b1f2b9b8be4b81b932814a626cdd051fea9fd343b5",
       "contentHash": "acda9697cde71dcda327a5e6b86eb452a71de55ac4bb49b0aec939b3b9267801",
       "recordedAt": "2026-08-09T16:23:08.289Z"
+    },
+    {
+      "seq": 73,
+      "kind": "PRODUCE",
+      "itemId": "9.3",
+      "actor": "builder",
+      "artifactHash": "a6f52619d32cfc755eb39eb444088d109fe0d055d44973e804a41c3284062bab",
+      "disposition": null,
+      "confidence": null,
+      "note": "9.3 half two: gateRegister checker (20 codes, negative case per code, two non-zero cross-reads) + two register defects fixed; 9.1: AC04 floor 331 -> 1757. covers: 9.1,9.3",
+      "prevHash": "acda9697cde71dcda327a5e6b86eb452a71de55ac4bb49b0aec939b3b9267801",
+      "contentHash": "c74f906a9c93668addee33670bac3c75bd6ece70d506a8e8396d3541cf0c4829",
+      "recordedAt": "2026-08-09T17:48:50.440Z"
+    },
+    {
+      "seq": 74,
+      "kind": "VERIFY",
+      "itemId": "9.3",
+      "actor": "gate-runner",
+      "artifactHash": "a6f52619d32cfc755eb39eb444088d109fe0d055d44973e804a41c3284062bab",
+      "disposition": null,
+      "confidence": null,
+      "note": "typecheck clean, lint clean at zero warnings, 1757 tests across 101 files, verify:all 20 of 20 with AC04 green against the new floor",
+      "prevHash": "c74f906a9c93668addee33670bac3c75bd6ece70d506a8e8396d3541cf0c4829",
+      "contentHash": "18aca545fd3226c688c48058ef0905841264106ebb44dc19c1157ce080fe5722",
+      "recordedAt": "2026-08-09T17:48:59.695Z"
+    },
+    {
+      "seq": 75,
+      "kind": "APPROVE",
+      "itemId": "9.3",
+      "actor": "reviewer",
+      "artifactHash": "a6f52619d32cfc755eb39eb444088d109fe0d055d44973e804a41c3284062bab",
+      "disposition": null,
+      "confidence": null,
+      "note": "checker fires on every code by name; fail-closed paths are findings; two genuine register defects fixed in the file, no assertion loosened, no scanner allowlisted, floor raised only",
+      "prevHash": "18aca545fd3226c688c48058ef0905841264106ebb44dc19c1157ce080fe5722",
+      "contentHash": "2be58568d9174fe3e19366fc953077bdf548705cea8d81215d4106ca516ba04c",
+      "recordedAt": "2026-08-09T17:48:59.841Z"
+    },
+    {
+      "seq": 76,
+      "kind": "CERTIFY",
+      "itemId": "9.3",
+      "actor": "reviewer",
+      "artifactHash": "a6f52619d32cfc755eb39eb444088d109fe0d055d44973e804a41c3284062bab",
+      "disposition": "RESOLVED",
+      "confidence": "VERIFIED",
+      "note": "9.3 complete across both halves; 9.1 ratcheted. No gate attempted; G1 remains the single next human action. covers: 9.1,9.3",
+      "prevHash": "2be58568d9174fe3e19366fc953077bdf548705cea8d81215d4106ca516ba04c",
+      "contentHash": "e352b4aea222f092bd25a2fe3c6d388dd14d0e23620e6e68c560dc67f7cb2fed",
+      "recordedAt": "2026-08-09T17:48:59.966Z"
     }
   ]
 }

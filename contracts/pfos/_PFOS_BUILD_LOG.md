@@ -3055,3 +3055,174 @@ every `note` field in `.loop/verification-ledger.json`, which is never hand-edit
 - **Tasks 9.1, 9.2, 9.3 and 9.4 remain open.** In particular 9.1 (raise the AC04 `--min` floor to the
   proven count) was deliberately not done here, and the floor is still 331 against 1714 tests.
 - No outbound call from a server process and no production secret, unchanged.
+
+---
+
+## Tasks 9.3 and 9.1 - the gate register held to its own standard by a checker, and the test floor ratcheted (2026-08-09)
+
+**Why.** `ops/GATE_REGISTER.md` is the one document that has to work on the worst day. Its standard is
+the owner's: *a competent human, holding only this file, can stand the deployment up.* Two things were
+true of it before this increment. It was read by `src/server/ops/runbookTemplate.ts` for its gate list
+and scanned by `src/server/ops/deploymentParticulars.ts` for a deployment particular, and **nothing
+held it to that standard** - so every way it can rot silently was uncovered, and all of them rot in the
+same direction: toward a register that reads complete and is not.
+
+### Work
+
+**Half one - the reconciliation (commit `7e7cb58`, `ops/GATE_REGISTER.md` only).** Task 0.5 seeded the
+register before Phase 7 authored the artifacts its steps refer to, so the seed promised paths, file
+names and environment entry names that Phase 7 had not yet delivered. Half one resolved them: four
+"intended path" phrasings became authored paths; nine entries that `ops/env/*.env.example` attributes
+to a gate but that no step told the operator to set were given a step each (G1 five, G2 one, G4 two,
+G5 two); G6's step 2 was corrected to say that the webhook **paths** live in the proxy's file and the
+webhook **secrets** in the two agents' files, in opposite directions. One promised path - a unit-file
+directory under `ops/` - **did not exist and was not created to match the promise**; the reference was
+corrected to what task 7.5 actually delivered, and the correction is recorded in the document under G1
+rather than dropped. Nothing was renumbered, removed, softened, reopened or marked satisfied.
+
+**Half two - the checker (this commit).** Half one's method was re-reading, and re-reading does not
+scale past one careful pass. The checker is what makes the standard re-provable on every run:
+
+- `src/server/ops/gateRegister.ts` - a pure text-in / findings-out module in the established shape of
+  `runbookTemplate.ts` and `patchSeries.ts`: a narrow markdown subset parser, twenty finding codes, no
+  severity ladder, and the on-disk existence probe **injected** so the audit itself stays pure.
+- `src/server/ops/gateRegister.test.ts` - 43 tests, both halves.
+
+The nine properties it holds. The first four are the ones half one found that nothing asserted:
+
+1. **`ENTRY_STEP_MISSING`** - every entry an `ops/env/**` template declares that `ENTRY_SPECS`
+   attributes to a gate is named by a step of **that** gate. This is the check that would have caught
+   half one's nine entries. The templates are **parsed**, not restated, so the vocabulary has one home.
+2. **`STEP_WITHOUT_VERIFICATION`** and **`ENTRY_STEP_NOT_VERIFIED`** - a gate with steps has a
+   non-empty VERIFICATION block, and every entry a step sets is answered in it. A step whose outcome
+   is not checked is a step assumed to have worked.
+3. **`VERIFICATION_PRINTS_A_VALUE`** - no verification line prints a value: no whole-file print, no
+   environment dump, no expansion, and no `grep` naming an entry without a counting or name-only flag.
+   The register's own rule is "record the observation, never the value".
+4. **`QUOTED_PATH_MISSING`** - every repository path the register quotes in an inline code span exists
+   on disk. This is the check that would have caught the unit-file directory at authoring time.
+5. **`GATE_MISSING` / `GATE_UNEXPECTED` / `G7_NOT_CLOSED`** - G1-G8 all present, G7 recorded as
+   `CLOSED - WONT-DO` with the line saying it is not to be raised again.
+6. **`GATE_SECTION_MISSING` / `GATE_PREREQUISITE_UNRECORDED`** - every open gate carries why a human is
+   required, its steps, a VERIFICATION block and what it unblocks; and the summary table records a
+   prerequisite for every gate, including the two whose prerequisite is "nothing".
+7. **`GATE_STATUS_UNEXPECTED` / `GATE_DESCRIBED_AS_PERFORMED`** - every status under an open gate is
+   `BLOCKED - awaiting human`, including the ones on determinations recorded *inside* a gate, and no
+   prose describes a gate in the past tense as performed. Gate discipline rule 5 calls that claim the
+   single most damaging thing possible in this document.
+8. **`ORDERING_NOT_STATED` / `NEXT_ACTION_NOT_FIRST_GATE`** - the dependency ordering is stated and
+   places every open gate, and G1 is named as the single next action.
+9. **`WAL_DETERMINATION_RECORD_MISSING` / `PROVISIONAL_REGISTRY_RECORD_MISSING`** - the two places an
+   outcome must be recorded back exist: the write-ahead-log sidecar determination under G8, with a
+   named place to record it, and task 6.3's provisional-registry determination.
+
+**Two genuine defects, found by the checker and fixed in the file.**
+
+- **G3 placed `ALLOWED_USER_IDS` and verified nothing.** Step 5 tells the operator to write the
+  allowlist into *each* agent's file; the VERIFICATION block authenticated the two bots and checked the
+  file mode, and never mentioned the allowlist. The asymmetry is what makes it dangerous rather than
+  untidy: an allowlist present in one file and absent from the other refuses the owner on one bot while
+  the other has no allowlist to consult at all. Added a counting line over both files, plus the note
+  that presence is necessary and not sufficient - an empty allowlist must refuse everyone (**R12**), so
+  non-emptiness is confirmed by observing the refusal path, never by reading the value.
+- **G4 placed two keys and confirmed one.** Step 4 places `OR_KEY_LIFE` and `OR_KEY_FINANCE` in their
+  own files. The read-back `curl` is run **per key** and the block only ever showed the finance one, so
+  the life key had no placement check at all. Added a counting line for each, with the comment saying
+  why the read-back above does not cover the second key.
+
+Both fixes are of the two kinds the document's own "What an agent may write in this file" permits - an
+added verification line, and a recorded observation carrying no value - and both report a **count**.
+Neither the checker nor any assertion was weakened to accommodate them, and the register's own record
+of what 9.3 resolved now carries a bullet saying these two were found by the checker rather than by
+re-reading, which is the argument for having written it.
+
+**Task 9.1 - the floor.** Ratcheted the AC04 `--min` in `scripts/verify/all.mjs` from **331** to
+**1757**, the count proven by the `npm run test` run below. Up only. The floor had been stranded at 331
+against a suite five times that size since Stage 3, which made AC04 a health check with no size floor
+in practice; it is now a real ratchet again.
+
+### Verification
+
+- `npm run typecheck` - clean.
+- `npm run lint` - clean at zero warnings.
+- `npm run test` - **1757 passed across 101 files**, up from 1714 across 100. All 43 new tests are in
+  `gateRegister.test.ts`.
+- `npm run verify:all -- --all` - **`HARNESS PASSED`, `20 of 20 executed checks passed`**, with
+  `PASS AC04 test suite passes and meets its size floor` against the new floor of 1757. Before the
+  commit the same run reported **18 of 20** with only **AC14 (working tree clean)** and **AC15 (push
+  ready)** red, both naming the same uncommitted work - the expected mid-increment state.
+- The negative half is a case **per finding code**, 27 of them, each taking the real file, breaking one
+  property, and observing that code fire **by name**. Three properties of the harness itself are
+  asserted so a case cannot pass hollowly: a tamper reporting **zero** findings fails as a false pass;
+  every mutation helper (`swap`, `swapAll`, `reorder`) **throws** on a rotted anchor rather than
+  matching nothing; and a mutation that changes no byte is refused. A coverage test fails if a code is
+  added without a case.
+- The fail-closed paths are each a **finding**, never a skip, and each has its own test: an unreadable
+  register (`REGISTER_UNREADABLE`, driven both through a null source and through the file entry point
+  against an absent directory), a register outside the markdown subset (`REGISTER_OUTSIDE_SUBSET`), an
+  unparseable environment template (`ENV_COMPANION_UNREADABLE`), and a quoted path that does not exist
+  (`QUOTED_PATH_MISSING`, driven with a probe that denies one real path so the detail names it).
+- The positive half asserts **non-zero** cross-read counts - `gateAttributedEntriesExamined` and
+  `quotedPathsExamined` - through both the text entry point and the file entry point, so the check
+  cannot pass by not running. Today those are **22** gate-attributed entries and **17** quoted paths.
+- Nothing was loosened, no test was skipped or deleted, no floor was lowered, and no scanner was
+  allowlisted or exempted. Where the new checker fired on a real file, **the file was fixed** - twice,
+  both recorded above.
+
+### Honest scope note
+
+1. **"Every human step carries a verification line" is enforced per gate and per entry, not per step.**
+   The register's structure is one VERIFICATION block per gate, not one per numbered step, so a literal
+   per-step reading has nothing to bind to. What is enforced instead is stronger where it matters and
+   weaker where it does not: every gate with steps must have a non-empty VERIFICATION block, and every
+   *entry* a step sets must be named in it. That second clause is what found both defects. A step that
+   sets no entry - "disable group joining for both bots" - is covered only by the gate-level block.
+2. **`GATE_DESCRIBED_AS_PERFORMED` is a phrase matcher with a stated exclusion, not a tense parser.**
+   It refuses a gate identifier followed by a completion verb, and skips the match when a conditional
+   word (`until`, `before`, `once`, `if`, ...) leads it within sixty characters - because "Until G8 is
+   done, the backup script may be written" is the sentence that *does* the gating and refusing it would
+   refuse the register's own method. A completion claim phrased without a gate identifier nearby, or
+   with a verb outside the list, is not caught. The `Status:` check is the load-bearing half; this is
+   the prose belt beside it.
+3. **`namesEntry` distinguishes `DOMAIN=` from `<DOMAIN>` and that distinction is load-bearing.** Two
+   entries are spelled identically to the placeholder that carries their value, so a naive substring
+   test would have let a gate satisfy the check merely by mentioning the value it needs. The boundary
+   excludes `<` and `>`; a placeholder spelled some other way would not be excluded.
+4. **The quoted-path probe reads inline code spans only, outside fenced blocks.** A path named in prose
+   without backticks, or inside a command block, is not probed. That is deliberate: a fenced block is
+   full of host paths like the configuration directory, which are not repository paths and must not be,
+   and a prose mention with no backticks is not the register pointing a reader at a file. The cost is
+   that an un-backticked broken reference would pass.
+5. **The path set is recognized by first segment against a fixed list of repository roots.** A quoted
+   path under a root nobody listed is silently out of scope rather than a finding. The list is data in
+   the module, and the count assertion is what keeps it from decaying to nothing - but a *new* top-level
+   directory would need adding, and until then its paths would go unprobed.
+6. **The checker is not wired into the harness as a twenty-first named check.** It runs in the vitest
+   suite, which AC04 executes, so a regression fails the gate - but through AC04's name rather than its
+   own. Every other `ops/` checker in this directory sits the same way except AC18, which needed a
+   named check because nothing else covered the tree. Making this one named is a separate decision with
+   a document cost (every file asserting "20 of 20" would move), and it was not taken here.
+7. **`ENV_COMPANION_UNREADABLE` covers an unparseable template, not an unreadable one, on the file
+   path.** `readEnvTemplates` skips a template it cannot read, and the absence then surfaces as either
+   a missing gate-attributed entry or, in the limit, `CROSS_READ_EMPTY`. It is reported, but through a
+   less specific code than the parse failure gets.
+8. **The floor ratchet is to the count proven on this machine, this run.** 1757 is a floor, not a
+   target; a future increment that legitimately removes a test will have to argue the case rather than
+   lower the number quietly, which is the intent.
+
+### Still gated
+
+- Writing `ops/**` is authorized and running it is not (steering §2). **Nothing in this increment
+  executed, attempted, simulated or claimed any gate.** No shell was invoked, no host, DNS record, bot,
+  key, consent, webhook or keypair was touched, no outbound call was made, and no secret was read. The
+  checker reads text and probes for file existence.
+- **G1-G8 untouched and unattempted, every one still `BLOCKED - awaiting human`:** G1 provision and
+  harden the host; G2 records for the two hostnames; G3 create the two bots; G4 mint the two runtime
+  keys with their periodic caps; G5 the storage consent click; G6 register both webhooks; G8 generate
+  the backup keypair and keep the private half off the host. G7 stays **closed as WONT-DO** per
+  steering §0b and was not re-raised. **G1 remains the single next human action.**
+- The write-ahead-log sidecar determination under G8 is still **undecided**, and every rollback across
+  a migration stays blocked on it. This increment only proved that the place to record it still exists.
+- The eligibility registry is still `provisional: true`, and live routing is still gated on **G4**.
+- **Tasks 9.2 and 9.4 remain open**; they close with the final report. 9.1 and 9.3 are done.
+- No outbound call from a server process and no production secret, unchanged.

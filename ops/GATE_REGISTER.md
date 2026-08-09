@@ -99,6 +99,11 @@ here, still numbered as it was, still `BLOCKED - awaiting human`, and G7 is stil
 - G6's step 2 said to store each webhook secret "beside the path". The templates deliberately put the
   **paths** in the proxy's file and the **secrets** in the two agents' files, in opposite directions;
   the step now says so, and a negative verification line asserts each file lacks the other's value.
+- Two entries that a gate's steps **already** named carried no verification line of their own: G3's
+  allowlist entry and G4's life-agent key. Neither was found by re-reading the document - both were
+  found by the completeness checker 9.3 added, which is the argument for having written it. Each now
+  has a counting line, and G4's records why the per-key read-back above it does not cover the second
+  key.
 - Each added step has a verification line, and every added line reports a **count**, never a value.
 
 Nothing was renumbered, removed, softened, reopened, or marked satisfied, and no placeholder here
@@ -394,6 +399,18 @@ stat -c '%U %G %a' /etc/<CONFIG_DIR>/life.env                 # -> root root 600
 ```
 Record only "two distinct bots authenticate" - never the returned name or identifier (R24).
 
+Then the entry **step 5 supplies**, in both files. It was the one entry this gate placed and never
+confirmed, and the asymmetry is what makes that dangerous: an allowlist present in one file and
+absent from the other refuses the owner on one bot while the other has no allowlist to consult at
+all. A count answers presence without printing the identifier (R24):
+
+```
+grep -c '^ALLOWED_USER_IDS=' <LIFE_ENV_PATH> <FINANCE_ENV_PATH>   # -> 1 for each of the two
+```
+Presence is necessary and not sufficient here: an empty allowlist must refuse **everyone**
+(requirement **R12**, contract 12 T20), so confirm the value is non-empty by observing that the
+refusal path below rejects an absent sender - never by reading the value back.
+
 ### Unblocks
 
 **G6**; and the production path of the transport already built and tested against mocks in spec Phase 4
@@ -461,6 +478,11 @@ curl -sS <MODEL_API_BASE>/api/v1/key -H "Authorization: Bearer ${OR_KEY_FINANCE}
 # the recorded cap agrees with the provider-side limit just read back, in each file
 grep -c '^FINANCE_WEEKLY_CAP=' <FINANCE_ENV_PATH>   # -> 1
 grep -c '^LIFE_WEEKLY_CAP='    <LIFE_ENV_PATH>      # -> 1
+
+# and each key is where step 4 put it. The read-back above is run per key, so the life key needs
+# its own placement line: step 4 places two keys and only one of them was ever confirmed present.
+grep -c '^OR_KEY_FINANCE=' <FINANCE_ENV_PATH>       # -> 1
+grep -c '^OR_KEY_LIFE='    <LIFE_ENV_PATH>          # -> 1
 ```
 Then, in the console, confirm the training opt-out is on. Finally confirm the negatives, run in both
 directions: the life environment file contains no finance key and no finance cap, and vice versa -

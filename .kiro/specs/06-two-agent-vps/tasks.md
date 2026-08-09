@@ -81,9 +81,19 @@
       increment. R24 keeps ONE implementation: `scanForParticulars` is injected into
       `src/server/ops/deploymentParticulars.ts`, never re-derived. Two further bans hold over
       `src/server/**` per steering §4.1.
-- [ ] 9.1 Raise the `AC04 --min` floor to the new test count
+- [x] 9.1 Raise the `AC04 --min` floor to the new test count
+      Ratcheted 331 -> 1757, the count proven by the `npm run test` run at the end of this increment
+      (1757 passing across 101 files). Up only, never down.
 - [ ] 9.2 Gate passes all checks; commit and push each green increment
-- [ ] 9.3 `ops/GATE_REGISTER.md` complete: every human step with exact commands and a verification line
+- [x] 9.3 `ops/GATE_REGISTER.md` complete: every human step with exact commands and a verification line
+      **Two halves.** The first reconciled the register against the Phase 7 artifacts (commit
+      `7e7cb58`). The second added the checker that holds it there: `src/server/ops/gateRegister.ts`
+      plus `gateRegister.test.ts`, twenty finding codes, a negative case per code, and two cross-reads
+      that are asserted to have examined a non-zero number of items - every gate-attributed entry in
+      `ops/env/**` against the gate `ENTRY_SPECS` attributes it to, and every repository path the
+      register quotes against the disk. It found two defects the first half's re-reading did not:
+      G3's allowlist entry and G4's life-agent key were placed by a step and verified by nothing.
+      Both now carry a counting line.
 - [ ] 9.4 Final report: what is built, what is gated, and the single next human action
 
 ## Gate
