@@ -2879,3 +2879,179 @@ run** in this increment, so that path is reasoned about rather than exercised.
   The no-deployment-particular harness check does not exist yet; this increment removed particulars
   by hand and by grep, which is exactly why 9.0 is worth having.
 - No outbound call from a server process and no production secret, unchanged.
+
+---
+
+## Phase 9.0 - The tree-level no-deployment-particular gate, as a twentieth named check (2026-08-07)
+
+**Why.** Steering §0b keeps both repositories public and pays for that with one rule: the repository
+may hold the *design*, never a *deployment particular*. Six per-artifact checkers already held that
+rule over the artifact each of them owns - the topology template, the proxy template, the environment
+templates, the backup and restore scripts, the runbooks, the cross-repo series. **Nothing held it over
+the tree.** `ops/GATE_REGISTER.md` and `ops/BUS_NETWORK_BINDING.md` were claimed by no checker at all,
+and a fixture added anywhere outside a checker's field of view was covered by nobody. Phase 2 removed
+particulars from those files by hand and by grep and said plainly that this is exactly why 9.0 is
+worth having. This is that gate.
+
+### Work
+
+**The check.** `AC18 no deployment particular in ops or any fixture`, wired into
+`scripts/verify/all.mjs` between AC11 and AC02, backed by
+`scripts/verify/no-deployment-particular.mjs` over `src/server/ops/deploymentParticulars.ts`.
+
+**R24 still has ONE implementation.** `scanForParticulars` in `./composeTemplate` is it, and the new
+module takes it as an **injected argument** rather than restating a pattern of its own, so a later
+widening of R24 moves every artifact at once instead of moving six of them and leaving the seventh
+behind. That injection is also the whole bridge: the harness is plain Node, Node 24 strips types
+natively, and `composeTemplate.ts` has no runtime relative import, so the harness imports both modules
+directly with an explicit `.ts` extension. **Nothing is transpiled, no dependency was added, no build
+step was introduced, and there is no second copy of the scan.** The audit module's only relative
+import is `import type`, which is erased before resolution - which is what lets it keep the real types
+while staying loadable by a runtime that cannot resolve an extensionless specifier, and it is why the
+scanner is a parameter rather than a static import. `allowImportingTsExtensions` was deliberately set
+`false` in `tsconfig.json` and **was not flipped**.
+
+**Scope, and the globs it settled on.** Two declared roots, each of which must exist and must
+contribute at least one file: `ops/**` (19 files) and `src/server/mocks/fixtures/**` (2 files) - 21
+artifacts. A third pattern, a file *named* like a fixture rather than living in a fixture directory,
+was **deliberately not declared as a root**, because nothing in this repository matches it and the
+task's own rule is that a glob matching nothing is a failure. It is covered more strongly instead:
+`FIXTURE_SHAPED_PATH` is applied to **every tracked path**, and a fixture-shaped path outside the scan
+set is `FIXTURE_OUTSIDE_SCAN_SET`. A glob can be silently wrong; that assertion cannot. Two paths were
+judged **code, not fixtures**, and are therefore out of scope: `src/server/mocks/fixtures.ts` and
+`tests/helpers/fixtures.ts` *load and build* fixtures, and code is where the scan's own patterns
+legitimately appear. `data/seed/**` and `data/ledgers/nizam_db.example.json` were also judged out of
+scope - they are the Profile-A example store, where a currency code in a currency field is the schema
+doing its job, not a monetary particular.
+
+**Two further bans over `src/server/**` (steering §4.1), in code and in prose alike.** The
+row-append data statement used as a **bare binding name** (`ROW_APPEND_STATEMENT_AS_LOCAL`), and the
+keyword that opens a **second store on an existing connection** (`SECOND_STORE_KEYWORD_PRESENT`).
+Neither token is written out contiguously anywhere in the module or its test: both are assembled from
+fragments at construction, the technique `runbookTemplate.test.ts` and `patchSeries.test.ts` already
+use, and a test asserts the checker's own two files hold neither token - so it cannot flag itself.
+123 files under `src/server/**` are scanned.
+
+**The repository was NOT clean, and the source was fixed rather than the check narrowed.** The
+second-store keyword: **clean**, zero occurrences as a whole word in any case. The row-append
+statement as a bare binding name: **two occurrences**, both fixed -
+`src/server/db/connection.test.ts:195` and `src/server/db/spendLedgerRepo.test.ts:130` each bound
+`const <row-append-statement> = handle.db.prepare(...)`. Renamed `orphanWrite` and `rawWrite`; the
+assertions they carry are untouched. A third finding fell out of the scan itself:
+`ops/GATE_REGISTER.md` carried `<B|A>`, which is not the `<UPPER_SNAKE>` shape R24 requires of a
+placeholder, so a real value could have sat in its shape unnoticed. Fixed to
+`<SIDECAR_OUTCOME>` (B or A) - meaning preserved, nothing renumbered, reordered or softened; 9.3
+still owns that file.
+
+**Tests, both halves.** `src/server/ops/deploymentParticulars.test.ts`, 34 tests. Positive: the real
+tree produces an **empty** finding list over a scan set whose size is asserted non-zero per root; no
+dotted token survives the mask in any scanned file; the declared-token list agrees with
+`patchSeries`'s wherever the two meet, so they cannot drift. Negative: **all 17 finding codes** have a
+row that breaks one property and observes that code fire by name, plus a coverage test that fails if a
+code arrives without a row. Four extra rows assert the row-append ban does **not** fire on a
+repository method reached through a receiver, on the statement inside a prepared string, or on prose,
+and that a longer word merely containing the second-store keyword is not that keyword.
+
+**The three fail-closed paths are exercised through the real file entry point, and each RETURNS a
+finding rather than throwing:** a root directory that does not exist yields `SCAN_ROOT_MISSING` with
+`artifactsScanned === 0`; a real empty directory (`mkdtempSync`) yields `SCAN_ROOT_EMPTY` **and**
+`SCAN_SET_EMPTY`; a server root that does not exist yields `SERVER_TREE_EMPTY` with
+`serverFilesScanned === 0`. The harness script re-asserts both counts itself, so a check that examined
+nothing cannot report success.
+
+**Closing the constraint recorded in Phase 2.** That note listed the open decision for 9.0 - extend an
+existing check again, or add a twentieth and move the documents in the same increment - and left it to
+9.0 rather than pre-empting it. **Option 2 was taken**, on the reasoning that folding a genuinely new
+guarantee into `AC08b` would hide a new promise behind an old name, and `AC08b` already covers two
+boundaries. Every document asserting the **current** gate figure moved to 20/20 in this same commit:
+`.kiro/steering/pfos-current.md` (×2), `.kiro/steering/loop-protocol.md`,
+`.kiro/steering/structure.md` (the "19-check harness"), `docs/KIRO_HANDOFF.md` (×3, including line 20,
+whose "if it is not 19/19, stop and report" would otherwise have made this increment a stop condition
+for the next session), `docs/KIRO_ONBOARDING.md` (×4), and
+`.kiro/specs/06-two-agent-vps/LOOP.prompt.md` (×2, including the T2 stop predicate). Four documents
+the Phase 2 note did not enumerate were found by re-grepping and are the reason the note said to
+re-grep. **Dated records were left as dated records and made unambiguous rather than falsified:**
+`docs/KIRO_HANDOFF.md` §4 and `docs/KIRO_ONBOARDING.md` §5 and its footer carried snapshot figures
+("333 tests / 37 files", "at handoff") that were already stale, so each now names its date and points
+at the live figure; `RELEASE_CHECKLIST.md`'s 19-of-19 line sits inside a section headed
+`## Released - 2026-08-05` under a file-level convention that dated sections are not a live dashboard,
+so it is marked *at that release* and the note below it now states the live figure (1714 tests, 20
+checks); `docs/KIRO_KICKOFF_TWO_AGENT.prompt.md` line 97 read present-tense and now states both the
+figure when it was written and the figure from 9.0 onward. Left untouched as history: every
+`Harness 19/19` line already in this log and in `contracts/_BUILD_LOG.md` (whose "19/19" is a *test*
+count, not the harness), `docs/PFOS_CONTRACT_INGESTION_REPORT.md` (headed `Run date: 2026-08-05`, and
+its "now" is relative to that run), `docs/PFOS_IMPLEMENTATION_ROADMAP.md` ("Baseline preserved"), and
+every `note` field in `.loop/verification-ledger.json`, which is never hand-edited.
+
+### Verification
+
+- `npm run typecheck` - 0 errors. `npm run lint` - 0 warnings at `--max-warnings 0`.
+- `npm run test` - **1714 passed across 100 files**, up from 1680 across 99. The 34 new tests are all
+  in `deploymentParticulars.test.ts`.
+- `npm run verify:all -- --all` - **`HARNESS PASSED`, `20 of 20 executed checks passed`**, with
+  `PASS AC18 no deployment particular in ops or any fixture`. Before the commit the same run reported
+  **18 of 20** with only **AC14 (working tree clean)** and **AC15 (push ready)** red, both naming the
+  same uncommitted work; that is the expected mid-increment state.
+- AC18's own output, printed on every run so the check cannot pass silently:
+  `declared scan roots: ops/** (19 files), src/server/mocks/fixtures/** (2 files)`,
+  `artifacts scanned for a deployment particular: 21`,
+  `files scanned under src/server/** for the two store-isolation bans: 123`.
+- **The AC04 floor stays at 331.** Ratcheting it is task 9.1 and was not done here.
+- Nothing in `scripts/verify/` was weakened, no assertion was loosened, no test was skipped or
+  deleted, and no scanner was given an exemption to make a check pass. Where the new check fired on a
+  real file, **the file was fixed** - three times, all three recorded above.
+
+### Honest scope note
+
+1. **The one judgement this module adds beyond the shared scan, stated rather than buried.** The
+   shared scan refuses an absolute address outright, which is right for a machine-read template and
+   wrong for a human-facing register that must show the exact command an operator types. The new
+   module masks the scheme **only when that address's authority carries an `<UPPER_SNAKE>`
+   placeholder**, so the host is provably injected; an address with a concrete authority still reaches
+   the shared scan and still reports `PARTICULAR_URL_SCHEME`. Both directions have a test. This is a
+   rule with a stated semantic, not a file exemption, and it narrows nothing the shared scan would
+   otherwise catch about a real endpoint.
+2. **The declared dotted-token list is data, and it duplicates `patchSeries`'s.** A dotted token is
+   how the shared scan recognizes a possible host name, and an `ops/` document legitimately holds
+   dozens that are file names or attribute accesses in quoted source. The list is enumerated exactly,
+   as `patchSeries` does and for the same reason, and it is policed in **both** directions by findings
+   rather than by remarks: an undeclared token in the tree is `DOTTED_TOKEN_UNDECLARED`, and a stale
+   entry is `DECLARED_TOKEN_UNUSED`. The duplication with `patchSeries` is real and is not shared
+   code - the harness cannot import that module at run time, because it has an extensionless relative
+   import - so a test asserts the two lists agree on every token they share. That is a checked
+   invariant, not a resolved one; **the honest description is one scanner and two copies of one word
+   list**.
+3. **The row-append ban is narrower than "the token anywhere".** It fires on a *binding name* -
+   `const`/`let`/`var`/`function` followed by the statement name or its three-letter short form - and
+   not on a repository method reached through a receiver, the statement inside a prepared string, or a
+   sentence about how a row is written. That is deliberate and is the only defensible line: the tree
+   contains about forty legitimate occurrences of the word, including the row-append method on six
+   repositories, and a ban on all of them would have meant renaming the store's own boundary. Both
+   negative directions are tested. A binding introduced some other way - a destructured field, a
+   function parameter - would not be caught; the check is a named smell detector, not a type system.
+4. **The two paths named `fixtures.ts` are out of scope by judgement.** They load and build fixtures
+   rather than being fixtures. If either ever starts carrying literal recorded data, nothing in this
+   check notices, because `FIXTURE_SHAPED_PATH` deliberately does not match a bare `fixtures.ts`.
+5. **The scan is over the tracked tree as it stands on disk, from the repository root.** Both the
+   harness and the vitest run start there; neither resolves paths relative to the module. That matches
+   every existing checker in `scripts/verify/` and is stated so it is a known property rather than a
+   discovered one.
+6. **`PARTICULAR_SCAN_UNMAPPED` is a trip-wire, not a live path.** Today every code the shared scan
+   can produce over these artifacts has a mapping. Its value is entirely prospective: if R24 widens
+   and grows a code, this check reports it instead of silently dropping it - which is what would turn
+   a widened rule into a narrowed one. It is exercised with an injected scanner, not by the real one.
+
+### Still gated
+
+- Writing `ops/**` is authorized and running it is not (steering §2). **Nothing in this increment
+  executed, applied or provisioned anything**, made an outbound call, or used a secret. The check
+  reads text.
+- **G1-G8 untouched and unattempted:** G1 provision and harden the host; G2 DNS for the two
+  hostnames; G3 create the two bots; G4 mint the two runtime keys with their weekly caps; G5 the
+  storage consent click; G6 register both webhooks; G8 generate the encryption keypair and keep the
+  private half off the box. G7 stays **closed as WONT-DO** per steering §0b.
+- The write-ahead-log sidecar determination under G8 is still **undecided**; this increment only
+  reshaped the placeholder that records it.
+- **Tasks 9.1, 9.2, 9.3 and 9.4 remain open.** In particular 9.1 (raise the AC04 `--min` floor to the
+  proven count) was deliberately not done here, and the floor is still 331 against 1714 tests.
+- No outbound call from a server process and no production secret, unchanged.

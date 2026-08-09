@@ -94,6 +94,7 @@ Two further notes:
 
 ## Before you paste
 
-Nothing. The steering is signed off, G7 is closed, and the gate is green at 19/19. Paste and let it run.
+Nothing. The steering is signed off, G7 is closed, and the gate is green - at 19/19 when this prompt
+was written, and at 20/20 from Phase 9.0 onward, which added AC18. Paste and let it run.
 
 If you later disagree with a line in `.kiro/steering/two-agent-vps.md`, edit it and tell Kiro to re-read it.

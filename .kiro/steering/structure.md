@@ -15,7 +15,7 @@ data/             ledger schema + seeds (real ledgers gitignored)
 docs/             architecture · adr · research (from Drive)
 contracts/        the 5 KIRO build contracts (human-readable)
 contracts/pfos/   PFOS contracts 01-04 + OpenRouter 09-11 + _PFOS_BUILD_LOG.md
-scripts/verify/   the 19-check acceptance harness (npm run verify:all -- --all)
+scripts/verify/   the 20-check acceptance harness (npm run verify:all -- --all)
 .kiro/specs/      per-contract requirements/design/tasks (KIRO-native)
 tests/            vitest
 ```

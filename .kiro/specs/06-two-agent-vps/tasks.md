@@ -73,8 +73,14 @@
       modified or pushed.
 
 ## Phase 9 - Close out
-- [ ] 9.0 Add a harness check: no deployment particular in `ops/**` or any fixture (steering §0b) - no bare
+- [x] 9.0 Add a harness check: no deployment particular in `ops/**` or any fixture (steering §0b) - no bare
       domain, IP, Drive id, numeric Telegram id, or real monetary figure. Must fail closed.
+      **Form:** a TWENTIETH named check, `AC18 no deployment particular in ops or any fixture`, not an
+      extension of AC08b - the constraint recorded at `_PFOS_BUILD_LOG.md` §Phase 2 is closed on
+      **option 2**, and every document asserting the current gate figure moved to 20/20 in this same
+      increment. R24 keeps ONE implementation: `scanForParticulars` is injected into
+      `src/server/ops/deploymentParticulars.ts`, never re-derived. Two further bans hold over
+      `src/server/**` per steering §4.1.
 - [ ] 9.1 Raise the `AC04 --min` floor to the new test count
 - [ ] 9.2 Gate passes all checks; commit and push each green increment
 - [ ] 9.3 `ops/GATE_REGISTER.md` complete: every human step with exact commands and a verification line

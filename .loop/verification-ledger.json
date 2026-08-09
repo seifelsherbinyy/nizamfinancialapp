@@ -1,6 +1,6 @@
 {
   "genesisHash": "0000000000000000000000000000000000000000000000000000000000000000",
-  "eventCount": 68,
+  "eventCount": 72,
   "events": [
     {
       "seq": 1,
@@ -885,6 +885,58 @@
       "prevHash": "81abf41988a66299d620885f7d9b670346707d27bbdd256bce357dd0532d2f24",
       "contentHash": "7dbd82069156baedf5965f152e07220650a978876abf94e4ac3f524a7fb90f47",
       "recordedAt": "2026-08-09T15:27:25.940Z"
+    },
+    {
+      "seq": 69,
+      "kind": "PRODUCE",
+      "itemId": "9.0",
+      "actor": "builder",
+      "artifactHash": "a2f0afebad0eee301d3b59307dce84eb53d4c6f08e55c57e4131cbc36978f631",
+      "disposition": null,
+      "confidence": null,
+      "note": "AC18 twentieth named check: no deployment particular in ops/** or any fixture, fail-closed, reusing the ONE scanForParticulars by injection; two store-isolation bans over src/server/**; every current gate-count assertion moved 19 -> 20",
+      "prevHash": "7dbd82069156baedf5965f152e07220650a978876abf94e4ac3f524a7fb90f47",
+      "contentHash": "86ca0f7e97d8adc0a2e41830d903c37ed012aa4f0dea9201c816b64a7bd3e772",
+      "recordedAt": "2026-08-09T16:22:33.884Z"
+    },
+    {
+      "seq": 70,
+      "kind": "VERIFY",
+      "itemId": "9.0",
+      "actor": "gate-runner",
+      "artifactHash": "a2f0afebad0eee301d3b59307dce84eb53d4c6f08e55c57e4131cbc36978f631",
+      "disposition": null,
+      "confidence": null,
+      "note": "typecheck 0; lint 0; 1714/1714 tests across 100 files (deploymentParticulars 34, all 17 finding codes with a named negative case, three fail-closed paths returning findings); harness 20 of 20 after commit, 18 of 20 before it with only AC14 and AC15 red; AC18 scanned 21 artifacts and 123 src/server files; AC04 floor unchanged at 331 (9.1 owns it)",
+      "prevHash": "86ca0f7e97d8adc0a2e41830d903c37ed012aa4f0dea9201c816b64a7bd3e772",
+      "contentHash": "14f214fc7f029afe44a7c71392403b57c989e43a8020e322dff1956b22d72a16",
+      "recordedAt": "2026-08-09T16:22:45.173Z"
+    },
+    {
+      "seq": 71,
+      "kind": "APPROVE",
+      "itemId": "9.0",
+      "actor": "reviewer",
+      "artifactHash": "a2f0afebad0eee301d3b59307dce84eb53d4c6f08e55c57e4131cbc36978f631",
+      "disposition": null,
+      "confidence": null,
+      "note": "Option 2 of the Phase-2 constraint taken deliberately: a twentieth named check rather than a second assertion under AC08b's name, with every current gate-figure document moved in the same increment so the figure and the documents never disagree. Three real findings were fixed in source rather than exempted: two bare locals named after the row-append statement, and a malformed placeholder in ops/GATE_REGISTER.md. Nothing renumbered, reordered or softened; no floor moved; no scanner exempted.",
+      "prevHash": "14f214fc7f029afe44a7c71392403b57c989e43a8020e322dff1956b22d72a16",
+      "contentHash": "1a645cfa44c2b12ea1ca22b1f2b9b8be4b81b932814a626cdd051fea9fd343b5",
+      "recordedAt": "2026-08-09T16:22:56.696Z"
+    },
+    {
+      "seq": 72,
+      "kind": "CERTIFY",
+      "itemId": "9.0",
+      "actor": "reviewer",
+      "artifactHash": "a2f0afebad0eee301d3b59307dce84eb53d4c6f08e55c57e4131cbc36978f631",
+      "disposition": "RESOLVED",
+      "confidence": "VERIFIED",
+      "note": "covers: 9.0 - AC18 wired into scripts/verify/all.mjs; R24 keeps ONE implementation, injected not re-derived; scope ops/** plus src/server/mocks/fixtures/** with a tracked-tree assertion that no fixture-shaped path escapes; fails closed on a missing root, an empty root and an unreadable file",
+      "prevHash": "1a645cfa44c2b12ea1ca22b1f2b9b8be4b81b932814a626cdd051fea9fd343b5",
+      "contentHash": "acda9697cde71dcda327a5e6b86eb452a71de55ac4bb49b0aec939b3b9267801",
+      "recordedAt": "2026-08-09T16:23:08.289Z"
     }
   ]
 }

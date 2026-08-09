@@ -192,13 +192,13 @@ describe('foreign keys actually enforced (§9 T4)', () => {
     try {
       // A transaction referencing an account that does not exist. Under foreign_keys=OFF
       // this INSERT succeeds silently, which is exactly the failure mode §2.2 guards.
-      const insert = handle.db.prepare(
+      const orphanWrite = handle.db.prepare(
         `INSERT INTO transactions
            (id, account_id, transaction_date, transaction_type, amount, status, verification_level, created_at, updated_at)
          VALUES (?, ?, ?, 'charge', ?, 'posted', 'parser', ?, ?)`,
       );
       expect(() =>
-        insert.run('txn_orphan', 'acct_absent', '2026-01-05', -1_500, '2026-01-05T00:00:00.000Z', '2026-01-05T00:00:00.000Z'),
+        orphanWrite.run('txn_orphan', 'acct_absent', '2026-01-05', -1_500, '2026-01-05T00:00:00.000Z', '2026-01-05T00:00:00.000Z'),
       ).toThrow(/FOREIGN KEY constraint failed/i);
 
       // Nothing was written.

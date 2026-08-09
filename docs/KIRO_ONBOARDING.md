@@ -23,10 +23,10 @@ git checkout master          # the default branch is master, NOT main
 nvm use                      # Node 24, pinned in .nvmrc
 npm ci                       # reproducible install from package-lock.json
 cp .env.example .env.local   # fill Google keys ONLY when doing live Drive; dev/tests need neither
-npm run verify:all -- --all  # MUST print "19 of 19 executed checks passed" before you change anything
+npm run verify:all -- --all  # MUST print "20 of 20 executed checks passed" before you change anything
 ```
 
-If the harness is not 19/19 on a clean checkout, stop and report - do not build on a broken base.
+If the harness is not 20/20 on a clean checkout, stop and report - do not build on a broken base.
 
 ## 2. Read the source of truth (in this order) before writing code
 
@@ -43,7 +43,7 @@ If the harness is not 19/19 on a clean checkout, stop and report - do not build 
 Contracts outrank docs; docs outrank code comments. Never invent policy an area's contract would
 govern - if the contract is absent, author it (clearly marked as NIZAM-derived) before building.
 
-## 3. Non-negotiable invariants (the harness enforces these - keep it at 19/19)
+## 3. Non-negotiable invariants (the harness enforces these - keep it at 20/20)
 
 - **Money is integer milliunits.** No floats for money. No `parseFloat` / `Number.parseFloat` /
   `.toFixed(` outside `src/lib/money/`. No decimal literal assigned to a money-named field. (AC07)
@@ -65,7 +65,7 @@ govern - if the contract is absent, author it (clearly marked as NIZAM-derived) 
 ## 4. Build discipline (every increment, no exceptions)
 
 Design/spec -> implement -> `npm run typecheck` -> `npm run lint` -> `npm run test` ->
-`npm run verify:all -- --all` (19/19) -> commit -> push to `master`.
+`npm run verify:all -- --all` (20/20) -> commit -> push to `master`.
 
 - Put a contract+phase header on every new file; ratchet the AC04 test floor when tests grow.
 - Append a short section to `contracts/pfos/_PFOS_BUILD_LOG.md` describing the increment.
@@ -75,7 +75,8 @@ Design/spec -> implement -> `npm run typecheck` -> `npm run lint` -> `npm run te
 
 ## 5. Current state (already built and decided)
 
-**Built (offline, server-free, 333 tests, 19/19 harness):**
+**Built (offline, server-free; 333 tests and a 19/19 harness at the 2026-08-06 handoff - the gate is
+20/20 now, and the suite has grown well past that figure):**
 - Stage 1-4 deterministic engines + UI: money core, budget, safe-to-spend, cash-flow forecast, the
   append-only decision registry, and net worth (assets + FX + macro).
 - M2 benchmark harness (`src/features/benchmark/`): the >=210-case eval set, per-category scoring, the
@@ -124,5 +125,6 @@ secret; or building any server/live-key/network piece while the wall in section 
 
 ---
 
-*Prepared 2026-08-06. Repo state at handoff: branch `master`, working tree clean, 19/19 harness,
-333 tests. Nothing secret is or was tracked.*
+*Prepared 2026-08-06. Repo state **at that handoff**: branch `master`, working tree clean, 19/19
+harness, 333 tests. That is a dated record; the live gate figure is the 20/20 stated in sections 1,
+3 and 4. Nothing secret is or was tracked.*

@@ -604,7 +604,7 @@ The same ranking is stated in `ops/backup/backup.sh` and in `ops/runbook/ROLLBAC
 `src/server/ops/runbookTemplate.ts` fails closed (`WAL_DEFAULT_OUTCOME_NOT_RANKED`) if the runbook
 stops naming outcome B as the default or outcome A as the fallback.
 
-**Record here when decided:** "sidecar determination: outcome `<B|A>` taken on `<DATE>`; if A, the
+**Record here when decided:** "sidecar determination: outcome `<SIDECAR_OUTCOME>` (B or A) taken on `<DATE>`; if A, the
 sidecar-only grant is `<PATH>` and no store file was made writable." Until it is recorded, every
 rollback across a migration is **blocked on a human**, not available.
 

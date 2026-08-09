@@ -127,12 +127,12 @@ describe('appendSpend records the ACTUAL reported cost (§6.2.1, T14)', () => {
   it("refuses the engine's own path too: a raw INSERT of an estimate is rejected by the CHECK", () => {
     // The repository is the first belt; the table is the second. A caller reaching the handle
     // directly still cannot record an estimate.
-    const insert = handle.db.prepare(
+    const rawWrite = handle.db.prepare(
       `INSERT INTO spend_ledger
          (id, agent, occurred_at, week_key, model_id, cost_micro_usd, prompt_tokens, completion_tokens, request_ref, cost_source)
        VALUES (?, 'finance', ?, ?, 'model-alpha', 10, 1, 1, ?, 'preflight_estimate')`,
     );
-    expect(() => insert.run('spend_raw_estimate', '2026-03-04T09:15:00Z', WEEK, 'req_raw')).toThrow();
+    expect(() => rawWrite.run('spend_raw_estimate', '2026-03-04T09:15:00Z', WEEK, 'req_raw')).toThrow();
     expect(storedRow('spend_raw_estimate')).toBeUndefined();
   });
 

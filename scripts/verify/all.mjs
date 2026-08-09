@@ -17,6 +17,7 @@ const CHECKS = [
   { id: "AC08b", label: "ingestion tooling and server tier stay isolated", cmd: [node, ["scripts/verify/ingest-isolation.mjs"]] },
   { id: "AC09", label: "no secrets or real ledgers tracked", cmd: [node, ["scripts/verify/secret-scan.mjs"]] },
   { id: "AC11", label: "no organization specific terms", cmd: [node, ["scripts/verify/generic-only.mjs"]] },
+  { id: "AC18", label: "no deployment particular in ops or any fixture", cmd: [node, ["scripts/verify/no-deployment-particular.mjs"]] },
   { id: "AC02", label: "typescript reports zero errors", cmd: ["npm", ["run", "typecheck"]] },
   { id: "AC03", label: "linter is clean at zero warnings", cmd: ["npm", ["run", "lint"]] },
   { id: "AC04", label: "test suite passes and meets its size floor", cmd: [node, ["scripts/verify/testcount.mjs", "--min", "331"]] },

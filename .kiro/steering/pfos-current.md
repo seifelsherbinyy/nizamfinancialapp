@@ -10,7 +10,7 @@ file wins.** Those three describe the original 5-contract Drive-JSON build, whic
   forecast, append-only decision registry, net worth with assets/FX/macro); the **M2 benchmark harness**
   (`src/features/benchmark/`); the **model-selection + weekly-budget policy**
   (`src/features/routing/modelPolicy.ts`). 333 tests.
-- **THE GATE IS NOW `npm run verify:all -- --all`, which must print "19 of 19 executed checks passed".**
+- **THE GATE IS NOW `npm run verify:all -- --all`, which must print "20 of 20 executed checks passed".**
   `typecheck` / `test` / `build` alone are NO LONGER sufficient.
 
 ## Decisions in force
@@ -53,7 +53,7 @@ integer-money implementation that must stay bit-identical.
 
 ## Per-increment loop
 spec/design -> implement -> `npm run typecheck` -> `npm run lint` -> `npm run test` ->
-`npm run verify:all -- --all` (19/19) -> tick the spec `tasks.md` -> append a section to
+`npm run verify:all -- --all` (20/20) -> tick the spec `tasks.md` -> append a section to
 `contracts/pfos/_PFOS_BUILD_LOG.md` -> commit -> push to `master`.
 
 > Master handoff / full-stack build context for the IDE agent: `docs/KIRO_HANDOFF.md` (read after this file).
