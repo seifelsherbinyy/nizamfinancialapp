@@ -124,11 +124,11 @@
       **R29** the finance-agent process refuses to boot on an incomplete environment, honours the
       kill sentinel, and binds no public port in `longPoll`; **R30** the host firewall and the compose
       port bindings must agree (closes **F12**). Record the design delta in `design.md`.
-- [-] 10.1 Reconcile the two steering files so they stop disagreeing (§8 step 1, §1): add the
+- [x] 10.1 Reconcile the two steering files so they stop disagreeing (§8 step 1, §1): add the
       read-only carve-out to `.kiro/steering/two-agent-vps.md` §2 and cite it as the resolution of
       **F11** (reads free, mutations owner-in-the-loop); edit `.kiro/steering/cloudflare-dns.md`
       item 3 to record the **D-ROTATE** deferral so no later session rotates unilaterally.
-- [ ] 10.2 Extend `src/server/config/environment.ts` from the two agents to all six services
+- [-] 10.2 Extend `src/server/config/environment.ts` from the two agents to all six services
       (life, finance, proxy, bus, scheduler, backup), keeping both proven properties: one
       `process.env` bridge in the whole of `src/`, and every missing entry named in one message.
       Tests included. (§6.1, R27)

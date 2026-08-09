@@ -3631,3 +3631,111 @@ orchestrator and no checkbox was ticked here.**
 - The three cross-repo changes stay **emitted and unapplied**. §2a now permits reading that repository; the
   mandate's §7 authorisation is still what is needed to write to it, and option **(b)** remains the
   recommendation.
+
+## Task 10.2 - the environment loader over all six services, and the aggregate refusal it did not have (2026-08-10)
+
+**Spec:** `.kiro/specs/06-two-agent-vps`, Phase 10 task 10.2. **Authority:** `KIRO_SHIP_LIVE.prompt.md` rev 2
+§6.1, and **R27**. **Design:** `design.md` **D3**, authored by task 10.0 for exactly this work. **Scope:** two
+files under `src/server/config/`, plus the AC04 floor and this log. **No network call, no secret read, no
+credential created, no gate touched, and no checkbox ticked.**
+
+### This task had two jobs, because §6.1 was wrong on one point
+
+Task 10.0 recorded it and this task carried it out. Mandate §6.1 marks "names **every** missing entry at once"
+as **Confirmed**; the disk said otherwise, and still did when this task began: `readRaw` threw
+`EnvConfigError` on the **first** absent entry, and that error carries a single `entry` field.
+`describeConfiguredPresence` returned a boolean per entry and was **not on the refusal path**. So the work
+was (a) widen the loader from two agents to six services, and (b) **build the aggregate refusal that did not
+exist**. Ladder rung **L0** is unpassable without (b): its pass condition is that removing one required entry
+fails the boot naming that entry **and every other missing one in the same message**, and a first-failure
+error passes half of that.
+
+### What the loader now holds
+
+| Added | What it is |
+|---|---|
+| `DEPLOYMENT_SERVICES`, `DeploymentService`, `isDeploymentService` | The six identities the deployment declares - `life`, `finance`, `proxy`, `bus`, `scheduler`, `backup` - spelled as `ops/env/*.env.example` names them. The two agent identities are members with the same spelling, so every existing agent-shaped call site is unchanged. |
+| `SERVICE_ENTRY_NAMES`, `serviceEntryNames(service)` | Each service's own entry names, frozen. The same shape `AGENT_ENTRY_NAMES` already had, over six rows instead of two. An identity outside the set is refused with `ENV_SERVICE_UNKNOWN`; there is **no lookup by arbitrary string**. |
+| `EnvConfigFinding`, `EnvConfigAggregateError`, `refuseOnFindings` | The aggregate. **A code per finding, not one umbrella code** - `EnvConfigAggregateError` has no `code` field at all, and exposes `findings`, `entries` and `codes`. Constructing one with no finding throws, because a refusal with no reason is not a refusal. |
+| `classifyEntry`, `collectServiceFindings`, `requireServiceEnvironment` | Collect first, refuse once. `classifyEntry` never throws, which is what makes naming everything possible. |
+| `collectDeploymentFindings`, `requireDeploymentEnvironment`, `servicesPresent`, `EnvByService` | The same, across any subset of the six, still one message for all of them. A phase that runs three services is not obliged to supply six. |
+| `ABSENCE_IS_A_DECISION` | The one documented exception, and it is about **absence only**: an absent, empty or whitespace-only `ALLOWED_USER_IDS` is a decision that means nobody (**R25**), while an unfilled placeholder there is still a finding. |
+| `SHARED_ENTRY_AGREEMENTS`, `collectSharedEntryDisagreements` | The mandate §4 rule that a shared entry must carry the **same value** where it is shared: both container ports, the allowlist, the sentinel path, the bus endpoint, the eligibility registry path, and the two provider bases. |
+| `KILL_SENTINEL_MOUNT_TARGET`, `KILL_SENTINEL_SERVICES`, `collectKillSentinelFindings` | The sentinel path must resolve **inside** the halt mount in all four honouring services, and must not climb out of it. A sentinel elsewhere is a kill switch that silently does nothing. |
+| `collectForeignEntryFindings`, `collectCrossServiceFindings`, `requireCrossServiceAgreement` | Every negative row of §4 as **one** rule rather than four greps: an entry declared by another service and not by this one is `ENV_FOREIGN_ENTRY_PRESENT`. That covers no finance secret in the life file and the reverse, no bot token or expected secret token in the proxy file, and no webhook path segment in either agent file. |
+| `describeServiceConfiguredPresence` | Presence for a service's whole entry set, booleans and nothing else. |
+
+Four codes joined `ENV_CONFIG_ERROR_CODES`: `ENV_SERVICE_UNKNOWN`, `ENV_SHARED_ENTRY_DISAGREES`,
+`ENV_KILL_SENTINEL_OUTSIDE_MOUNT`, `ENV_FOREIGN_ENTRY_PRESENT`. **No existing export was renamed or removed
+and no existing code changed meaning**, so every one of the 35 pre-existing cases in `environment.test.ts`
+still asserts what it asserted.
+
+### The three properties that had to survive, and how each is still held
+
+1. **Exactly one bridge to the ambient process environment in the whole of `src/`.** `processEnvSource()` is
+   still the only expression that reads it. Six services did **not** become six bridges - they became six
+   entry-name groups behind the one bridge, each handed an `EnvSource` by its caller. The tree scan asserts
+   the reader list is exactly `['src/server/config/environment.ts']` and its length is **1**, in both suites.
+2. **Per-service independence is structural, not checked.** Nothing below the table looks an entry name up by
+   string. A `proxy` load can no more spell `OR_KEY_FINANCE` than a `finance` load can spell `OR_KEY_LIFE`,
+   and the pairwise exclusions are asserted for the agent secrets, the two webhook path segments, and every
+   credential against the bus and the scheduler.
+3. **No default for anything, and a placeholder is a failure rather than a value.** Asserted exhaustively:
+   for **every** service and **every** one of its entries except the documented allowlist exception, removing
+   that entry alone produces exactly one finding, naming that entry, coded `ENV_ENTRY_ABSENT`.
+
+### The entry names came from the templates, and a test says so
+
+`ops/env/*.env.example` is the source of truth. No entry was invented and none renamed. The suite parses all
+six templates with the **existing** `parseEnvTemplate` from `src/server/ops/envTemplates.ts` - reused rather
+than re-derived - and asserts each loader group equals its template **set for set in both directions**, plus
+the authored counts: life **19**, finance **17**, proxy **6**, bus **3**, scheduler **5**, backup **12**. A
+count is the one assertion a renamed entry cannot satisfy by accident, so the six counts are written out.
+`KILL_SENTINEL_MOUNT_TARGET` is likewise asserted against `ops/docker-compose.yml`: four mount lines, each
+read-only, each at that target.
+
+**`MAX_CONNECTIONS` was given no home** (finding **F2**). It is an argument to the gate G6 registration
+command, it belongs to no environment file, and it is **irrelevant in `longPoll`** - the mode phase 1 ships on
+delivers nothing, so there is no delivery concurrency for it to bound. That is recorded in a comment in the
+loader and asserted by a test that it appears in no service's entry set. Task 10.4 records where it belongs
+for phase 2. Inventing a home would have created a value with two owners that can disagree.
+
+### Tests
+
+**37 new cases** in `src/server/config/environmentServices.test.ts`, a sibling rather than an edit, so the
+existing 35 stayed untouched. The headline is the aggregate, and it is asserted the way D3 insists:
+
+- **More than one entry broken at a time.** Three entries wrong three different ways - absent, blank, still
+  holding its placeholder - produce **one** refusal naming all three, with the **right code on each**. D3's
+  warning is why: a case that removes only one is a case a first-failure error also passes.
+- **A whole template copied and never filled in** produces twelve findings in one message, one per backup
+  entry.
+- **Findings from three services in the same message**, each carrying its own service identity.
+- **A negative case per new code**, and each observed firing rather than merely returning a value.
+- **No message carries a value.** Every synthetic value is a recognizable marker and the messages are swept
+  for all of them; the sentinel finding is shown naming the **mount** and not the configured path, and the
+  disagreement finding naming the **entry and its services** and neither of the two values.
+
+### Gate result
+
+- `npm run typecheck` - clean. `npm run lint` - clean at zero warnings.
+- `npm run test` - **1829 passing**, up from 1792. The AC04 `--min` floor is **ratcheted 1790 -> 1829**, up
+  only, never down.
+- `npm run verify:all -- --all` - **20 of 20 executed checks passed**, run after the commit because **AC14**
+  and **AC15** require a clean tree.
+- **No check was weakened.** No assertion loosened, no test skipped or deleted, no scanner allowlisted, and the
+  only edit to `scripts/verify/all.mjs` is the floor moving up.
+- **R24** holds over both changed files: every test value is synthetic and says so on sight (`syn-` prefix, a
+  `.invalid` provider base, two- and three-digit sender stand-ins). No domain, no host address, no bot name, no
+  numeric identifier, no token, and no monetary figure.
+
+### What this task did not do, stated so the next session does not assume it
+
+**Values are still not resolved for the four non-agent services.** This task widened **coverage** - which
+entries a service requires, and refusing a boot that lacks any of them - not value resolution. The typed
+per-agent loaders (`loadTelegramTransportConfig`, `loadAgentModelBinding`) are unchanged, and the proxy, bus,
+scheduler and backup services get completeness and cross-file agreement rather than a typed configuration
+object. That is deliberate: three of those four services are not this repository's processes, and a returned
+object holding their values would put `DRIVE_REFRESH_TOKEN` and `GOOGLE_CLIENT_SECRET` into a shape something
+could log. **R29's boot refusal is task 10.7**, which is where `requireServiceEnvironment` gets called by a
+process. **Ladder rung L0 is now passable** and task 10.12 is where it is recorded as observed.

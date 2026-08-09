@@ -1,10 +1,13 @@
 /**
- * NIZAM · The environment loader — the one place a configured value is resolved, per agent
- * Implemented by: PFOS Contract 12 / Phase 4.5 (spec 06-two-agent-vps, task prompt §3.1)
+ * NIZAM · The environment loader — the one place a configured value is resolved, per service
+ * Implemented by: PFOS Contract 12 / Phase 4.5, widened to six services by Phase 10 task 10.2
+ *   (spec 06-two-agent-vps, task prompt §3.1 then §6.1)
  * Owning requirements: R11 (the token guard is configured, never defaulted), R12 (the allowlist,
  *   where empty means nobody), R17 (per-agent cap isolation — one agent's key and cap are not
  *   reachable from the other's configuration), R23 (every value traces to a human gate),
- *   R24 (no deployment particular in a tracked file)
+ *   R24 (no deployment particular in a tracked file), R25 (the allowlist parse rules),
+ *   R27 (all six services, one process-environment bridge, every missing entry in one message,
+ *   no default for anything, an unsubstituted placeholder is a failure rather than a value)
  * Depends on: ../ports/telegram (types + the mode vocabulary), ../telegram/auth
  *   (`secretTokenIsConfigured` — the provider's own token rule, consumed and never restated),
  *   ../../features/routing/spendLedger (the two agent identities, type + guard)
@@ -95,6 +98,7 @@ export function processEnvSource(): EnvSource {
  */
 export const ENV_CONFIG_ERROR_CODES = [
   'ENV_AGENT_UNKNOWN',
+  'ENV_SERVICE_UNKNOWN',
   'ENV_ENTRY_ABSENT',
   'ENV_ENTRY_EMPTY',
   'ENV_ENTRY_UNSUBSTITUTED_PLACEHOLDER',
@@ -105,6 +109,9 @@ export const ENV_CONFIG_ERROR_CODES = [
   'ENV_WEBHOOK_SECRET_UNUSABLE',
   'ENV_ALLOWLIST_ENTRY_MALFORMED',
   'ENV_BOT_IDENTITY_EMPTY',
+  'ENV_SHARED_ENTRY_DISAGREES',
+  'ENV_KILL_SENTINEL_OUTSIDE_MOUNT',
+  'ENV_FOREIGN_ENTRY_PRESENT',
 ] as const;
 
 export type EnvConfigErrorCode = (typeof ENV_CONFIG_ERROR_CODES)[number];
@@ -481,5 +488,515 @@ export function describeConfiguredPresence(agent: SpendAgent, env: EnvSource): C
   ];
   const out: Record<string, boolean> = {};
   for (const entry of entries) out[entry] = entryIsConfigured(env, entry);
+  return Object.freeze(out);
+}
+
+// =============================================================================================
+// Phase 10, task 10.2 — the same loader, over all six services (R27)
+// =============================================================================================
+//
+// WHAT CHANGES AND WHAT DOES NOT. The deployment declares six services, not two agents:
+// `ops/docker-compose.yml` gives each of them exactly one `env_file`, and `ops/env/*.env.example`
+// is the entry set behind it. Everything above resolved the two AGENT configurations, which is
+// four of the six. This section widens the coverage to all six and adds the one property the
+// module did not have — every missing entry named in a SINGLE message — while leaving the two
+// properties that were already mechanical exactly as they were:
+//
+//  * ONE BRIDGE TO THE AMBIENT ENVIRONMENT. {@link processEnvSource} is still the only expression
+//    in `src/` that reads it, and the tree scan in the test suite still finds exactly one
+//    permitted hit. Six services did NOT become six bridges; they became six entry-name groups
+//    behind the one bridge, each group handed an {@link EnvSource} by its caller.
+//  * PER-SERVICE INDEPENDENCE IS STRUCTURAL, NOT CHECKED. {@link SERVICE_ENTRY_NAMES} gives each
+//    identity its own entry names, exactly as {@link AGENT_ENTRY_NAMES} does for the two agents,
+//    and {@link serviceEntryNames} refuses an identity outside the enumerated set rather than
+//    defaulting to one. There is no lookup by arbitrary string anywhere below: a `proxy` load can
+//    no more spell `OR_KEY_FINANCE` than a `finance` load can spell `OR_KEY_LIFE`.
+//
+// AND NO DEFAULT FOR ANYTHING, STILL. Every entry named below is required of its service. The one
+// documented exception is {@link ABSENCE_IS_A_DECISION}, and it is an exception about ABSENCE
+// only: an unfilled placeholder is refused there too, because an empty allowlist is a decision
+// (it means nobody, and the guard refuses everyone under it) while an unfilled template is a
+// mistake (R25, and its decision note in the requirements).
+//
+// `MAX_CONNECTIONS` IS DELIBERATELY ABSENT FROM EVERY GROUP BELOW (finding F2 in
+// `TELEGRAM_VALUE_LEDGER.md` §5). It is an argument to the gate G6 registration command and to
+// G6's own verification line; it belongs to no environment file, and it is IRRELEVANT in the
+// `longPoll` mode phase 1 ships on, because in that mode the provider delivers nothing and there
+// is no delivery concurrency for it to bound. Inventing a home for it here would create a value
+// with two owners that could disagree; task 10.4 records where it does belong for phase 2.
+
+/**
+ * The six services the deployment declares, spelled as `ops/env/*.env.example` names them. The two
+ * agent identities are members of this set with the same spelling they carry in `SpendAgent`, so an
+ * agent-shaped call site keeps working unchanged.
+ */
+export const DEPLOYMENT_SERVICES = ['life', 'finance', 'proxy', 'bus', 'scheduler', 'backup'] as const;
+
+export type DeploymentService = (typeof DEPLOYMENT_SERVICES)[number];
+
+export function isDeploymentService(value: unknown): value is DeploymentService {
+  return typeof value === 'string' && (DEPLOYMENT_SERVICES as readonly string[]).includes(value);
+}
+
+/**
+ * Each service's own entry names, transcribed from its own template in `ops/env/` and from nowhere
+ * else. The test suite parses the six templates with the existing `parseEnvTemplate` and asserts
+ * this table equals them set for set, in both directions, so an entry invented here or renamed
+ * there is a failing test rather than a loader that quietly stops matching the deployment.
+ */
+export const SERVICE_ENTRY_NAMES: Readonly<Record<DeploymentService, readonly string[]>> = Object.freeze({
+  // ops/env/life.env.example — the life agent, which is Python and lives in the other repository;
+  // its entry names are agreed here because this is where the boundary shapes are agreed.
+  life: Object.freeze([
+    'LIFE_DATA_DIR',
+    'LIFE_STORE_FILE',
+    'STORE_BUSY_TIMEOUT_MS',
+    'LIFE_CONTAINER_PORT',
+    'BOT_A_TOKEN',
+    'LIFE_WEBHOOK_SECRET',
+    'ALLOWED_USER_IDS',
+    'MSG_API_BASE',
+    'TELEGRAM_MODE',
+    'MAX_WORK_ITEMS',
+    'OR_KEY_LIFE',
+    'MODEL_API_BASE',
+    'LIFE_WEEKLY_CAP',
+    'MODEL_ELIGIBILITY_REGISTRY_PATH',
+    'BUS_INTERNAL_ENDPOINT',
+    'WHOOP_API_BASE',
+    'WHOOP_ACCESS_TOKEN',
+    'KILL_SENTINEL_PATH',
+    'NIZAM_KILL_ALL',
+  ]),
+  // ops/env/finance.env.example — this repository's agent. No life secret, and no recovery
+  // credential: a recovery band reaches this agent over the consent bus, never as a provider call.
+  finance: Object.freeze([
+    'FINANCE_DATA_DIR',
+    'FINANCE_STORE_FILE',
+    'STORE_BUSY_TIMEOUT_MS',
+    'FINANCE_CONTAINER_PORT',
+    'BOT_B_TOKEN',
+    'MONEY_WEBHOOK_SECRET',
+    'ALLOWED_USER_IDS',
+    'MSG_API_BASE',
+    'TELEGRAM_MODE',
+    'MAX_WORK_ITEMS',
+    'OR_KEY_FINANCE',
+    'MODEL_API_BASE',
+    'FINANCE_WEEKLY_CAP',
+    'MODEL_ELIGIBILITY_REGISTRY_PATH',
+    'BUS_INTERNAL_ENDPOINT',
+    'KILL_SENTINEL_PATH',
+    'NIZAM_KILL_ALL',
+  ]),
+  // ops/env/proxy.env.example — holds the two secret path segments, because routing by them is the
+  // proxy's own job, and holds no bot token and no expected secret token: the constant-time
+  // comparison lives in the agent, and a proxy that held the value could compare it somewhere no
+  // test covers. Deferred in phase 1: the proxy stays down under `longPoll`.
+  proxy: Object.freeze([
+    'DOMAIN',
+    'ACME_CONTACT',
+    'LIFE_WEBHOOK_PATH',
+    'MONEY_WEBHOOK_PATH',
+    'LIFE_CONTAINER_PORT',
+    'FINANCE_CONTAINER_PORT',
+  ]),
+  // ops/env/bus.env.example — the narrowest service in the deployment, and the one place both
+  // agents' state meets, which is why it holds no credential of any kind.
+  bus: Object.freeze(['SIGNALS_DATA_DIR', 'SIGNALS_STORE_FILE', 'BUS_INTERNAL_ENDPOINT']),
+  // ops/env/scheduler.env.example — a clock. It reads no store, holds no credential, and makes no
+  // outbound call, so two of its five entries are the halt.
+  scheduler: Object.freeze([
+    'LIFE_TICK_ENDPOINT',
+    'FINANCE_TICK_ENDPOINT',
+    'SCHEDULER_TICK_INTERVAL',
+    'KILL_SENTINEL_PATH',
+    'NIZAM_KILL_ALL',
+  ]),
+  // ops/env/backup.env.example — the PUBLIC recipient key is here; the private half is never on the
+  // host, which is what makes "this host creates a backup it cannot read" true rather than stated.
+  backup: Object.freeze([
+    'BACKUP_WORK_DIR',
+    'BACKUP_SCHEDULE',
+    'AGE_PUBLIC_KEY',
+    'BACKUP_ENCRYPTION_SCHEME',
+    'BACKUP_RETAIN_COUNT',
+    'BACKUP_FOLDER_REF',
+    'DRIVE_REFRESH_TOKEN',
+    'GOOGLE_CLIENT_ID',
+    'GOOGLE_CLIENT_SECRET',
+    'STORAGE_TOKEN_URL',
+    'KILL_SENTINEL_PATH',
+    'NIZAM_KILL_ALL',
+  ]),
+});
+
+/** Read one service's entry names, refusing an identity outside the enumerated set. */
+export function serviceEntryNames(service: DeploymentService): readonly string[] {
+  if (!isDeploymentService(service)) {
+    throw new EnvConfigError(
+      'ENV_SERVICE_UNKNOWN',
+      null,
+      `a service identity must be one of ${DEPLOYMENT_SERVICES.join(', ')}; an unknown identity is refused rather than defaulted, because defaulting it would resolve one service's configuration under another's name`,
+    );
+  }
+  return SERVICE_ENTRY_NAMES[service];
+}
+
+/**
+ * Entries whose ABSENCE is a decision rather than a mistake, and therefore not a finding.
+ *
+ * `ALLOWED_USER_IDS` is the whole of this list and R25 is why: an absent, empty, or whitespace-only
+ * allowlist parses to an EMPTY list, and `senderIsAllowlisted` refuses every sender under it — so
+ * the unconfigured case is already closed, and refusing the boot as well would refuse a
+ * configuration that means "nobody". An UNFILLED PLACEHOLDER is still a finding here, because that
+ * is a template nobody completed rather than a list somebody emptied.
+ */
+export const ABSENCE_IS_A_DECISION: readonly string[] = Object.freeze([SHARED_ENTRIES.allowedSenderIds]);
+
+// ---------------------------------------------------------------------------------------------
+// The aggregate refusal: every finding named in ONE message (R27)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * One thing wrong with one entry.
+ *
+ * `code` is per FINDING, deliberately, rather than one umbrella code on the aggregate: the
+ * discriminator that lets a caller tell an absent entry from an unusable one is the whole value of
+ * a typed refusal, and an umbrella code would throw it away at exactly the moment there is more
+ * than one thing to say.
+ *
+ * `entry` is a NAME and `service` is an identity. Neither is a value, and there is no field that
+ * could carry one — the same reason {@link ConfiguredPresence} is booleans and nothing else.
+ */
+export interface EnvConfigFinding {
+  readonly code: EnvConfigErrorCode;
+  readonly service: DeploymentService | null;
+  readonly entry: string;
+  /** Why, in one clause, assembled from the entry NAME alone. */
+  readonly why: string;
+}
+
+/**
+ * A startup refusal that names EVERY finding at once.
+ *
+ * WHY THIS TYPE EXISTS. {@link EnvConfigError} refuses on the FIRST thing it meets and carries a
+ * single `entry`, which makes an operator with four unfilled entries restart four times to learn
+ * four names. Ladder rung L0 is the observation that settles it: remove a required entry and the
+ * boot must fail naming that entry AND every other missing one in the same message. A
+ * first-failure error passes half of that rung, which is why this is real work rather than a
+ * re-confirmation of something the module already did.
+ *
+ * There is no `code` field. A caller discriminates on the type and then reads {@link findings},
+ * where every finding carries its own code; {@link codes} is the de-duplicated set of them, in the
+ * order they were first met. The message is assembled from entry names, service identities and
+ * codes — never from a value, so an aggregate that reaches a log tells an operator what to fix and
+ * discloses nothing about what was configured (R24).
+ */
+export class EnvConfigAggregateError extends Error {
+  readonly findings: readonly EnvConfigFinding[];
+  readonly entries: readonly string[];
+  readonly codes: readonly EnvConfigErrorCode[];
+
+  constructor(findings: readonly EnvConfigFinding[], what: string) {
+    if (findings.length === 0) {
+      throw new Error('NIZAM environment: an aggregate refusal with no finding would be a refusal with no reason');
+    }
+    const lines = findings.map((f) => `${f.service === null ? '' : `${f.service}/`}${f.entry} ${f.why} [${f.code}]`);
+    super(
+      `NIZAM environment: ${what} is not configured — ${findings.length} ${findings.length === 1 ? 'entry' : 'entries'} to fix, all of them named here so one restart answers the whole question: ${lines.join('; ')}`,
+    );
+    this.name = 'EnvConfigAggregateError';
+    this.findings = Object.freeze([...findings]);
+    this.entries = Object.freeze([...new Set(findings.map((f) => f.entry))]);
+    this.codes = Object.freeze([...new Set(findings.map((f) => f.code))]);
+  }
+}
+
+/** Throw the aggregate when there is anything to say, and return quietly when there is not. */
+export function refuseOnFindings(findings: readonly EnvConfigFinding[], what: string): void {
+  if (findings.length > 0) throw new EnvConfigAggregateError(findings, what);
+}
+
+/**
+ * Classify ONE entry, or `null` when there is nothing wrong with it. Pure, and it never throws:
+ * collecting is what makes naming every finding at once possible, so nothing on this path may
+ * refuse early.
+ */
+export function classifyEntry(env: EnvSource, entry: string, service: DeploymentService | null = null): EnvConfigFinding | null {
+  const raw = env[entry];
+  const absenceIsADecision = ABSENCE_IS_A_DECISION.includes(entry);
+  if (raw === undefined) {
+    if (absenceIsADecision) return null;
+    return {
+      code: 'ENV_ENTRY_ABSENT',
+      service,
+      entry,
+      why: 'is not set, and this loader supplies no default',
+    };
+  }
+  const trimmed = raw.trim();
+  if (UNSUBSTITUTED_PLACEHOLDER.test(trimmed)) {
+    return {
+      code: 'ENV_ENTRY_UNSUBSTITUTED_PLACEHOLDER',
+      service,
+      entry,
+      why: 'still holds the angle-bracket placeholder its template ships with, so the template was copied but never filled in',
+    };
+  }
+  if (trimmed.length === 0) {
+    if (absenceIsADecision) return null;
+    return {
+      code: 'ENV_ENTRY_EMPTY',
+      service,
+      entry,
+      why: 'is set but empty, and an empty value is not a configured value',
+    };
+  }
+  return null;
+}
+
+/** Every completeness finding for one service's declared entries, in template order. */
+export function collectServiceFindings(service: DeploymentService, env: EnvSource): readonly EnvConfigFinding[] {
+  const out: EnvConfigFinding[] = [];
+  for (const entry of serviceEntryNames(service)) {
+    const finding = classifyEntry(env, entry, service);
+    if (finding !== null) out.push(finding);
+  }
+  return Object.freeze(out);
+}
+
+/**
+ * Refuse one service's boot on an incomplete environment, naming every finding in one message.
+ * Returns quietly when the service's entry set is complete; resolving VALUES stays the job of the
+ * typed per-agent loaders above, which is why this returns nothing.
+ */
+export function requireServiceEnvironment(input: { readonly service: DeploymentService; readonly env: EnvSource }): void {
+  refuseOnFindings(collectServiceFindings(input.service, input.env), `the ${input.service} service environment`);
+}
+
+/** An environment per service. Partial, because a phase may run a subset of the six. */
+export type EnvByService = Readonly<Partial<Record<DeploymentService, EnvSource>>>;
+
+/** The services present in an {@link EnvByService}, in the declared order rather than key order. */
+export function servicesPresent(envByService: EnvByService): readonly DeploymentService[] {
+  return DEPLOYMENT_SERVICES.filter((service) => envByService[service] !== undefined);
+}
+
+/** Completeness across several services at once, still one message for all of them. */
+export function collectDeploymentFindings(envByService: EnvByService): readonly EnvConfigFinding[] {
+  const out: EnvConfigFinding[] = [];
+  for (const service of servicesPresent(envByService)) {
+    const env = envByService[service];
+    if (env === undefined) continue;
+    out.push(...collectServiceFindings(service, env));
+  }
+  return Object.freeze(out);
+}
+
+export function requireDeploymentEnvironment(envByService: EnvByService): void {
+  refuseOnFindings(collectDeploymentFindings(envByService), 'the deployment environment');
+}
+
+// ---------------------------------------------------------------------------------------------
+// The cross-file rules the deployment ledger asserts (owner mandate §4)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Entries that appear in more than one service's file and MUST carry the same value in each.
+ *
+ * These are the rules a per-service loader cannot see, because each service reads one file: two
+ * files can each be individually valid and still disagree, and every row below is a way for that
+ * disagreement to be silent at boot and expensive later. The loader is where they become
+ * checkable; the ledger task writes them down.
+ *
+ * Not every shared entry belongs here, and the exclusions are the interesting half:
+ *  * `TELEGRAM_MODE` is shared but must NOT be equal — phase 1 ships the finance agent on the
+ *    long-poll mode while the life agent stays idle, so forcing agreement would refuse the
+ *    phasing the owner mandate chose.
+ *  * `MAX_WORK_ITEMS` and `STORE_BUSY_TIMEOUT_MS` are per-process capacity choices. One writer per
+ *    store, so each agent legitimately picks its own.
+ */
+export const SHARED_ENTRY_AGREEMENTS: readonly {
+  readonly entry: string;
+  readonly services: readonly DeploymentService[];
+  readonly why: string;
+}[] = Object.freeze([
+  Object.freeze({
+    entry: 'LIFE_CONTAINER_PORT',
+    services: Object.freeze<DeploymentService[]>(['proxy', 'life']),
+    why: "is the proxy's upstream port and the port the life agent binds; if the two disagree every delivery aborts at the proxy",
+  }),
+  Object.freeze({
+    entry: 'FINANCE_CONTAINER_PORT',
+    services: Object.freeze<DeploymentService[]>(['proxy', 'finance']),
+    why: "is the proxy's upstream port and the port the finance agent binds; if the two disagree every delivery aborts at the proxy",
+  }),
+  Object.freeze({
+    entry: SHARED_ENTRIES.allowedSenderIds,
+    services: Object.freeze<DeploymentService[]>(['life', 'finance']),
+    why: 'is the same single operator on both bots; a value in one file and not the other is a deployment that refuses the owner on one bot and has no list on the other',
+  }),
+  Object.freeze({
+    entry: 'KILL_SENTINEL_PATH',
+    services: Object.freeze<DeploymentService[]>(['life', 'finance', 'scheduler', 'backup']),
+    why: 'is the one path every honouring service examines; a typo in one of the four is a halt that silently does nothing in that service',
+  }),
+  Object.freeze({
+    entry: 'BUS_INTERNAL_ENDPOINT',
+    services: Object.freeze<DeploymentService[]>(['bus', 'life', 'finance']),
+    why: 'is where the bus listens and where its only two clients dial; a client dialling elsewhere reaches nothing',
+  }),
+  Object.freeze({
+    entry: 'MODEL_ELIGIBILITY_REGISTRY_PATH',
+    services: Object.freeze<DeploymentService[]>(['life', 'finance']),
+    why: 'gates both agents on one registry document; two paths would let one agent route on evidence the other rejected',
+  }),
+  Object.freeze({
+    entry: SHARED_ENTRIES.apiBase,
+    services: Object.freeze<DeploymentService[]>(['life', 'finance']),
+    why: "is the messaging provider's published base, identical for every user of that provider",
+  }),
+  Object.freeze({
+    entry: 'MODEL_API_BASE',
+    services: Object.freeze<DeploymentService[]>(['life', 'finance']),
+    why: "is the model provider's published base, identical for every user of that provider; the KEYS are what differ, and those are per agent",
+  }),
+]);
+
+/**
+ * Where the halt sentinel volume is mounted inside every honouring container, as
+ * `ops/docker-compose.yml` mounts it — read-only, at one target, in exactly the four services that
+ * honour the coarse halt. Held here as a constant and asserted against the topology by the test
+ * suite, so a change in the compose file surfaces as a failing test rather than as a check that
+ * quietly stops applying.
+ */
+export const KILL_SENTINEL_MOUNT_TARGET = '/run/nizam-kill';
+
+/** The entry that names the sentinel file, and the four services that honour it. */
+export const KILL_SENTINEL_ENTRY = 'KILL_SENTINEL_PATH';
+export const KILL_SENTINEL_SERVICES: readonly DeploymentService[] = Object.freeze<DeploymentService[]>([
+  'life',
+  'finance',
+  'scheduler',
+  'backup',
+]);
+
+/**
+ * Every shared entry that disagrees across the services that share it. The finding names the entry
+ * and the services, and never renders either value — knowing WHICH entry disagrees is the whole of
+ * what an operator needs, and rendering the two values would put a configured value in a message.
+ */
+export function collectSharedEntryDisagreements(envByService: EnvByService): readonly EnvConfigFinding[] {
+  const out: EnvConfigFinding[] = [];
+  for (const rule of SHARED_ENTRY_AGREEMENTS) {
+    const holders = rule.services.filter((service) => envByService[service] !== undefined);
+    if (holders.length < 2) continue;
+    const values = new Map<DeploymentService, string | undefined>();
+    for (const service of holders) values.set(service, envByService[service]?.[rule.entry]?.trim());
+    const distinct = new Set(values.values());
+    if (distinct.size <= 1) continue;
+    out.push({
+      code: 'ENV_SHARED_ENTRY_DISAGREES',
+      service: null,
+      entry: rule.entry,
+      why: `${rule.why}, and it does not carry the same value in ${holders.join(' and ')}`,
+    });
+  }
+  return Object.freeze(out);
+}
+
+/**
+ * The sentinel path must resolve INSIDE the mount, in every service that honours the halt. A path
+ * outside it names a file the operator's halt never creates, so the sentinel check reads an absence
+ * for ever and the halt is a halt that does nothing. A relative segment is refused for the same
+ * reason it is refused anywhere else: a path that can climb out of the mount is a path that does.
+ */
+export function collectKillSentinelFindings(envByService: EnvByService): readonly EnvConfigFinding[] {
+  const out: EnvConfigFinding[] = [];
+  for (const service of KILL_SENTINEL_SERVICES) {
+    const env = envByService[service];
+    if (env === undefined) continue;
+    const raw = env[KILL_SENTINEL_ENTRY];
+    if (raw === undefined) continue; // absence is a completeness finding, reported once, over there
+    const value = raw.trim();
+    if (value.length === 0 || UNSUBSTITUTED_PLACEHOLDER.test(value)) continue; // likewise
+    const inside = value.startsWith(`${KILL_SENTINEL_MOUNT_TARGET}/`);
+    const climbs = value.split('/').includes('..');
+    if (inside && !climbs) continue;
+    out.push({
+      code: 'ENV_KILL_SENTINEL_OUTSIDE_MOUNT',
+      service,
+      entry: KILL_SENTINEL_ENTRY,
+      why: `must resolve inside the halt mount at ${KILL_SENTINEL_MOUNT_TARGET} and must not climb out of it; a sentinel elsewhere is a file the operator's halt never creates, which is a kill switch that silently does nothing`,
+    });
+  }
+  return Object.freeze(out);
+}
+
+/**
+ * Entries present in one service's environment that belong to ANOTHER service and not to this one.
+ *
+ * This is the negative half of the mandate's cross-file rules, expressed once instead of as four
+ * separate greps: the life file must hold no finance secret and the reverse, the proxy file must
+ * hold no bot token and no expected secret token, and neither agent file may hold a webhook path
+ * segment. Each of those is an entry declared by a different service and not by this one, so all of
+ * them fall out of one rule.
+ *
+ * Only entries some service declares are considered, so an ambient variable belonging to no
+ * service — the ones every process carries — is not a finding. Reported separately from
+ * completeness because it answers a different question: completeness asks whether this service can
+ * boot, isolation asks whether it is holding something it was never meant to see.
+ */
+export function collectForeignEntryFindings(service: DeploymentService, env: EnvSource): readonly EnvConfigFinding[] {
+  const own = new Set(serviceEntryNames(service));
+  const out: EnvConfigFinding[] = [];
+  for (const other of DEPLOYMENT_SERVICES) {
+    if (other === service) continue;
+    for (const entry of SERVICE_ENTRY_NAMES[other]) {
+      if (own.has(entry)) continue;
+      if (env[entry] === undefined) continue;
+      if (out.some((f) => f.entry === entry)) continue;
+      out.push({
+        code: 'ENV_FOREIGN_ENTRY_PRESENT',
+        service,
+        entry,
+        why: `belongs to the ${other} service and not to this one; one environment file per service, read by no other, is what keeps a compromise of one file from yielding another service`,
+      });
+    }
+  }
+  return Object.freeze(out);
+}
+
+/**
+ * Every cross-service finding in one pass: the shared entries that disagree, a sentinel outside its
+ * mount, and any service holding another's entry. One message for all of them, for the same reason
+ * completeness is one message.
+ */
+export function collectCrossServiceFindings(envByService: EnvByService): readonly EnvConfigFinding[] {
+  const out: EnvConfigFinding[] = [
+    ...collectSharedEntryDisagreements(envByService),
+    ...collectKillSentinelFindings(envByService),
+  ];
+  for (const service of servicesPresent(envByService)) {
+    const env = envByService[service];
+    if (env === undefined) continue;
+    out.push(...collectForeignEntryFindings(service, env));
+  }
+  return Object.freeze(out);
+}
+
+export function requireCrossServiceAgreement(envByService: EnvByService): void {
+  refuseOnFindings(collectCrossServiceFindings(envByService), 'the deployment environment');
+}
+
+/**
+ * Which of one SERVICE's entries are configured, as booleans and nothing else. The six-service
+ * companion to {@link describeConfiguredPresence}, which answers the same question over the
+ * narrower set of entries an agent's typed configuration is built from.
+ */
+export function describeServiceConfiguredPresence(service: DeploymentService, env: EnvSource): ConfiguredPresence {
+  const out: Record<string, boolean> = {};
+  for (const entry of serviceEntryNames(service)) out[entry] = entryIsConfigured(env, entry);
   return Object.freeze(out);
 }

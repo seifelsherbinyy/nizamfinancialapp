@@ -141,6 +141,17 @@ note, R26-R30 the owner mandate `KIRO_SHIP_LIVE.prompt.md` rev 2 - so nothing wa
 contract would have to govern. The `<..._IMAGE_REF>` placeholders R28 speaks to, and the single published port
 R30 speaks to, are both in `ops/docker-compose.yml` and neither was changed by this increment.
 
+**R27 is now mechanical rather than documented, 2026-08-10 (task 10.2).** Contract 12 §5.2/§5.3's "no default
+for anything" rule, and §3.2.7's one-environment-file-per-service rule, are held in code over **all six**
+services the deployment declares rather than over the two agents alone: `src/server/config/environment.ts`
+carries a per-service entry-name group for each of `life`, `finance`, `proxy`, `bus`, `scheduler` and `backup`,
+refuses a boot naming **every** missing, empty or unsubstituted entry in a single message, and keeps exactly
+**one** bridge to the ambient process environment in the whole of `src/`. The entry names are transcribed from
+`ops/env/*.env.example` and asserted equal to them, set for set, by test. **Neither contract file was edited,
+and no owning requirement range moved** - R27 was already in contract 12's `R6-R30` range recorded above; what
+changed is that the disk now does what the requirement says. The §4 cross-file rules the deployment ledger
+(task 10.4) will assert are expressible in the same module, which is why they were built with it.
+
 **Steering reconciliation, 2026-08-10 (task 10.1).** The file both contracts are subordinate to gained a
 sub-section: `.kiro/steering/two-agent-vps.md` **§2a** carries the standing read-only carve-out - reads against
 a live provider with an existing credential are free at the owner's direction; mutations that spend money,
