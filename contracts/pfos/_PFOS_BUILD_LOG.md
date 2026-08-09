@@ -3226,3 +3226,145 @@ in practice; it is now a real ratchet again.
 - The eligibility registry is still `provisional: true`, and live routing is still gated on **G4**.
 - **Tasks 9.2 and 9.4 remain open**; they close with the final report. 9.1 and 9.3 are done.
 - No outbound call from a server process and no production secret, unchanged.
+
+---
+
+## Tasks 9.2 and 9.4 - close out: the push proven rather than asserted, and the final report (2026-08-09)
+
+**Why.** Two boxes remained, and each was a claim about the work rather than a piece of it. 9.2 says
+every green increment was committed and pushed - a claim that is trivially easy to tick and worth
+nothing unless it was checked, because a locally-committed increment looks identical to a pushed one in
+`git log`. 9.4 is the deliverable the owner set the standard for: DONE means every box above *Waiting on
+user input* ticked, harness green, tree clean, every commit pushed, and G1-G8 untouched but executable by
+a human from `ops/GATE_REGISTER.md` alone. The report has to say what is built, what is proven and how,
+what is gated, and exactly one next action - and it has to carry the honest limits forward rather than
+present a clean sheet, because a close-out that reads cleaner than the work is a close-out that lies.
+
+### Work
+
+**9.2 - verified, not asserted.** `git fetch origin master`, then
+`git merge-base --is-ancestor <commit> origin/master` for each of this spec's seven increments:
+`0392d1d` (the live model path, 6.3 on the ELSE branch), `b5ff8c4` (the deployment templates), `b0af379`
+(the cross-repo change series), `2b31bd0` (the five policy hygiene items), `5f70139` (AC18), `7e7cb58`
+(the gate register reconciliation), `5d3d18c` (the gate register checker). **All seven are ancestors of
+`origin/master`**, so none is unpushed, and `git status --porcelain` was empty. The exit status of a
+`git push` is not the evidence; ancestry after a fetch is.
+
+**The Gate block - each of its three lines checked before ticking.**
+
+- The harness prints `HARNESS PASSED`, **20 of 20 executed checks passed**.
+- The AC04 floor is **1757**, and its whole history was read out of `scripts/verify/all.mjs` rather than
+  quoted from memory: 110 → 185 → 200 → 220 → 235 → 245 → 253 → 258 → 261 → 266 → 269 → 317 → 331 →
+  1757. Fourteen values, thirteen transitions, **every one an increase**. The abbreviated series carried
+  in the close-out prompt (110 → 185 → 200 → 235 → 245 → 331 → 1757) omits seven intermediate values;
+  it agrees on the direction and on both endpoints, and the full series is recorded here because the
+  ratchet claim is about every transition, not about the endpoints.
+- "No secret in any tracked file; `ops/` holds placeholders only" decomposes into three checks with one
+  clause each, and the report states which covers which: **AC09** `secret-scan.mjs` for the secret
+  clause (five content patterns, five forbidden tracked paths, over every tracked file); **AC11**
+  `generic-only.mjs` for the organization-term clause; **AC18** `no-deployment-particular.mjs` for the
+  placeholder clause (21 artifacts across `ops/**` and `src/server/mocks/fixtures/**`, plus two
+  store-isolation bans over 123 files under `src/server/**`). All three green, none allowlisted.
+
+**9.4 - `.kiro/specs/06-two-agent-vps/FINAL_REPORT.md`**, a new tracked document in six sections.
+
+1. **What is built**, phase 0 through 9, naming the modules and what each one *proves* rather than what
+   it contains - the T0 guarantee as a capability the branch does not hold, consent by absence as a
+   field that does not exist, the two-bots-same-update-id collision as the test that matters. It carries
+   the **per-artifact checker table**: which `src/server/ops/` module validates which `ops/` artifact,
+   its finding-code count and its test count. The counts were **read out of the modules**, not copied
+   from earlier log sections: compose 49/64, caddy 39/50, env 33/44, backup 43/58, runbook **53**/69,
+   patch 55/72, gate register 20/43, particulars 17/34, health probe 6 refusals + 7 readiness failures/24,
+   redacted logger 12/37 - 495 of the 1757 tests. Runbook is 53 rather than the 52 recorded at task 7.6
+   because the policy-hygiene increment added `WAL_DEFAULT_OUTCOME_NOT_RANKED`; taking the older figure
+   would have been a small, silent, and entirely avoidable error. Coverage is described precisely rather
+   than generalized: eight checkers carry a `NEGATIVE_CASES` row per code with a coverage test, and the
+   two whose shape differs (`redactedLogger`, `healthProbe`) are stated as they are.
+   `ops/BUS_NETWORK_BINDING.md` is named as the one artifact with no checker of its own, with what does
+   cover it.
+2. **What is proven, and how** - **static rehearsal**, enumerated as seven negatives: no `ops/` artifact
+   run, no container built or started, no store opened by an artifact, no provider called, no network
+   request, no secret read, and the other repository never read. The tests are text-in / findings-out.
+   The section states the limit in the same breath as the claim: what is proven is that the artifacts
+   say what the contracts require and still agree with each other; what is **not** proven is that any
+   procedure in them works.
+3. **What is gated** - G1-G8 as a table, G7 `CLOSED - WONT-DO`, every open gate `BLOCKED - awaiting
+   human`, plus the two determinations registered *inside* a gate. It says plainly that none was
+   attempted, simulated or claimed, and that nothing was renumbered, reordered, softened or reopened.
+4. **Exactly ONE named next human action: G1**, with a pointer to `## G1 - Provision and harden the host`
+   in `ops/GATE_REGISTER.md` and to its Steps, VERIFICATION and Unblocks blocks. Not a list, and not an
+   ordering with G1 at the top.
+5. **Honest limits**, six carried forward verbatim in substance and two more restated: the provisional
+   registry and the never-made live call; the change series *emitted, unapplied*, not applicable diffs,
+   the other repository never read; the write-ahead-log determination **ranked but unmade**; the
+   55-passing baseline **read from a document, never observed**; the real brand names remaining in
+   `src/features/accounts/`, `src/lib/db/`, `tests/helpers/fixtures.ts` and the byte-checksummed ingested
+   contracts, outside the eval set that was cleaned; and the gate-register checker running inside the
+   vitest suite under AC04's name rather than as a twenty-first named check. Nothing was softened and
+   nothing was invented.
+6. **The count change** - 19 → 20 when AC18 landed in `5f70139`, with the seven documents that moved in
+   the same increment named, and the dated records that were made unambiguous rather than falsified
+   distinguished from the history that was left alone.
+
+Ticked in `tasks.md`: **9.2**, **9.4**, and all three **Gate** boxes, each with the evidence beside it.
+**Every `G1`-`G8` box under *Waiting on user input* is deliberately left unticked.**
+
+### Verification
+
+- `npm run typecheck` - 0 errors. `npm run lint` - 0 warnings at `--max-warnings 0`.
+- `npm run test` - **1757 passed across 101 files**, unchanged. This increment adds no test, because it
+  adds no behaviour: three markdown files changed and no source file did. The AC04 floor therefore stays
+  at **1757** and needed no ratchet.
+- `npm run verify:all -- --all` - **`HARNESS PASSED`, `20 of 20 executed checks passed`**. Before this
+  increment's commit the same run reported **18 of 20** with only **AC14 (working tree clean)** and
+  **AC15 (push ready)** red, both naming the same uncommitted work - the expected mid-increment state.
+- `node scripts/loop/verify-ledger.mjs` - exit **0**, with the 9.4 quartet appended in order
+  PRODUCE(builder) → VERIFY(gate-runner) → APPROVE(reviewer) → CERTIFY(reviewer, RESOLVED/VERIFIED) over
+  one `--files` list. The ledger was **never hand-edited**.
+- The new report is a tracked file and is therefore subject to the scanners it describes. **AC09** and
+  **AC11** pass over it, and it was written to that standard rather than checked into it: no hostname or
+  domain, no address literal, no storage identifier, no bot handle or numeric identifier, no port, no
+  keypair, no monetary figure, no secret value, and no deployment particular of any kind. Every
+  third-party endpoint it refers to is named by role.
+- **No check was weakened.** `scripts/verify/all.mjs` was not touched in this increment. No assertion
+  was loosened, no test skipped or deleted, no floor lowered, no scanner allowlisted or exempted, and no
+  gate renumbered, reordered, softened or reopened.
+
+### Honest scope note
+
+**Nothing was executed, attempted, simulated or claimed.** No shell ran an `ops/` artifact, no container
+was built or started, no store was opened, no provider was called, no network request was made, and no
+secret was read. This increment wrote and edited three markdown files and appended four ledger events.
+
+**The report is a claim about the repository, and its evidence is the repository.** Every figure in it
+was read from the artifact it describes - the finding-code counts from the module source, the test counts
+from the run, the floor history from the file's own history, the ancestry from `git merge-base`. Where a
+figure quoted in an earlier log section had since moved, the current one was taken and the discrepancy
+recorded rather than smoothed. Where the close-out prompt's own summary of the floor history was
+incomplete, the full series was reported instead of the summary repeated.
+
+**"Production-ready" in this report means exactly one thing, and it is the narrow thing.** Each ops
+artifact is validated by its own checker, every human step carries a verification line, and there is
+exactly one named next action. It does not mean the system runs, because there is no system: no host,
+DNS record, bot, key, consent, webhook or keypair exists, and none of them is mine to create. The first
+execution of every artifact in `ops/` will be a human's, on a host that does not exist yet.
+
+**One thing this close-out does not do.** It does not make the write-ahead-log sidecar determination, and
+it does not promote the eligibility registry out of `provisional`. Both are recorded as open in the
+report's honest limits and in the gate register, and both stay open.
+
+### Still gated
+
+- Writing `ops/**` is authorized and running it is not (steering §2). **No gate was performed,
+  attempted, simulated or claimed** in this increment or in any increment of this spec.
+- **G1-G8 untouched and unattempted, every open one still `BLOCKED - awaiting human`:** G1 provision and
+  harden the host; G2 records for the two hostnames; G3 create the two bots; G4 mint the two runtime keys
+  with their periodic caps; G5 the storage consent click; G6 register both webhooks; G8 generate the
+  backup keypair and keep the private half off the host. G7 stays **closed as WONT-DO** per steering §0b
+  and was not re-raised. **G1 is the single next human action.**
+- The write-ahead-log sidecar determination under G8 is still **undecided**, and every rollback across a
+  migration stays blocked on it.
+- The eligibility registry is still `provisional: true`, and live routing is still gated on **G4**.
+- The three cross-repo changes are still *emitted, unapplied*, and applying them is a human step in
+  another repository, in a session opened on that repository.
+- No outbound call from a server process and no production secret, unchanged.

@@ -84,7 +84,13 @@
 - [x] 9.1 Raise the `AC04 --min` floor to the new test count
       Ratcheted 331 -> 1757, the count proven by the `npm run test` run at the end of this increment
       (1757 passing across 101 files). Up only, never down.
-- [ ] 9.2 Gate passes all checks; commit and push each green increment
+- [x] 9.2 Gate passes all checks; commit and push each green increment
+      **Verified, not asserted.** After `git fetch origin master`, each of this spec's seven increments
+      was tested with `git merge-base --is-ancestor <commit> origin/master`: `0392d1d`, `b5ff8c4`,
+      `b0af379`, `2b31bd0`, `5f70139`, `7e7cb58`, `5d3d18c` - all seven are ancestors of
+      `origin/master`, so none is unpushed. `git status --porcelain` empty. The per-increment harness
+      results are recorded in `contracts/pfos/_PFOS_BUILD_LOG.md`, and the table is in
+      `FINAL_REPORT.md` §6.
 - [x] 9.3 `ops/GATE_REGISTER.md` complete: every human step with exact commands and a verification line
       **Two halves.** The first reconciled the register against the Phase 7 artifacts (commit
       `7e7cb58`). The second added the checker that holds it there: `src/server/ops/gateRegister.ts`
@@ -94,12 +100,28 @@
       register quotes against the disk. It found two defects the first half's re-reading did not:
       G3's allowlist entry and G4's life-agent key were placed by a step and verified by nothing.
       Both now carry a counting line.
-- [ ] 9.4 Final report: what is built, what is gated, and the single next human action
+- [x] 9.4 Final report: what is built, what is gated, and the single next human action
+      `.kiro/specs/06-two-agent-vps/FINAL_REPORT.md`. Six sections: what is built phase by phase with
+      the per-artifact checker table; what is proven and how - **static rehearsal**, nothing executed;
+      what is gated (G1-G8, G7 closed WONT-DO, every open gate still `BLOCKED - awaiting human`, none
+      attempted); **exactly one** named next human action, **G1**, pointing at its section in
+      `ops/GATE_REGISTER.md`; the honest limits carried forward unsoftened from the build log; and the
+      19 → 20 check count change with the documents that moved with it.
 
 ## Gate
-- [ ] `npm run verify:all -- --all` passes all checks after every phase
-- [ ] Test floor ratcheted up, never down
-- [ ] No secret in any tracked file; `ops/` holds placeholders only
+- [x] `npm run verify:all -- --all` passes all checks after every phase
+      `HARNESS PASSED`, **20 of 20 executed checks passed**, at the close of this increment.
+- [x] Test floor ratcheted up, never down
+      The AC04 `--min` in `scripts/verify/all.mjs` is **1757**. Read from that file's history, every
+      transition is an increase: 110 → 185 → 200 → 220 → 235 → 245 → 253 → 258 → 261 → 266 → 269 →
+      317 → 331 → 1757. Fourteen values, thirteen transitions, all upward, none down.
+- [x] No secret in any tracked file; `ops/` holds placeholders only
+      Three checks, one clause each. **AC09** (`secret-scan.mjs`) covers *no secret in any tracked
+      file*: five secret-shaped content patterns and five forbidden tracked paths over every tracked
+      file. **AC11** (`generic-only.mjs`) covers *no organization-specific term in any tracked file*.
+      **AC18** (`no-deployment-particular.mjs`) covers *`ops/` holds placeholders only*: 21 artifacts
+      across `ops/**` and `src/server/mocks/fixtures/**`, plus the two store-isolation bans over 123
+      files under `src/server/**`. All three pass, and none was allowlisted or exempted.
 
 ## Waiting on user input (do NOT attempt - steering §2)
 - [ ] G1 provision + harden the VPS

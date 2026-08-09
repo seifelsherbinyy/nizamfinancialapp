@@ -1,6 +1,6 @@
 {
   "genesisHash": "0000000000000000000000000000000000000000000000000000000000000000",
-  "eventCount": 76,
+  "eventCount": 80,
   "events": [
     {
       "seq": 1,
@@ -989,6 +989,58 @@
       "prevHash": "2be58568d9174fe3e19366fc953077bdf548705cea8d81215d4106ca516ba04c",
       "contentHash": "e352b4aea222f092bd25a2fe3c6d388dd14d0e23620e6e68c560dc67f7cb2fed",
       "recordedAt": "2026-08-09T17:48:59.966Z"
+    },
+    {
+      "seq": 77,
+      "kind": "PRODUCE",
+      "itemId": "9.4",
+      "actor": "builder",
+      "artifactHash": "54a3e080bb121d7ea3f2053ea73e287506fdf09b81177946afe61665cf5ae36e",
+      "disposition": null,
+      "confidence": null,
+      "note": "9.4 FINAL_REPORT.md: what is built phase 0-9 with the per-artifact checker table, proven by static rehearsal, G1-G8 gated with G7 WONT-DO, exactly one next action (G1), honest limits carried forward unsoftened, and the 19 -> 20 check count change. 9.2 push verified by ancestry for all seven increments. Gate block ticked with evidence per line. covers: 9.2,9.4",
+      "prevHash": "e352b4aea222f092bd25a2fe3c6d388dd14d0e23620e6e68c560dc67f7cb2fed",
+      "contentHash": "6f884f7362a6cf6cd1689bd70c02b9b7b1cd105e18dfeef6bba78dce0d51dd22",
+      "recordedAt": "2026-08-09T18:20:19.248Z"
+    },
+    {
+      "seq": 78,
+      "kind": "VERIFY",
+      "itemId": "9.4",
+      "actor": "gate-runner",
+      "artifactHash": "54a3e080bb121d7ea3f2053ea73e287506fdf09b81177946afe61665cf5ae36e",
+      "disposition": null,
+      "confidence": null,
+      "note": "typecheck 0 errors, lint 0 warnings at --max-warnings 0, 1757 tests across 101 files unchanged (no behaviour added so no ratchet needed), verify:all 20 of 20 HARNESS PASSED, verify-ledger exit 0; 9.2 ancestry checked with git merge-base --is-ancestor for 0392d1d b5ff8c4 b0af379 2b31bd0 5f70139 7e7cb58 5d3d18c after git fetch origin master - all seven ancestors of origin/master",
+      "prevHash": "6f884f7362a6cf6cd1689bd70c02b9b7b1cd105e18dfeef6bba78dce0d51dd22",
+      "contentHash": "cfd719e39fe2fcb875374fefbe0aeec1a96e242b4df2630242cb39f70e83984c",
+      "recordedAt": "2026-08-09T18:20:29.219Z"
+    },
+    {
+      "seq": 79,
+      "kind": "APPROVE",
+      "itemId": "9.4",
+      "actor": "reviewer",
+      "artifactHash": "54a3e080bb121d7ea3f2053ea73e287506fdf09b81177946afe61665cf5ae36e",
+      "disposition": null,
+      "confidence": null,
+      "note": "Report names exactly one next human action and no gate is described as performed. Honest limits carried across unsoftened and none invented: provisional registry, change series emitted-unapplied, WAL determination unmade, baseline read not observed, brand names outside the cleaned eval set, gate-register checker under AC04 rather than named. Checker figures read from the modules, so runbook is 53 not the stale 52. Floor history read from file history and reported in full rather than as the abbreviated summary. No assertion loosened, no scanner allowlisted, no gate renumbered or reopened.",
+      "prevHash": "cfd719e39fe2fcb875374fefbe0aeec1a96e242b4df2630242cb39f70e83984c",
+      "contentHash": "d091bb1d45c5d1cc0cb13d818e079e251f25827e7093f47566df80454c296325",
+      "recordedAt": "2026-08-09T18:20:39.324Z"
+    },
+    {
+      "seq": 80,
+      "kind": "CERTIFY",
+      "itemId": "9.4",
+      "actor": "reviewer",
+      "artifactHash": "54a3e080bb121d7ea3f2053ea73e287506fdf09b81177946afe61665cf5ae36e",
+      "disposition": "RESOLVED",
+      "confidence": "VERIFIED",
+      "note": "Spec 06-two-agent-vps closed out. Every box above Waiting on user input is ticked; G1-G8 remain unticked, unattempted and BLOCKED - awaiting human, G7 closed WONT-DO. Nothing executed: no artifact run, no container, no store, no provider, no network, no secret. G1 is the single next human action. covers: 9.2,9.4",
+      "prevHash": "d091bb1d45c5d1cc0cb13d818e079e251f25827e7093f47566df80454c296325",
+      "contentHash": "0b647d451b6544c1b9f17c0e0e60aa6bca1b17109bf5288b0f7ee95bec73bf55",
+      "recordedAt": "2026-08-09T18:20:48.713Z"
     }
   ]
 }
