@@ -2525,3 +2525,154 @@ document they open on that day will not be describing a system from two months e
 - The runbooks name those gates as prerequisites and refuse to stand in for them; every gate reference
   in the prose is checked against `ops/GATE_REGISTER.md`, so a runbook cannot quietly invent one.
 - No outbound call from a server process and no production secret, unchanged.
+
+## Tasks 8.1-8.4 - the cross-repo change series, emitted as text that does not pretend to be a patch (2026-08-09)
+
+### Work
+
+Phase 8 of `.kiro/specs/06-two-agent-vps/tasks.md`, as one increment. Steering §6 forbids this
+repository's agent from cloning, fetching, reading, modifying or pushing the life agent's repository,
+so the three changes needed there are emitted here and applied later by a human in a session opened
+on that repository.
+
+**The form, decided first, because it decides everything else.** A unified diff needs three things:
+target paths, changed lines, and enough surrounding context to locate each hunk. The first two can be
+written from documented interfaces; the third cannot, because context lines are a verbatim quotation
+of a file this session may not read. So all three files are **explicitly-labelled change
+specifications, not applicable unified diffs** - one form, applied uniformly, so a reviewer learns one
+shape and reads it three times. Each opens with a header block declaring `FORM`, `TARGET REPOSITORY`,
+`TARGET BRANCH`, `TARGET FILES`, `SUBJECT`, `AUTHORED BY`, `AUTHORED FROM` and `NOT VERIFIED`; each
+names, under `NOT VERIFIED`, the specific things that could not be determined from here. **No `index`
+line and no blob hash appears anywhere in the series**, because a blob hash is a content address that
+can only be computed from bytes nobody here read, and a plausible-looking one would make an
+unverified change look verified.
+
+- **`ops/nizamcore-patches/001-fastapi-wrapper.patch`** - an ASGI front end that WRAPS the existing
+  update handler. The handler is imported and called, never rewritten, copied or inlined; the
+  secret-token header is read and passed through unchanged so the constant-time comparison, the
+  allowlist and the dedup call all stay on the new path; the long-poll fallback stays exactly as it
+  is. Two new files in full: the module, and a test file whose first four tests drive the ROUTE rather
+  than the handler, because the risk in a transport swap is not that the new server fails - a failing
+  server is obvious - but that it succeeds while a check no longer runs. `/healthz` answers
+  **readiness, not liveness**, and its status mapping fails closed on an unrecognized verdict: a
+  default of success would turn every unmapped outcome into an acknowledged delivery, which is how a
+  dropped guard stops being visible. Two things the specification could not read are stated as such
+  and listed first in its verification section: the handler's return contract, and whether all three
+  guards live inside the handler or partly in the request handler being replaced.
+- **`ops/nizamcore-patches/002-dedup-per-bot.patch`** - the dedup key becomes the pair
+  `(bot_id, update_id)`. Framed as a **correctness fix, not a refinement**: update identifiers are
+  per-bot sequences, so two bots both emit 1, then 2, and a store keyed on the identifier alone
+  discards the second bot's unrelated update. The failure presents as one bot going quiet for no
+  visible reason, which reads as a network problem and is not one. Semantics mirror this repository's
+  own `src/server/telegram/updateDedupRepo.ts` deliberately rather than inventing a second scheme:
+  the claim IS the decision (no read-then-write), a duplicate is a **success** and not an error, and
+  there is no "have I seen this" predicate to pair with a conditional write. Three existing properties
+  are preserved - the atomic replace, the bound, and duplicate-as-success - and one is added: **the
+  bound is per bot**, because one shared ring holding pairs would let a chatty bot evict the quiet
+  bot's window and re-open its replay gap. The version-1 state file's bare identifiers are adopted
+  conservatively, with the reasoning for the direction written out.
+- **`ops/nizamcore-patches/003-signalbus-egress-target.patch`** - a `signalbus` egress target,
+  eligible for `money_safe` and `life_safe` and for nothing else, added neither to `strict_local` nor
+  to any other pre-existing tier: content in an existing tier reaches the bus only by being reduced to
+  a directional signal first, and that reduction is an act at a call site rather than a permission in
+  the matrix. **The family classification's egress set stays empty**, restated as a requirement,
+  asserted at import in the module and again in a test, with three code shapes that would widen it
+  refused by the checker. The envelope shape is reproduced for the reviewer, note cap included.
+- **`ops/nizamcore-patches/README.md`** - the apply order **001 → 002 → 003 with a reason for each
+  position** (001 is purely additive and stands up the harness 002's key test needs; 002 is the only
+  change that migrates state, so it lands when the surface above it is settled; 003 is independent of
+  the transport and is the only change that widens what may leave the machine, so it lands when the
+  two mechanical changes are already green and a bisect would find a one-concern commit). Per-change
+  apply-and-verify commands, a `--3way` note for anyone converting a section into a diff, the expected
+  test deltas as a table, and an explicit statement that applying happens in a **separate session
+  opened on the other repository, never from here**.
+
+**One artifact-level decision worth recording.** 003 names the family classification's key as
+`<FAMILY_CLASSIFICATION>` rather than writing it. That is not squeamishness: contract 12 §4.4.3 holds
+that no artifact of this tier names, counts, summarizes or points at that content, and
+`src/server/signals/exclusion.test.ts` enforces it across `src/server/**` and `ops/**`. The first
+draft of 003 wrote the key out and **the suite caught it** - four failures in that scan. The fix was to
+the artifact, not to the scanner: no root was narrowed, no exemption was added, and the enumerated
+refusal-test list was not extended. The placeholder also makes the specification slightly better,
+because substituting it forces the human to open the policy document and read the row, which is the
+one verification item in 003 that is not delegable to a test.
+
+**New checker: `src/server/ops/patchSeries.ts`.** A pure text-in / findings-out module in the
+established `src/server/ops/` shape, with **55 finding codes**. It reads the four artifacts and holds
+them to the honesty they claim: the header fields are present and non-empty, the form is declared, the
+target repository and branch are the expected ones, the authorship caveat and the provenance document
+are named, no fabricated `index` line appears, and **no sentence claims applicability except inside a
+sentence that denies it** (the check is sentence-scoped with a negation set, so "no claim is made that
+it applies cleanly" passes and "this applies cleanly" does not). It also cross-reads: every declared
+target file must be discussed below the header, the README's stated apply order must equal the file
+numbering, every change must have a test delta and a verification block, and the baseline must be
+**labelled as read from a document rather than observed**.
+
+R24 is re-reported from the ONE shared scan in `composeTemplate.ts`, with a code the shared scan
+produces that this checker has no equivalent for surfacing as `PARTICULAR_SCAN_UNMAPPED` rather than
+being dropped. Because these are the only tracked artifacts here that quote another language's source,
+the shared scan's hostname heuristic would read `os.replace` and `webhook.py` as hostnames. Rather
+than loosen that heuristic - which would loosen it everywhere - the checker masks an **explicit,
+enumerated list** of 61 dotted tokens before running the scan and reports any dotted token NOT on that
+list as `DOTTED_TOKEN_UNDECLARED`. The result is stricter than the heuristic, not weaker: a hostname is
+on nobody's list, so it is reported twice, and a test asserts every declared token is actually used, so
+the list cannot go stale or over-broad.
+
+### Verification
+
+- `npm run typecheck` 0 errors; `npm run lint` 0 warnings at `--max-warnings 0`.
+- `src/server/ops/patchSeries.test.ts` - **72 tests**. Every one of the **55** finding codes has a
+  negative case: the test mutates the **real** file on disk in memory and asserts the code **by
+  name**, and a closing coverage assertion fails if any code has no case. The mutations are the ones
+  that matter rather than the ones that are easy - an `index` line with a hash pair injected into 001,
+  "this applies cleanly" injected as an unqualified claim, the authorship caveat softened from "never
+  cloned" to "rarely cloned", the provenance document replaced by the phrase "the architecture note",
+  the family row turned from `== set()` into an assignment carrying the bus, the README's stated order
+  reversed to 003 → 001, the per-bot bound reworded to a shared one, and the transport's constant-time
+  comparison and allowlist each removed in turn. The four artifacts also assert an **empty** finding
+  list as they stand, which is what makes the other 55 mean anything.
+- Suite **1678 tests across 99 files**, all passing; `src/server/ops/` contributes **416** of them.
+- `npm run verify:all -- --all` - **`HARNESS PASSED`, `19 of 19 executed checks passed`**. Before this
+  increment's commit the harness reported **17 of 19**, the two red checks being **AC14 (working tree
+  clean)** and **AC15 (push ready)**, both reporting the same uncommitted Phase-8 work and nothing
+  else.
+- The AC04 floor stays at **331**. Ratcheting it is task **9.1** and it happens there.
+- **No check was weakened.** `scripts/verify/all.mjs` was not touched, no assertion was loosened, no
+  test was skipped or deleted, no floor was lowered, and no scanner was given an exemption - including
+  the one that failed on the first draft of 003. The only edits outside the four new artifacts and the
+  two new source files are the four ticked boxes in `tasks.md` and this log section.
+- Every one of the four artifacts was re-scanned for a deployment particular: no hostname or domain,
+  no address literal, no storage identifier, no bot handle or numeric identifier, no port, no monetary
+  figure, no secret value. The one route literal in 001's test file is a synthetic test-only segment,
+  and the two bind values in the service command are `<ANGLE_BRACKET>` placeholders.
+
+### Honest scope note
+
+**The patches are unapplied, and they are unappliable from here.** Nobody has applied them; nobody has
+run the target repository's suite against them; no claim is made that any of them applies cleanly,
+compiles, or passes. Every statement they make about the other repository is sourced from documentation
+in **this** repository - sections 0, 1.3, 1.5, 2.1 and 3.1 of `docs/NIZAM_TWO_AGENT_VPS_ARCHITECTURE.md`
+- and each file names that source in its own header. The 55-passing / 14-subtest baseline the deltas are
+measured against was **read from that note, not observed**, and all three files and the README say so;
+the three predicted totals (62, 69, 74) are predictions from a session that could not run the suite, and
+they are labelled as such so a human can tell an expected delta from a surprise.
+
+**The other repository was never read, cloned, fetched, modified or pushed.** No `git clone`, no
+`git fetch`, no `git apply`, no submodule, no vendored checkout, no network request to any code host.
+Nothing in this increment was executed: no shell ran an ops artifact, no container was built or
+started, no store was opened, and no provider was called. What is proven here is that four text files
+say what Phase 8 requires and that they do not overclaim. What is **not** proven is that any change in
+them is correct against the code it describes - the two items 001 lists first under "what a human must
+verify" are exactly the places where it could be wrong, and 002's existing-test delta is explicitly
+**not zero** for the same reason.
+
+### Still gated
+
+- **G1-G8 are untouched**, and none was attempted: G1 provision and harden the host; G2 DNS for the
+  two hostnames; G3 create the two bots; G4 mint the two runtime keys with their weekly caps; G5 the
+  storage consent click; G6 register both webhooks; G8 generate the encryption keypair and keep the
+  private half off the box. G7 remains **closed as WONT-DO** per steering §0b.
+- **Applying this series is itself a human step in another repository**, and it is not in the G1-G8
+  register because it is not a deployment gate - it is a cross-repo handoff. Until a human performs it,
+  the correct status of all three changes is *emitted, unapplied*, and nothing here reports otherwise.
+- No outbound call from a server process and no production secret, unchanged.

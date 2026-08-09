@@ -62,10 +62,15 @@
 - [x] 7.6 Rollback and disaster-recovery runbook; rate-limit posture per Telegram's documented limits
 
 ## Phase 8 - Cross-repo handoff (steering §6)
-- [ ] 8.1 `ops/nizamcore-patches/001-fastapi-wrapper.patch` (wrap `handle_update`, add health endpoint)
-- [ ] 8.2 `ops/nizamcore-patches/002-dedup-per-bot.patch`
-- [ ] 8.3 `ops/nizamcore-patches/003-signalbus-egress-target.patch`
-- [ ] 8.4 `ops/nizamcore-patches/README.md`: apply order, expected test deltas, how to verify
+- [x] 8.1 `ops/nizamcore-patches/001-fastapi-wrapper.patch` (wrap `handle_update`, add health endpoint)
+- [x] 8.2 `ops/nizamcore-patches/002-dedup-per-bot.patch`
+- [x] 8.3 `ops/nizamcore-patches/003-signalbus-egress-target.patch`
+- [x] 8.4 `ops/nizamcore-patches/README.md`: apply order, expected test deltas, how to verify
+      **Form:** all three are explicitly-labelled **change specifications, not applicable unified
+      diffs** - the other repository was never read, so there are no verified context lines and no
+      blob hashes, and none were invented. Held to that by `src/server/ops/patchSeries.ts` (55
+      finding codes, each with a negative case). The other repository was not cloned, fetched, read,
+      modified or pushed.
 
 ## Phase 9 - Close out
 - [ ] 9.0 Add a harness check: no deployment particular in `ops/**` or any fixture (steering §0b) - no bare

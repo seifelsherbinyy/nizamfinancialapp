@@ -1,0 +1,303 @@
+================================================================================
+NIZAM - cross-repo change specification 003 of 003
+================================================================================
+FORM              CHANGE SPECIFICATION. This file is NOT an applicable unified
+                  diff and no version-control tool will apply it. It is text a
+                  human reads and applies by hand in a session opened on the
+                  target repository.
+TARGET REPOSITORY nizamcore
+TARGET BRANCH     main
+TARGET FILES      NIZAM__system/policies/PRIVACY_CLASSIFICATION.json
+                                                             (two rows, one name)
+                  NIZAM__system/governor/classifier.py       (matrix entries)
+                  NIZAM__system/governor/tests/test_classifier.py
+                                                             (tests added)
+SUBJECT           Add a signalbus egress target, eligible for the two narrow
+                  tiers money_safe and life_safe and for nothing else. The family
+                  classification's egress set stays EMPTY.
+AUTHORED BY       A session opened on nizamfinancialapp. That session never
+                  cloned, fetched, read, modified or pushed the target
+                  repository - steering section 6 forbids all five.
+AUTHORED FROM     Sections 0, 1.5, 2.1 and 3.1 of
+                  NIZAM_TWO_AGENT_VPS_ARCHITECTURE.md in the finance repository,
+                  which record that the privacy engine is classifier.py plus
+                  PRIVACY_CLASSIFICATION.json, that it carries an EGRESS_MATRIX
+                  over five tiers, that the family classification has an EMPTY
+                  egress set, and that the bus adds two new narrow tiers carrying
+                  directional state only; and from the envelope shape this
+                  repository already vendors at
+                  src/server/signals/nizam-signalbus.envelope.schema.json.
+NOT VERIFIED      No checkout was read, so there are no verified context lines
+                  and no blob hashes here, and none were invented. The exact key
+                  names, nesting and spelling inside the policy document, and the
+                  exact shape of EGRESS_MATRIX in the module, are unknown from
+                  here. Section 4 says what to reconcile.
+================================================================================
+
+== 1. WHY THIS IS A SPECIFICATION AND NOT A DIFF ==
+
+Both files exist and both are edited in the middle, so a diff would need their
+surrounding lines quoted verbatim, and this session is forbidden to read them. A
+policy document is the worst possible case for guessed context: its indentation
+and key order carry no semantics but do decide whether a hunk applies, so an
+invented context line produces either a loud rejection or a hunk applied to the
+wrong tier - and the wrong tier here is the family one.
+
+So this file states, for each edit, exactly which key gains exactly which value,
+and states separately and explicitly which key must NOT change. There is no
+index line and no blob hash, because neither can be derived from a description.
+
+ON ONE PLACEHOLDER, AND WHY IT IS A PLACEHOLDER. The family classification's key
+appears below as <FAMILY_CLASSIFICATION>. It resolves to the key the target
+repository's policy document spells for the tier whose egress set is empty - the
+one carrying household content. It is deliberately not written out here: this
+repository is public, and contract 12 section 4.4.3 holds that no artifact of
+this tier names, counts, summarizes or points at that content. Substitute it when
+applying, by reading the row in the policy document - which section 4 asks you to
+do anyway, and with your own eyes rather than through a test result.
+
+== 2. WHAT MUST NOT CHANGE ==
+
+This is the one change in the series that WIDENS what may leave the machine.
+Everything below is the boundary on that widening, and the first item is the
+whole reason the boundary exists.
+
+  1. THE FAMILY CLASSIFICATION KEEPS AN EMPTY EGRESS SET. Not a narrowed set, not
+     a set containing the bus, not a set containing anything: empty. That tier
+     never becomes eligible for any target, and its content is excluded from the
+     deployment entirely rather than filtered on the way out.
+
+     Exclusion, not filtering, is the point. A filter is code that runs on every
+     item and has to be right every time; an empty egress set is a property of
+     the data's classification that no code path can widen. If you find yourself
+     adding the bus to this row to make something work, the something is wrong,
+     not the row.
+
+  2. signalbus IS NOT ADDED TO ANY OF THE FIVE EXISTING TIERS. In particular not
+     to strict_local, which is where financial figures, health signals and
+     journal text live. Content in an existing tier reaches the bus only by
+     first being reduced to a directional signal in one of the two NEW tiers -
+     and that reduction is a deliberate act at a call site, not a permission
+     granted by the matrix.
+
+  3. THE FIVE EXISTING TIERS KEEP THEIR CURRENT TARGETS. This change adds; it
+     removes nothing and renames nothing.
+
+  4. THE EVALUATION FUNCTION IS NOT CHANGED. Whatever answers "is this egress
+     blocked", it keeps its logic. The new rows flow through it exactly as the
+     existing rows do. A new special case for the bus would be a second policy
+     engine, and two policy engines disagree eventually.
+
+  5. NO PAYLOAD FIELD IS ADDED. The envelope in section 3.3 is the whole of what
+     may travel. It has no field for a balance, a due date, an account
+     identifier or free text over 120 characters, and the correct way to keep it
+     that way is that THE FIELD DOES NOT EXIST.
+
+== 3. THE CHANGE, IN FULL ==
+
+--- 3.1 EDIT: NIZAM__system/policies/PRIVACY_CLASSIFICATION.json
+
+INTENT. One new target name becomes known to the policy, and two new
+classifications are declared whose egress set is exactly that one target.
+
+BEFORE. Unknown from here; the document is not quoted.
+
+AFTER - the target vocabulary gains exactly one entry:
+
+    signalbus
+
+AFTER - two new classifications are declared, each with exactly one target:
+
+    money_safe   egress: [ signalbus ]
+    life_safe    egress: [ signalbus ]
+
+Expressed in the document's own shape, whatever that shape turns out to be, the
+two rows carry this and nothing more:
+
+```json
+{
+  "money_safe": {
+    "description": "Directional financial state, de-identified. A level or a direction, never a figure.",
+    "egress": ["signalbus"]
+  },
+  "life_safe": {
+    "description": "Directional recovery or readiness state. A level or a direction, never journal text.",
+    "egress": ["signalbus"]
+  }
+}
+```
+
+AFTER - and this is the assertion, not a reminder - the family row is exactly
+what it was:
+
+    <FAMILY_CLASSIFICATION>   egress: [ ]
+
+--- 3.2 EDIT: NIZAM__system/governor/classifier.py
+
+INTENT. EGRESS_MATRIX gains the same two rows, so the module and the policy
+document agree.
+
+BEFORE. Unknown from here.
+
+AFTER - two entries are added to the matrix, and nothing else in it is touched:
+
+```python
+# Cross-repo change 003. The two narrow tiers the signal bus introduces. Each is
+# eligible for the bus and for nothing else, and the bus is eligible for these
+# two tiers and for nothing else. The state crosses; the data never does.
+EGRESS_MATRIX["money_safe"] = {"signalbus"}
+EGRESS_MATRIX["life_safe"] = {"signalbus"}
+
+# Restated here because it is the invariant this change is most likely to break
+# and the least likely to break loudly: the family classification's egress set is
+# empty, and stays empty. Nothing is appended to it, here or anywhere.
+# Substitute <FAMILY_CLASSIFICATION> with the key the policy document spells.
+assert EGRESS_MATRIX["<FAMILY_CLASSIFICATION>"] == set()
+```
+
+PREFER A LITERAL. If the matrix is declared as a literal rather than assembled,
+add the two rows inside the literal in the same style as the existing rows and
+keep the assertion. The assignment form above is written that way only because
+the literal's exact shape is unknown from here.
+
+WHY THE ASSERTION IS IN THE MODULE AND NOT ONLY IN A TEST. A test proves the
+property at the moment the suite runs. The assertion proves it at import, in
+every environment, including one where somebody edited the policy document on
+the host. The test in section 3.4 is still required; this is the belt underneath
+it.
+
+--- 3.3 THE ENVELOPE THAT TRAVELS (reference, no file changes)
+
+For the reviewer: this is what a signalbus target can carry. Both agents vendor
+it; neither imports the other's code.
+
+    signal_id       producer-generated, opaque, bounded length
+    ts              one instant, in UTC, and the only temporal value present
+    producer        finance | life
+    kind            money_pressure | recovery_state | whoop_readiness | ...
+    tier            money_safe | life_safe        (and nothing else)
+    consent_scope   shared | producer_only        (a subscriber must honour it)
+    payload         level     green | amber | red
+                    direction a direction, not a magnitude
+                    note      at most 120 characters, directional, no digits
+    hash            digest over the fields above; integrity, not authentication
+
+Note that the family classification is not a possible value of tier. It is not
+filtered out of the tier enumeration - it was never a member, so a signal
+claiming it fails as an unknown value rather than as a policy refusal. Failing
+earlier is the point.
+
+--- 3.4 TESTS TO ADD: NIZAM__system/governor/tests/test_classifier.py
+
+Add these. The third is the one that must never be deleted.
+
+```python
+def test_the_bus_is_reachable_from_the_two_narrow_tiers():
+    assert not is_egress_blocked("money_safe", "signalbus")
+    assert not is_egress_blocked("life_safe", "signalbus")
+
+
+def test_the_bus_is_unreachable_from_every_pre_existing_tier():
+    """Financial figures, health signals and journal text do not reach the bus.
+
+    They reach it only after being reduced to a directional signal in one of the
+    two narrow tiers, and that reduction is an act at a call site.
+    """
+    for tier in (
+        "<FAMILY_CLASSIFICATION>",
+        "strict_local",
+        "review_before_commit",
+        "private_github",
+        "mirror_sanitized",
+    ):
+        assert is_egress_blocked(tier, "signalbus"), tier
+
+
+def test_the_family_tier_egress_set_is_empty_and_stays_empty():
+    """The invariant this change is most likely to break quietly.
+
+    Asserted as emptiness rather than as the absence of the bus, so that adding
+    ANY target to this row fails here.
+    """
+    assert EGRESS_MATRIX["<FAMILY_CLASSIFICATION>"] == set()
+
+
+def test_no_pre_existing_tier_lost_a_target():
+    """This change adds. Nothing it does removes or renames."""
+    for tier in ("strict_local", "review_before_commit", "private_github", "mirror_sanitized"):
+        assert EGRESS_MATRIX[tier], tier
+
+
+def test_the_two_narrow_tiers_reach_nothing_but_the_bus():
+    for tier in ("money_safe", "life_safe"):
+        assert EGRESS_MATRIX[tier] == {"signalbus"}, tier
+```
+
+== 4. WHAT A HUMAN MUST VERIFY AFTER APPLYING ==
+
+  1. THE POLICY DOCUMENT'S REAL SHAPE. Open it and read how a classification and
+     its egress set are spelled. The two rows in section 3.1 carry the right
+     VALUES; their nesting and key names must match the document's own. If the
+     egress set is spelled with a different key, use that key.
+
+  2. THE FAMILY KEY, SUBSTITUTED FROM THE DOCUMENT. Replace every
+     <FAMILY_CLASSIFICATION> in sections 3.1, 3.2 and 3.4 with the key the policy
+     document actually spells. If you substitute it wrongly, the assertion and
+     the third test pass against a tier that does not exist, which is the worst
+     available outcome: a guard reporting success about nothing.
+
+  3. THE FAMILY ROW, READ WITH YOUR OWN EYES, BEFORE AND AFTER. Not the test
+     result: the row. This is the one item on this list that is not delegable to
+     the suite.
+
+  4. THE FIVE TIER NAMES ARE SPELLED AS THIS FILE SPELLS THEM. Section 3.4
+     enumerates them. If any differs in the target repository, the second test
+     silently checks fewer tiers than it appears to, which is a test that passes
+     for the wrong reason. Fix the spelling; do not narrow the list.
+
+  5. WHATEVER ELSE ENUMERATES TARGETS OR TIERS. A schema, a validator, a
+     documentation table, an operator note. Adding a target in two places and
+     forgetting a third is how a validator starts refusing a target the policy
+     permits.
+
+  6. THE BUS IS STILL UNREACHABLE FROM OUTSIDE. This change makes the bus a
+     legitimate destination for two tiers. It does not, and must not, make the
+     bus reachable from the internet: it stays on the internal network with no
+     published port and no proxy route. Adding an egress target is a policy
+     change, not a networking one.
+
+  7. NOTHING IN EITHER FILE NAMES A PARTICULAR. No host, no address, no port, no
+     storage identifier, no numeric messaging identifier, no figure. The two rows
+     above contain a target name and two prose descriptions.
+
+== 5. EXPECTED TEST DELTA ==
+
+BASELINE. 55 passing plus 14 subtests, as recorded in the finance repository's
+architecture note. That figure was read from the note, not observed by this
+session. Re-read the real count first.
+
+ADDED BY THIS CHANGE. Five tests, named in section 3.4:
+
+    test_the_bus_is_reachable_from_the_two_narrow_tiers
+    test_the_bus_is_unreachable_from_every_pre_existing_tier
+    test_the_family_tier_egress_set_is_empty_and_stays_empty
+    test_no_pre_existing_tier_lost_a_target
+    test_the_two_narrow_tiers_reach_nothing_but_the_bus
+
+EXPECTED EXISTING DELTA. Zero for the evaluation logic, which is untouched. But
+one class of existing test WILL fail if it exists: any test that asserts the
+COMPLETE set of classifications, or the complete set of egress targets, by
+equality. That failure is expected and correct - the set genuinely grew - and the
+fix is to extend the expected set to include the two new tiers and the new
+target. It is NOT to weaken the assertion from equality to containment: an
+equality assertion over a policy enumeration is how an unreviewed tier gets
+noticed.
+
+Whether such a test exists is unknown from here. Look for it before running the
+suite, so an expected failure is not read as a surprise.
+
+EXPECTED TOTAL. 55 + 5 = 60 passing, IF the baseline is still 55 and no
+enumeration test needed extending. Applied as the third of three, and if 001 and
+002 are already in, the expected running total is 55 + 7 + 7 + 5 = 74 passing,
+subtests unchanged at 14. Every one of those numbers is a PREDICTION from a
+session that could not run the suite. Verify each.

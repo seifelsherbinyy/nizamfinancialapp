@@ -1,6 +1,6 @@
 {
   "genesisHash": "0000000000000000000000000000000000000000000000000000000000000000",
-  "eventCount": 60,
+  "eventCount": 64,
   "events": [
     {
       "seq": 1,
@@ -781,6 +781,58 @@
       "prevHash": "9c32d3ac5149d412433073c73f640904839ed997a3ec58d85007b6955256baf5",
       "contentHash": "27b07136fbdbe35fb6d3264cb38d29cedc2d6e2d3a8718a9f7a26dbde7e0ec6d",
       "recordedAt": "2026-08-09T10:01:30.757Z"
+    },
+    {
+      "seq": 61,
+      "kind": "PRODUCE",
+      "itemId": "8.1-8.4",
+      "actor": "builder",
+      "artifactHash": "4821ee4d007190b0d339c602658c4165f2063a58b7c612d1297ea83e9f63a2ad",
+      "disposition": null,
+      "confidence": null,
+      "note": "cross-repo change series 001-003 plus README, emitted as change specifications, not applicable diffs; patchSeries checker with 55 codes",
+      "prevHash": "27b07136fbdbe35fb6d3264cb38d29cedc2d6e2d3a8718a9f7a26dbde7e0ec6d",
+      "contentHash": "63149ae61fccce814256540877b8f4446b9f89938722253c38405bf711d3bc41",
+      "recordedAt": "2026-08-09T10:42:00.148Z"
+    },
+    {
+      "seq": 62,
+      "kind": "VERIFY",
+      "itemId": "8.1-8.4",
+      "actor": "gate-runner",
+      "artifactHash": "4821ee4d007190b0d339c602658c4165f2063a58b7c612d1297ea83e9f63a2ad",
+      "disposition": null,
+      "confidence": null,
+      "note": "typecheck 0, lint 0, 1678 tests across 99 files, harness 17 of 19 pre-commit with only AC14/AC15 red on this uncommitted work",
+      "prevHash": "63149ae61fccce814256540877b8f4446b9f89938722253c38405bf711d3bc41",
+      "contentHash": "455f90c9d6415f8a4b164583f7ff829271316f5c4097d9894bbbfccb0acabf22",
+      "recordedAt": "2026-08-09T10:42:00.362Z"
+    },
+    {
+      "seq": 63,
+      "kind": "APPROVE",
+      "itemId": "8.1-8.4",
+      "actor": "reviewer",
+      "artifactHash": "4821ee4d007190b0d339c602658c4165f2063a58b7c612d1297ea83e9f63a2ad",
+      "disposition": null,
+      "confidence": null,
+      "note": "form is honest: no index line, no blob hash, no applicability claim; family classification carried as a placeholder so exclusion scan stays unweakened",
+      "prevHash": "455f90c9d6415f8a4b164583f7ff829271316f5c4097d9894bbbfccb0acabf22",
+      "contentHash": "13edf922406ba8417a6981fc3e0a4751418b9c89310e6077aa35fb69e333f4b9",
+      "recordedAt": "2026-08-09T10:42:00.478Z"
+    },
+    {
+      "seq": 64,
+      "kind": "CERTIFY",
+      "itemId": "8.1-8.4",
+      "actor": "reviewer",
+      "artifactHash": "4821ee4d007190b0d339c602658c4165f2063a58b7c612d1297ea83e9f63a2ad",
+      "disposition": "RESOLVED",
+      "confidence": "VERIFIED",
+      "note": "covers: 8.1,8.2,8.3,8.4",
+      "prevHash": "13edf922406ba8417a6981fc3e0a4751418b9c89310e6077aa35fb69e333f4b9",
+      "contentHash": "59a03b01a3c208842efbbea9da607cd9ba21de7e50e743c0cad3034fd65f8804",
+      "recordedAt": "2026-08-09T10:42:00.594Z"
     }
   ]
 }

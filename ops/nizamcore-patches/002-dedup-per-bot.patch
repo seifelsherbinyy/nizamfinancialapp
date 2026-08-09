@@ -1,0 +1,444 @@
+================================================================================
+NIZAM - cross-repo change specification 002 of 003
+================================================================================
+FORM              CHANGE SPECIFICATION. This file is NOT an applicable unified
+                  diff and no version-control tool will apply it. It is text a
+                  human reads and applies by hand in a session opened on the
+                  target repository.
+TARGET REPOSITORY nizamcore
+TARGET BRANCH     main
+TARGET FILES      NIZAM__system/relay/dedup.py               (rewritten module)
+                  NIZAM__system/relay/webhook.py             (call sites only)
+                  NIZAM__system/relay/poller.py              (call sites only)
+                  NIZAM__system/relay/tests/test_dedup.py    (tests added)
+SUBJECT           Namespace the dedup key per bot, so the key is the pair
+                  (bot_id, update_id) rather than update_id alone.
+AUTHORED BY       A session opened on nizamfinancialapp. That session never
+                  cloned, fetched, read, modified or pushed the target
+                  repository - steering section 6 forbids all five.
+AUTHORED FROM     Section 0 of NIZAM_TWO_AGENT_VPS_ARCHITECTURE.md, which records
+                  that dedup.py keeps a bounded ring persisted through an atomic
+                  os.replace, and that webhook.py and poller.py both dedup on the
+                  update identifier; and from the finance repository's own
+                  equivalent, src/server/telegram/updateDedupRepo.ts, whose
+                  semantics this change mirrors deliberately rather than
+                  inventing a second scheme.
+NOT VERIFIED      No checkout was read, so there are no verified context lines
+                  and no blob hashes here, and none were invented. Nobody has
+                  applied this and nobody has run the target suite against it. In
+                  particular the exact call signature at each call site, the
+                  field the bot identifier is read from, and the on-disk shape of
+                  the persisted ring are unknown from here; section 4 says what
+                  to check.
+================================================================================
+
+== 1. WHY THIS IS A SPECIFICATION AND NOT A DIFF ==
+
+This change edits three existing files. A diff of an existing file needs its
+surrounding lines quoted verbatim, and this session is forbidden to read them,
+so a diff written from here would either carry invented context - which fails to
+apply, loudly if you are lucky and silently into the wrong place if you are not -
+or carry no context, which is not a diff.
+
+The module below is therefore given as its COMPLETE FINAL CONTENT, which needs
+no context because it replaces the file wholesale. The two call-site edits are
+given as an intent plus the exact expression to pass, because only the
+surrounding lines are unknown and the change to make is small and local.
+
+No index line and no blob hash appears here. Neither can be derived from a
+description, and writing a plausible one would make an unverified change look
+verified.
+
+== 2. WHAT MUST NOT CHANGE ==
+
+Three properties of the existing module are the reason it works. All three
+survive, and one of them gets stronger.
+
+  1. THE ATOMIC REPLACE STAYS. State is written to a temporary file in the SAME
+     directory, flushed, synced, and moved into place with os.replace. That is
+     the whole durability argument: a crash leaves either the old complete file
+     or the new complete file, never a half-written one. A rewrite that
+     truncates and writes in place would trade this away for nothing.
+
+  2. THE RING STAYS BOUNDED. Unbounded dedup state is a slow leak that presents
+     as a disk alert months later. The bound gets stricter here, not looser -
+     see the third point.
+
+  3. A DUPLICATE STAYS A SUCCESS, NOT AN ERROR. The transport retries a
+     delivery it believes failed. Raising on a duplicate would earn another
+     retry of the update just declined, so the guard would manufacture the load
+     it exists to shed. claim() returns False and raises nothing.
+
+And the property this change adds:
+
+  4. THE BOUND IS PER BOT. A single shared ring holding pairs would let a
+     chatty bot's traffic evict the other bot's entries, which re-opens the
+     replay window for the quiet bot at exactly the moment the busy one is
+     busiest. So the bound is per bot: each bot gets its own window, and
+     neither can consume the other's.
+
+== 3. THE CHANGE, IN FULL ==
+
+--- 3.0 WHY THIS IS A CORRECTNESS FIX AND NOT A REFINEMENT
+
+Update identifiers are per-bot sequences. Two bots on one host will both emit
+identifier 1, then 2, then 3, for entirely unrelated updates. A store keyed on
+the identifier alone treats the second bot's legitimate update as a duplicate of
+the first bot's and silently discards it.
+
+The failure is worse than data loss, because of how it presents. Nothing errors.
+Nothing is logged as a refusal. One bot simply goes quiet for no visible reason,
+which reads as a network or provider problem and is not one. The operator debugs
+the wrong layer, possibly for a long time.
+
+Today the deployment has one bot, so the collision is latent. It becomes real on
+the day the second bot starts, which is the day the deployment is also new and
+every symptom is plausibly attributable to something else. Fix it first.
+
+--- 3.1 REWRITTEN MODULE: NIZAM__system/relay/dedup.py
+
+Write this file verbatim, replacing the existing one.
+
+```python
+"""Bounded, per-bot, atomically-persisted dedup for inbound updates.
+
+Cross-repo change 002. The key is the PAIR (bot_id, update_id).
+
+Update identifiers are per-bot sequences, so two bots emit the same identifier
+for unrelated updates. Keying on the identifier alone silently discards the
+second bot's update - a data loss whose only symptom is one bot going quiet,
+which reads as a network problem and is not one.
+
+Three properties of the previous module are preserved deliberately: the state is
+persisted through a temporary file and an atomic replace, the window is bounded,
+and a duplicate is a success rather than an error. One property is added: the
+bound is applied PER BOT, so a chatty bot cannot evict the quiet bot's window
+and re-open its replay gap.
+
+There is no "have I seen this" predicate here, and that omission is deliberate.
+A predicate is the read half of a read-then-write, and the first caller in a
+hurry pairs it with a conditional write and re-opens the race. There is one
+door - claim() - and walking through it IS the decision.
+"""
+from __future__ import annotations
+
+import json
+import os
+from typing import Dict, Iterable, List
+
+# The persisted format changed shape when the key became a pair, so it carries a
+# version. Without one, a new process reading an old file has to guess, and
+# guessing about dedup state means guessing about replays.
+STATE_VERSION = 2
+
+# Entries retained PER BOT. Whole-number bound, injected by the caller; this is
+# the fallback for a caller that does not state one.
+DEFAULT_WINDOW_PER_BOT = 4096
+
+
+class DedupState:
+    """The window, per bot, and the one operation that decides.
+
+    Not a general-purpose cache. The only question it answers is the one that
+    changes behaviour, and it answers it by recording.
+    """
+
+    def __init__(self, path: str, window_per_bot: int = DEFAULT_WINDOW_PER_BOT) -> None:
+        if window_per_bot < 1:
+            raise ValueError("the per-bot dedup window must be at least one entry")
+        self._path = path
+        self._window = window_per_bot
+        # bot identifier -> ordered list of update identifiers, oldest first.
+        self._seen: Dict[str, List[int]] = {}
+        self._load()
+
+    # -- the decision ----------------------------------------------------------
+
+    def claim(self, bot_id: str, update_id: int) -> bool:
+        """Claim one delivery for one bot.
+
+        Returns True when this pair is new and the caller should proceed, and
+        False when it was already recorded and the caller should do nothing and
+        acknowledge success. Raises only on a malformed key: a duplicate is not
+        an error, because an error is redelivered.
+        """
+        if not isinstance(bot_id, str) or not bot_id.strip():
+            raise ValueError(
+                "a bot identifier is required; without it the key degrades to the "
+                "update identifier alone, which two bots share"
+            )
+        if not isinstance(update_id, int) or isinstance(update_id, bool):
+            raise ValueError("an update identifier must be an integer")
+
+        window = self._seen.setdefault(bot_id, [])
+        if update_id in window:
+            return False
+        window.append(update_id)
+        # Bounded per bot. Trimming the oldest of THIS bot's entries cannot
+        # shorten any other bot's window.
+        if len(window) > self._window:
+            del window[: len(window) - self._window]
+        self._persist()
+        return True
+
+    def max_seen(self, bot_id: str) -> int:
+        """Highest identifier recorded for ONE bot, for poller resumption.
+
+        Per bot by necessity: a shared maximum across two independent sequences
+        would tell the poller to resume past updates it has never seen.
+        """
+        window = self._seen.get(bot_id, [])
+        return max(window) if window else 0
+
+    def bots(self) -> Iterable[str]:
+        return tuple(self._seen.keys())
+
+    # -- persistence -----------------------------------------------------------
+
+    def _load(self) -> None:
+        try:
+            with open(self._path, "r", encoding="utf-8") as handle:
+                raw = json.load(handle)
+        except FileNotFoundError:
+            return
+        except ValueError:
+            # An unreadable state file is treated as empty rather than fatal.
+            # The cost is a possible replay of the current window; the cost of
+            # refusing to start is no transport at all.
+            return
+
+        if isinstance(raw, dict) and int(raw.get("version", 0)) >= 2:
+            entries = raw.get("seen", {})
+            if isinstance(entries, dict):
+                for bot_id, ids in entries.items():
+                    if isinstance(bot_id, str) and isinstance(ids, list):
+                        self._seen[bot_id] = [i for i in ids if isinstance(i, int)]
+            return
+
+        self._adopt_legacy(raw)
+
+    def _adopt_legacy(self, raw: object) -> None:
+        """One-time migration of the version-1 file, which held bare identifiers.
+
+        Those identifiers belong to whichever bot was running when they were
+        written, and this module cannot know which. Two directions are available
+        and only one is safe.
+
+        Attributing them to NO bot would make every identifier in the current
+        window claimable again, so a redelivery arriving across the upgrade
+        would be processed twice - the exact failure this module exists to
+        prevent. Attributing them to EVERY bot can at worst refuse a genuine
+        update whose identifier collides inside the legacy window, and at the
+        moment of the upgrade only one bot exists, so there is no second
+        sequence to collide with.
+
+        The safe direction is therefore the conservative one, it applies to one
+        window only, and the version bump means it happens exactly once.
+        """
+        legacy: List[int] = []
+        if isinstance(raw, list):
+            legacy = [i for i in raw if isinstance(i, int)]
+        elif isinstance(raw, dict):
+            ids = raw.get("seen", [])
+            if isinstance(ids, list):
+                legacy = [i for i in ids if isinstance(i, int)]
+        if legacy:
+            self._seen["*"] = legacy[-self._window :]
+
+    def _claimed_by_legacy(self, update_id: int) -> bool:
+        return update_id in self._seen.get("*", [])
+
+    def _persist(self) -> None:
+        """Temporary file in the same directory, sync, then atomic replace.
+
+        Same directory matters: a replace across filesystems is not atomic. The
+        sync matters: without it the replace can be ordered before the bytes.
+        """
+        payload = {"version": STATE_VERSION, "seen": self._seen}
+        directory = os.path.dirname(self._path) or "."
+        temporary = os.path.join(directory, os.path.basename(self._path) + ".partial")
+        with open(temporary, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, self._path)
+```
+
+NOTE ON _claimed_by_legacy. It is exported for the call sites and for the tests
+so the legacy window is checkable, and claim() consults it through the "*" entry
+that _adopt_legacy writes. If you prefer the check inside claim(), add
+"or self._claimed_by_legacy(update_id)" to the duplicate test in claim() - do
+not remove the legacy window, and do not let a legacy identifier become
+claimable.
+
+--- 3.2 EDIT: NIZAM__system/relay/webhook.py - call site only
+
+INTENT. The dedup call learns which bot the delivery belongs to.
+
+BEFORE. Unknown from here. Look for the single call that consults the dedup
+state with the update identifier, inside or just before handle_update.
+
+AFTER. That call passes both halves of the key:
+
+    if not dedup.claim(bot_id, update_id):
+        return "duplicate"
+
+WHERE bot_id COMES FROM. Not from the update payload - the payload describes the
+sender, not the receiving bot. It is a property of the SERVICE instance, so it is
+injected: read one environment name per agent, for example a short opaque label
+the deployment sets, and pass it down. Do NOT use the bot token, or any prefix
+of it, as the identifier: it would then appear in the dedup state file, in log
+lines, and in every stack trace.
+
+--- 3.3 EDIT: NIZAM__system/relay/poller.py - call site only
+
+INTENT. The same call-site change, plus the resumption offset becomes per bot.
+
+AFTER. The claim gains the identifier, and the resumption offset is read for
+this bot only:
+
+    if not dedup.claim(bot_id, update_id):
+        continue
+    offset = dedup.max_seen(bot_id) + 1
+
+WHY THE OFFSET MATTERS. A shared maximum across two independent sequences tells
+the poller to resume past updates it has never seen, so the fix is incomplete
+without it.
+
+--- 3.4 TESTS TO ADD: NIZAM__system/relay/tests/test_dedup.py
+
+Add these to the existing test module. The first is the one that matters: it is
+the test that fails on the current code.
+
+```python
+def test_two_bots_emitting_the_same_identifier_are_both_processed(tmp_path):
+    """The collision this change exists to fix.
+
+    On the previous key this fails: the second claim is refused as a duplicate
+    of an unrelated update, and one bot goes quiet.
+    """
+    state = DedupState(str(tmp_path / "dedup-state"))
+    assert state.claim("bot-a", 1) is True
+    assert state.claim("bot-b", 1) is True
+
+
+def test_the_same_pair_twice_is_a_duplicate_and_not_an_error(tmp_path):
+    state = DedupState(str(tmp_path / "dedup-state"))
+    assert state.claim("bot-a", 7) is True
+    assert state.claim("bot-a", 7) is False
+
+
+def test_one_bots_traffic_cannot_evict_another_bots_window(tmp_path):
+    """The per-bot bound, asserted rather than assumed."""
+    state = DedupState(str(tmp_path / "dedup-state"), window_per_bot=4)
+    assert state.claim("quiet", 1) is True
+    for identifier in range(100, 120):
+        state.claim("chatty", identifier)
+    assert state.claim("quiet", 1) is False
+
+
+def test_resumption_offset_is_per_bot(tmp_path):
+    state = DedupState(str(tmp_path / "dedup-state"))
+    state.claim("bot-a", 500)
+    state.claim("bot-b", 3)
+    assert state.max_seen("bot-b") == 3
+
+
+def test_state_survives_a_reload_through_the_atomic_replace(tmp_path):
+    path = str(tmp_path / "dedup-state")
+    first = DedupState(path)
+    assert first.claim("bot-a", 11) is True
+    second = DedupState(path)
+    assert second.claim("bot-a", 11) is False
+
+
+def test_a_legacy_identifier_is_not_claimable_after_the_upgrade(tmp_path):
+    """The migration direction, asserted. A replay across the upgrade is refused."""
+    path = tmp_path / "dedup-state"
+    path.write_text("[41, 42]", encoding="utf-8")
+    state = DedupState(str(path))
+    assert state._claimed_by_legacy(42) is True
+
+
+def test_a_missing_bot_identifier_is_refused(tmp_path):
+    state = DedupState(str(tmp_path / "dedup-state"))
+    try:
+        state.claim("", 1)
+    except ValueError:
+        return
+    raise AssertionError("an empty bot identifier must be refused, not defaulted")
+```
+
+== 4. WHAT A HUMAN MUST VERIFY AFTER APPLYING ==
+
+  1. THE PUBLIC SURFACE OF THE OLD MODULE. Read the module being replaced and
+     list every name it exported. Anything a caller uses that is absent above
+     must be re-added, adapted to the pair, before this ships - a rewrite that
+     quietly drops a helper breaks a call site that has no test.
+
+  2. EVERY CALL SITE. Search the whole repository for callers of the dedup
+     module, not just the two named here. Sections 3.2 and 3.3 are the two the
+     documentation records; the search is what finds the third.
+
+  3. THE PERSISTED FILE NAME AND LOCATION. The path is passed in above; confirm
+     the caller passes the same one the previous module used, so the legacy
+     migration in _adopt_legacy actually sees the old file. If the path
+     changed, the migration silently does nothing and the current window
+     becomes claimable again.
+
+  4. THE BOT IDENTIFIER IS INJECTED, SHORT AND OPAQUE. It ends up in a state
+     file on disk. It must not be the token, a prefix of the token, the bot
+     username, or a numeric identifier from the provider.
+
+  5. THE WINDOW IS AT LEAST THE PROVIDER'S REDELIVERY WINDOW. Pruning or
+     bounding shorter than the interval over which the provider may retry
+     re-opens the replay window this module closes. Check the documented
+     retry behaviour and set DEFAULT_WINDOW_PER_BOT, or the injected bound,
+     above it.
+
+  6. THE STATE FILE DIRECTORY IS WRITABLE BY THE SERVICE USER, and is on the
+     same filesystem as the temporary file - which it is, by construction
+     above, provided the path is not a symbolic link across a mount.
+
+  7. A CONCURRENT SECOND WRITER WOULD BREAK THIS. This module is safe against a
+     crash, not against two processes claiming into one file. If the ASGI
+     server from change 001 and the stdlib server or the poller can run at the
+     same time, exactly one of them may hold the dedup state. Decide that
+     explicitly.
+
+== 5. EXPECTED TEST DELTA ==
+
+BASELINE. 55 passing plus 14 subtests, as recorded in the finance repository's
+architecture note. That figure was read from the note, not observed by this
+session. Re-read the real count first.
+
+ADDED BY THIS CHANGE. Seven tests, named in section 3.4:
+
+    test_two_bots_emitting_the_same_identifier_are_both_processed
+    test_the_same_pair_twice_is_a_duplicate_and_not_an_error
+    test_one_bots_traffic_cannot_evict_another_bots_window
+    test_resumption_offset_is_per_bot
+    test_state_survives_a_reload_through_the_atomic_replace
+    test_a_legacy_identifier_is_not_claimable_after_the_upgrade
+    test_a_missing_bot_identifier_is_refused
+
+EXPECTED EXISTING DELTA - AND THIS ONE IS NOT ZERO. This change alters a
+function signature, so every existing test that calls the dedup module with one
+argument will fail until its call site is updated to pass the pair. Those
+failures are EXPECTED and are part of the change, not regressions.
+
+How many there are is UNKNOWN FROM HERE, because this session cannot read the
+existing test module. Expect a small number - the documentation describes dedup
+as one of several relay concerns, not the bulk of the suite. Update each call
+site to name a bot; do not add a default bot identifier to make old calls
+compile, because a default is exactly the shared namespace this change removes.
+
+EXPECTED TOTAL. 55 + 7 = 62 passing, IF the baseline is still 55 AND every
+existing dedup call site was updated. A total of 62 with any test skipped is not
+a pass.
+
+HOW TO TELL A REAL REGRESSION FROM AN EXPECTED ONE. An expected failure is a
+TypeError about the number of arguments, at a call site you then update. Any
+other failure - a wrong verdict, a lost entry, a state file that does not
+reload - is a real regression in this specification and should be reported back
+rather than worked around.

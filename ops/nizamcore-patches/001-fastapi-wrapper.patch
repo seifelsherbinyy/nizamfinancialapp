@@ -1,0 +1,426 @@
+================================================================================
+NIZAM - cross-repo change specification 001 of 003
+================================================================================
+FORM              CHANGE SPECIFICATION. This file is NOT an applicable unified
+                  diff and no version-control tool will apply it. It is text a
+                  human reads and applies by hand in a session opened on the
+                  target repository.
+TARGET REPOSITORY nizamcore
+TARGET BRANCH     main
+TARGET FILES      NIZAM__system/relay/asgi_app.py            (new file)
+                  NIZAM__system/relay/tests/test_asgi_app.py (new file)
+                  the packaging manifest                     (two added deps)
+SUBJECT           Serve the existing update handler over an ASGI application and
+                  add a readiness endpoint, changing none of the handler's logic.
+AUTHORED BY       A session opened on nizamfinancialapp. That session never
+                  cloned, fetched, read, modified or pushed the target
+                  repository - steering section 6 forbids all five - so nothing
+                  below was read off a checkout.
+AUTHORED FROM     The documented interfaces only - sections 0, 1.3 and 2.1 of
+                  NIZAM_TWO_AGENT_VPS_ARCHITECTURE.md in the finance repository,
+                  which record that the transport lives at NIZAM__system/relay/,
+                  that webhook.py isolates handle_update(update, secret_header)
+                  from the transport and already performs a constant-time
+                  hmac.compare_digest on the secret-token header, an allowed-ids
+                  allowlist and an update-identifier dedup, and that webhook.py's
+                  own docstring prescribes swapping in an ASGI server while
+                  keeping handle_update unchanged.
+NOT VERIFIED      Because no checkout was read, there are no verified context
+                  lines and no blob hashes here, and none were invented. Nobody
+                  has applied this, nobody has run the target repository's tests
+                  against it, and no claim is made that it applies cleanly or
+                  that it compiles. Two specific things are unknown from here and
+                  are called out in section 4: the exact return contract of
+                  handle_update, and whether all three guards live inside
+                  handle_update or partly in the stdlib request handler.
+================================================================================
+
+== 1. WHY THIS IS A SPECIFICATION AND NOT A DIFF ==
+
+A unified diff carries three things a tool needs: the target paths, the added
+and removed lines, and enough surrounding context to locate the hunk. The first
+two can be written from documented interfaces. The third cannot: context lines
+are a verbatim quotation of the file as it exists, and this session is forbidden
+to read that file.
+
+There is a further honesty problem specific to diffs. A diff header carries an
+index line naming two blob hashes, one before and one after. Those are content
+addresses; they cannot be derived from a description, only computed from bytes.
+Writing plausible-looking hashes would make an unverifiable change look
+verified, so this file contains no index line at all - and the checker in the
+finance repository fails if one ever appears here.
+
+The two new files below therefore appear as their COMPLETE FINAL CONTENT, which
+needs no context because nothing precedes them. The one edit to an existing file
+appears as an intent plus the exact lines to add, because the surrounding lines
+are unknown. If you prefer to work with a diff, convert section 3 into one
+yourself in the target repository, where the context is in front of you, and
+apply it with a three-way merge so that a hunk which does not fit becomes a
+conflict you resolve rather than a change that silently misses.
+
+== 2. WHAT MUST NOT CHANGE ==
+
+This is a TRANSPORT change. The proven part of the relay is the part that
+decides, and none of it moves.
+
+  1. handle_update is not rewritten, not copied, not inlined and not wrapped in
+     new logic. It is imported and called. Its signature stays
+     handle_update(update, secret_header).
+
+  2. The constant-time secret-token comparison stays. The header value is read
+     from the request and passed through unchanged; nothing on the new path
+     compares it, normalizes it, trims it, logs it or reports which check
+     refused. An ASGI swap that reaches the handler without the header is a
+     regression that presents as an open door.
+
+  3. The allowed-ids allowlist stays, and an empty allowlist still means nobody
+     rather than everybody.
+
+  4. The update-identifier dedup call stays on the new path, so a redelivered
+     update still has no second side effect.
+
+  5. poller.py stays exactly as it is. It is the documented degraded mode for
+     when the endpoint or its certificate is unavailable, it needs no public
+     listener, and it is selected by configuration rather than by a second code
+     path. Deleting it because the ASGI server exists would remove the fallback
+     at the same moment it becomes the only way in.
+
+  6. No default route. The path segment is injected at run time. If it is not
+     configured, the application refuses to start rather than serving a
+     guessable route.
+
+== 3. THE CHANGE, IN FULL ==
+
+--- 3.1 NEW FILE: NIZAM__system/relay/asgi_app.py
+
+Write this file verbatim.
+
+```python
+"""ASGI front end for the relay.
+
+Cross-repo change 001. The transport moves to an ASGI application; the update
+handler does not move, is not copied, and is not modified. This module contains
+no authenticity logic of its own: it reads the secret-token header off the
+request and hands it, unchanged, to the handler that already compares it in
+constant time, checks the allowlist, and dedups the update identifier.
+
+Nothing here binds a public port. The process listens on the address and port
+the deployment injects, behind the reverse proxy, and neither value appears in
+this file or in any tracked file.
+"""
+from __future__ import annotations
+
+import json
+import os
+from typing import Any
+
+from fastapi import FastAPI, Request, Response
+
+from webhook import handle_update
+
+# The header the provider echoes on every delivery. This is the NAME of a field
+# - public protocol - never a value.
+SECRET_TOKEN_HEADER = "X-Telegram-Bot-Api-Secret-Token"
+
+# The one environment name this module reads for its route. Injected at deploy
+# time; there is deliberately no default and no example of its shape.
+WEBHOOK_PATH_ENV = "TELEGRAM_WEBHOOK_PATH"
+
+# Documentation and schema endpoints are off. A public description of the API is
+# reconnaissance, and this service has exactly two routes.
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+
+
+def webhook_route() -> str:
+    """The injected route, or a refusal to start.
+
+    A missing value is not defaulted. The alternative to an injected secret
+    segment is a guessable one, and a guessable segment is not a segment.
+    """
+    configured = os.environ.get(WEBHOOK_PATH_ENV, "")
+    if not configured.startswith("/") or len(configured) < 2:
+        raise RuntimeError(
+            "the webhook path must be injected as an absolute path; refusing to "
+            "serve a default route"
+        )
+    return configured
+
+
+def status_for(verdict: Any) -> int:
+    """Map the handler's own answer to a status code, failing closed.
+
+    THE ONE THING THIS SPECIFICATION COULD NOT READ. The handler's return
+    contract is not recorded in the documentation this file was written from, so
+    the three outcomes below are the three the documentation DESCRIBES -
+    accepted, already-seen, refused - and the mapping from them to whatever the
+    handler actually returns must be reconciled by a human with the file open.
+
+    Until it is reconciled, an unrecognized answer is a refusal, never a
+    success. A default of 200 here would turn every unmapped outcome into an
+    acknowledged delivery, which is exactly how a dropped guard stops being
+    visible.
+    """
+    if verdict in ("accepted", "ok", True):
+        return 200
+    if verdict in ("duplicate", "already_seen"):
+        # A duplicate is a success. An error would be redelivered, and the guard
+        # would manufacture the load it exists to shed.
+        return 200
+    return 403
+
+
+@app.post(webhook_route())
+async def receive_update(request: Request) -> Response:
+    """Read, hand over, answer. No decision is taken here."""
+    raw = await request.body()
+    secret_header = request.headers.get(SECRET_TOKEN_HEADER)
+    try:
+        update = json.loads(raw)
+    except ValueError:
+        # Unparseable input is refused without reaching the handler, and without
+        # echoing any of it back.
+        return Response(status_code=400, media_type="text/plain")
+    verdict = handle_update(update, secret_header)
+    return Response(status_code=status_for(verdict), media_type="text/plain")
+
+
+@app.get("/healthz")
+async def healthz() -> Response:
+    """Readiness, not liveness.
+
+    A liveness answer is produced by the code that answers it, so its evidence
+    is its own execution: it is true whenever this function is reachable,
+    including while everything below it is broken. The orchestrator RESTARTS
+    what reports unhealthy, so a liveness probe suppresses the one automatic
+    remedy the deployment has, and does so most confidently at the worst moment.
+
+    Every check below is therefore a fact about something other than this
+    function running. Each one is a path this module does not own:
+
+      1. the append-only ledger location exists and is writable;
+      2. the dedup state location is readable;
+      3. the relay is configured live rather than standby.
+
+    A human applying this must confirm the three names those checks read, and
+    replace any that does not exist with one that does. A check that cannot be
+    evaluated must report failure - never success, and never silence.
+    """
+    if not relay_is_ready():
+        return Response(status_code=503, media_type="text/plain")
+    return Response(status_code=200, media_type="text/plain")
+
+
+def relay_is_ready() -> bool:
+    """The three facts above, evaluated. Returns False on any doubt.
+
+    Reveals nothing: the caller gets a boolean, and the endpoint gets a status
+    code. No path, no configuration value, no count, no identifier.
+    """
+    ledger_dir = os.environ.get("NIZAM_LEDGER_DIR", "")
+    dedup_state = os.environ.get("NIZAM_DEDUP_STATE", "")
+    mode = os.environ.get("RELAY_MODE", "")
+    if mode != "live":
+        return False
+    if not ledger_dir or not os.access(ledger_dir, os.W_OK):
+        return False
+    if not dedup_state:
+        return False
+    return os.path.exists(dedup_state) and os.access(dedup_state, os.R_OK)
+```
+
+--- 3.2 NEW FILE: NIZAM__system/relay/tests/test_asgi_app.py
+
+Write this file verbatim. It is the mechanical guard against the failure mode
+this change invites: a transport swap that reaches the handler with a guard
+skipped. Every test below drives the ASGI route, not the handler, so what it
+proves is that the NEW path still refuses.
+
+```python
+"""The ASGI path keeps every guard the stdlib path had.
+
+Cross-repo change 001. These tests exist because the risk in a transport swap is
+not that the new server fails - a failing server is obvious - but that it
+succeeds while a check no longer runs.
+"""
+from __future__ import annotations
+
+import os
+
+import pytest
+from fastapi.testclient import TestClient
+
+
+ROUTE = "/tg/test-only-route-segment"
+
+
+@pytest.fixture()
+def client(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_WEBHOOK_PATH", ROUTE)
+    monkeypatch.setenv("RELAY_MODE", "live")
+    import importlib
+
+    import asgi_app
+
+    importlib.reload(asgi_app)
+    return TestClient(asgi_app.app)
+
+
+def test_no_secret_token_header_is_refused(client):
+    """Absent is not empty, and both are refused."""
+    response = client.post(ROUTE, json={"update_id": 1})
+    assert response.status_code in (401, 403)
+
+
+def test_wrong_secret_token_header_is_refused(client):
+    response = client.post(
+        ROUTE, json={"update_id": 2}, headers={"X-Telegram-Bot-Api-Secret-Token": "wrong"}
+    )
+    assert response.status_code in (401, 403)
+
+
+def test_sender_outside_the_allowlist_is_refused(client, monkeypatch):
+    """A correct token is not authorization."""
+    monkeypatch.setenv("NIZAM_TELEGRAM_ALLOWED_IDS", "")
+    response = client.post(
+        ROUTE,
+        json={"update_id": 3, "message": {"from": {"id": 1}}},
+        headers={"X-Telegram-Bot-Api-Secret-Token": os.environ.get("NIZAM_WEBHOOK_SECRET", "")},
+    )
+    assert response.status_code in (401, 403)
+
+
+def test_a_redelivered_update_has_no_second_effect(client):
+    """The dedup call is still on this path."""
+    payload = {"update_id": 4}
+    first = client.post(ROUTE, json=payload)
+    second = client.post(ROUTE, json=payload)
+    assert second.status_code == first.status_code
+
+
+def test_unparseable_body_never_reaches_the_handler(client):
+    response = client.post(ROUTE, content=b"{not json")
+    assert response.status_code == 400
+
+
+def test_readiness_fails_when_the_relay_is_not_live(client, monkeypatch):
+    """The endpoint answers about the system, not about itself."""
+    monkeypatch.setenv("RELAY_MODE", "standby")
+    assert client.get("/healthz").status_code == 503
+
+
+def test_no_default_route_when_the_path_is_unconfigured(monkeypatch):
+    monkeypatch.delenv("TELEGRAM_WEBHOOK_PATH", raising=False)
+    import importlib
+
+    import asgi_app
+
+    with pytest.raises(RuntimeError):
+        importlib.reload(asgi_app)
+```
+
+--- 3.3 EDIT: the packaging manifest
+
+INTENT. Two runtime dependencies become declared: the ASGI framework and the
+ASGI server. Nothing is removed, and no existing pin is changed.
+
+BEFORE. Unknown from here - this session cannot read the manifest, so neither
+its format nor its current contents are quoted.
+
+AFTER. The dependency list gains exactly these two entries, pinned by the human
+applying this to versions resolvable in the target environment:
+
+    fastapi
+    uvicorn
+
+The test dependency list gains the ASGI test client if it is not already
+implied by the framework install.
+
+--- 3.4 THE SERVICE COMMAND (not a file in this repository)
+
+The container command that serves the application. It carries no literal
+address and no literal port; both are injected.
+
+    uvicorn asgi_app:app --host "<LIFE_BIND_ADDRESS>" --port "<LIFE_BIND_PORT>"
+
+== 4. WHAT A HUMAN MUST VERIFY AFTER APPLYING ==
+
+The two items in the header marked NOT VERIFIED are here, first, because the
+change is not correct until they are settled. The rest follows.
+
+  1. THE HANDLER'S RETURN CONTRACT. Open webhook.py and read what
+     handle_update returns. Reconcile status_for with it. If the handler
+     signals by raising rather than returning, replace status_for with the
+     matching exception handling and keep the fail-closed default. An
+     unrecognized answer must remain a refusal.
+
+  2. WHERE THE THREE GUARDS ACTUALLY LIVE. The documentation says the relay
+     performs a constant-time comparison, an allowlist check and an update
+     dedup, and that handle_update is the transport-independent core. It does
+     not say all three are inside handle_update. Read the stdlib request
+     handler. If any of the three lives in the handler rather than in
+     handle_update, then STOP: move it into handle_update, or call it from the
+     ASGI route before handle_update, before this change ships. A wrapper that
+     leaves a guard behind in the class it replaced is the regression this
+     specification is most likely to cause.
+
+  3. THE IMPORT SURFACE. Confirm that "from webhook import handle_update"
+     resolves in the target package layout. If the relay is a package rather
+     than a flat module directory, adjust the import and the two reload calls
+     in the test file to the real module path.
+
+  4. THE ROUTE IS EVALUATED ONCE, AT IMPORT. The decorator calls
+     webhook_route() when the module is imported, so a change to the injected
+     path requires a restart. Confirm that matches how the deployment supplies
+     it. If the path must be re-read per request, move the check into the
+     handler and register a wildcard route that refuses a mismatch.
+
+  5. THE READINESS NAMES. Confirm the three environment names in
+     relay_is_ready exist in the target repository's configuration, and that
+     the two locations are the ones the running relay actually writes. Replace
+     any that does not exist. Do not delete a check to make the endpoint pass:
+     a readiness probe that reports success because it stopped looking is worse
+     than no probe.
+
+  6. THE STDLIB PATH. Decide deliberately whether the stdlib server stays as a
+     second entry point or is retired. Either is defensible; leaving it running
+     alongside is not, because two listeners with one dedup state is a race
+     nobody planned.
+
+  7. poller.py IS UNTOUCHED. Confirm by reading it, not by remembering.
+
+  8. THE ROUTE NEVER APPEARS IN A LOG. Confirm the ASGI server's access log
+     does not record the full path, or that it is configured not to. The
+     segment is a credential.
+
+== 5. EXPECTED TEST DELTA ==
+
+BASELINE. The finance repository's architecture note records the target
+repository at 55 passing tests plus 14 subtests as of its own verification date.
+That figure was READ FROM THAT NOTE, not observed by this session. Re-read the
+real count before applying anything, and treat any disagreement with 55 as the
+note being stale rather than the suite being wrong.
+
+ADDED BY THIS CHANGE. Seven tests, all in the new file, all named in section
+3.2:
+
+    test_no_secret_token_header_is_refused
+    test_wrong_secret_token_header_is_refused
+    test_sender_outside_the_allowlist_is_refused
+    test_a_redelivered_update_has_no_second_effect
+    test_unparseable_body_never_reaches_the_handler
+    test_readiness_fails_when_the_relay_is_not_live
+    test_no_default_route_when_the_path_is_unconfigured
+
+EXPECTED EXISTING DELTA. Zero. This change adds two files and two dependency
+entries; it modifies no existing module, so no existing test should change its
+outcome. If an existing test does change, that is the signal that item 2 of
+section 4 was not settled - something that was in the handler moved, or should
+have.
+
+EXPECTED TOTAL. 55 + 7 = 62 passing, subtests unchanged at 14, IF the baseline
+is still 55. Verify, do not assume.
+
+WHAT WOULD MAKE THIS FAIL HONESTLY. If the framework or the test client is not
+installable in the target environment, the seven new tests error at import and
+the change is not ready. Do not skip them to get a green suite: an unskipped
+failure is information, and a skipped one is a guard nobody notices is absent.
