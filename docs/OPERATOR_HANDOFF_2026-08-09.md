@@ -1,10 +1,12 @@
 # Operator handoff - two-agent VPS - 2026-08-09
 
 **BLUF.** The host is bought and live, so gate G1's precondition is met but its hardening is not done.
-Two bots now exist, are hardened, and were verified live at 23:57 on 2026-08-09 along with your allowlist
-identifier, so G3 is down to two open items: rotate both tokens (they were disclosed in a chat) and place
-them once G1 exists. Two things beyond the gates still block a running
-deployment, and four decisions are owed. Nothing here contains a deployment particular - those are in the untracked file
+Both bots exist, are hardened, and were verified live on 2026-08-09 together with your allowlist
+identifier, so G3 is down to placement, which waits on G1. Rotation of the three disclosed credentials is
+deferred until after practical-use testing by your decision D-ROTATE, and is now the final acceptance test
+rather than the first step. G2 is blocked on the one input that does not exist yet: a domain. Two things
+beyond the gates still block a running deployment, five decisions are owed and one steering conflict needs
+a ruling. Nothing here contains a deployment particular - those are in the untracked file
 `outputs/DEPLOYMENT_PARTICULARS.local.md` (gitignored). This repo is public; keep it that way.
 
 Authoritative sources this summarises, in fetch order for a Kiro session:
@@ -28,21 +30,44 @@ Authoritative sources this summarises, in fetch order for a Kiro session:
 | G6 webhooks | needs G1+G2+G3 | Register both, verify with getWebhookInfo. Last step. |
 | G8 backup key | ready once G1 exists | `age` keypair on this laptop, private half to the password manager + one offline copy. The provider's own snapshot does **not** count. |
 
-## Do this first: rotate both bot tokens
+## Rotation: deferred by your decision, and now the last test instead of the first
 
-Both were pasted into an assistant chat when the bots were created, so treat both as public. A holder of
-a bot token can register its own webhook and receive everything you send that bot, which is precisely the
-reachability gate G6 exists to control. Rotation is BotFather `/token`, it is free while no webhook is
-registered, and it costs nothing to do twice.
+**Decision D-ROTATE, 2026-08-10: nothing is rotated until the deployment is tested in practical use and
+you report it working.** Recorded, and this section rewritten rather than left contradicting you. The
+earlier instruction here said rotate first; it no longer does.
 
-The repository is clean and was checked five ways: `.secrets/` is gitignored, was never committed on any
-branch, no tracked file holds either bot name or a token-shaped string, and the repo's own secret scanner
-passes over all 400 tracked files. The exposure is the chat and the plaintext file on this laptop, not
-the repository.
+Three credentials are disclosed: both bot tokens and the Cloudflare zone token. Two things stay true
+regardless of when you rotate.
 
-Also move the new tokens out of `.secrets/`. `docs/PFOS_SECRETS_PLAN.md` scopes that directory to
-low-privilege development credentials only. A bot token has exactly two homes: your password manager, and
-`/etc/<CONFIG_DIR>/*.env` at mode 600 owned by root once G1 creates it.
+**Before G6 the deferral costs nothing.** There is no webhook, so there is nothing for a token holder to
+redirect. **After G6 it costs one API call.** Whoever holds a bot token can `setWebhook` to their own
+server and take every delivery, or `deleteWebhook` and take the bot down quietly. So the exposure window
+is precisely G6-live-until-rotated, not now.
+
+**Two conditions, both cheap.**
+
+1. **Rotation becomes the final acceptance test.** Not skipped, moved. An unrotated deployment has never
+   exercised its own rotation path, and `ops/runbook/DISASTER_RECOVERY.md` assumes that path works.
+   Running it last proves the procedure and clears the disclosure in one action. Four steps, one sitting:
+   BotFather `/token`, update the one env entry, re-run `setWebhook` with the same secret and path,
+   `getWebhookInfo` to confirm. Skip the third and that bot goes dark.
+2. **Detection while the disclosed tokens are live.** `getWebhookInfo` on both bots every time you test.
+   If `url` is not the path you registered, or `pending_update_count` climbs while the agent is healthy,
+   somebody else has used the token. This detects rather than prevents, which is the honest trade once
+   prevention is deliberately deferred.
+
+**The zone token is the exception worth taking early.** Nothing in the deployment ever holds it: no
+service, no container, no environment file. It is used by hand from this laptop only, so rotating it
+breaks nothing and needs no coordinated sitting.
+
+**The repository is clean and was checked five ways:** `.secrets/` is gitignored, was never committed on
+any branch, no tracked file holds either bot name or a token-shaped string, the staged diff had zero IPv4
+literals and zero token shapes, and the repo's own scanner passes over all 406 tracked files. The exposure
+is the chat and the plaintext files on this laptop, not GitHub.
+
+When you do rotate, the new tokens do not go back into `.secrets/`. `docs/PFOS_SECRETS_PLAN.md` scopes
+that directory to low-privilege development credentials. A bot token has two homes: your password manager,
+and `/etc/<CONFIG_DIR>/*.env` at mode 600 owned by root.
 
 ## One correction to the register's G1 step 4
 
@@ -86,7 +111,7 @@ Verify by resolution, never by the console. Grey cloud returns your address, ora
 
 ## What I need from you
 
-Confirmation that both tokens are rotated. Domain plus registrar. Which Google account owns backups. The
+Domain plus registrar. Which Google account owns backups. The
 D-CAP ruling. (Your numeric Telegram id is no longer needed - it was read from your own bots and is
 recorded in the untracked worksheet.) Then I can prep the G2 records (with a `Zone DNS Edit`
 scoped token, path in the worksheet) and draft the finance-agent entrypoint plus Dockerfiles as a spec

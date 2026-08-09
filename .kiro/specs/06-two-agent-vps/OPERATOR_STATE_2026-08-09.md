@@ -77,6 +77,7 @@ affordable. Still an owner decision, because it spends the owner's money.
 | **D-WAL** | The write-ahead-log sidecar determination. Take **outcome B** (documented default): the owning service snapshots and hands the artifact over, widening no mount. | Until recorded, rollback across a migration stays blocked (register G8 sub-section). |
 | **D-BENCH** | Authorize one Phase-1 benchmark pass from the dev machine (~1/3 of the dev key's USD 1 weekly allowance) or leave the registry provisional. | A provisional registry can never promote a model, so routing stays off either way (register "dev-key carve-out"). |
 | **D-ALLOWLIST** | What delimiter does `ALLOWED_USER_IDS` use, and which module reads it? Raised as F1 in `TELEGRAM_VALUE_LEDGER.md` section 5. Nothing reads the environment at all today, so the string-to-array shape is undecided and a loader written later could disagree with what the operator wrote. `senderIsAllowlisted` resolves membership by exact string identity, so a stray space or quote refuses the only sender on the list. Interim shape: one identifier, bare digits, no quotes, no brackets, no spaces. | Not blocking G3, but it is the first thing the O1 entrypoint work has to settle, and getting it wrong locks the owner out of both bots with a refusal that is deliberately indistinguishable from a wrong secret token. |
+| **D-ROTATE** | **DECIDED by the owner, 2026-08-10: no credential is rotated until the deployment has been tested end to end in practical use and the owner reports it working.** This reverses the "rotate before G6" instruction that this file and three others carried, and the reversal is recorded rather than the instruction quietly deleted. Rationale accepted: churning three credentials before anything has been proven to work adds a variable to every failure you are trying to diagnose. Two conditions attach, in section 4: rotation becomes the **final acceptance test** rather than a skipped step, and a zero-cost detection check runs for as long as the disclosed tokens are live. | Nothing. It unblocks G6 immediately, and moves a known obligation to the end of the sequence instead of the front. |
 | **D-G5** | Two G5 traps to apply when doing the consent grant: (1) the OAuth consent screen must be **published to production**, not left in "Testing", or the refresh token expires in 7 days and the unattended uploader dies silently on day 8 - safe because `drive.file` is non-sensitive and needs no review; (2) `BACKUP_FOLDER_REF` must be a folder the **uploader creates on first run**, not a hand-made one, because `drive.file` reaches only files the app created. | Not blocking today, but both make G5 pass on day 1 and fail later. |
 
 ## 4. Recorded observation - the G3 creation half happened, and what it left open
@@ -112,19 +113,41 @@ owner-directed** observations rather than operator-run ones, and are labelled th
 Probe time 2026-08-09 23:57 local. `getWebhookInfo` was added to the probe because the earlier claim that
 no webhook existed had been inferred rather than checked.
 
-### Disclosure obligation - both tokens must be rotated before G6
+### Disclosure obligation - deferred by owner decision D-ROTATE, not discharged
 
 Both tokens were disclosed to a third-party assistant chat at creation time, and are currently held in
 `.secrets/telegram-bots.env` on the development machine. Two consequences, and neither is optional:
 
-- **Rotate both with BotFather `/token` before G6 registers a webhook.** Rotation is free while nothing
-  depends on the values; after G6 it costs a same-sitting update of the environment file and the webhook
-  registration, or that bot goes dark. A disclosed bot token lets a holder register its own webhook and
-  receive every delivery, which is exactly the reachability G6 exists to control.
-- **A third credential joins the same obligation.** `.kiro/steering/cloudflare-dns.md` item 3 records that the
-  Cloudflare API token was read into a message on 2026-08-09 and is compromised until rotated. The rotation list
-  is therefore three items, not two: both bot tokens and the zone token. The zone token is the cheapest to rotate,
-  because no record and no deployment depends on it yet.
+- **Rotation is deferred, on the owner's explicit instruction of 2026-08-10 (D-ROTATE): no rotation until
+  the deployment has been tested in practical use and reported working.** What that changes and what it
+  does not:
+  - **What it does not change.** A disclosed bot token still lets whoever holds it call `setWebhook` and
+    redirect every delivery to their own server, or call `deleteWebhook` and silently take the bot down.
+    That is one API call, needs nothing else, and is exactly the reachability G6 exists to control. Before
+    G6 there is nothing to redirect, so the deferral costs nothing at all. From the moment G6 registers a
+    webhook until rotation happens, that call is available to a third party.
+  - **Condition 1 - rotation is the final acceptance test, not a skipped step.** An unrotated deployment
+    has never exercised its own rotation path, so rotation is untested capability, and
+    `ops/runbook/DISASTER_RECOVERY.md` depends on it working. Running it as the last test case proves the
+    procedure and clears the disclosure in one action. The sequence is four steps in one sitting:
+    BotFather `/token`; update the one entry in the one environment file; re-run `setWebhook` with the
+    same secret token and path; `getWebhookInfo` to confirm `url` and `max_connections` came back and
+    `last_error_message` is absent. Miss the third step and that bot goes dark.
+  - **Condition 2 - detection, for as long as the disclosed tokens are live.** `getWebhookInfo` costs
+    nothing and answers the only question that matters: does `url` still equal the path you registered? If
+    it ever differs, or `pending_update_count` climbs while the agent is healthy, the token has been used
+    by somebody else. Add it to whatever loop the practical-use test already runs. This detects rather
+    than prevents, which is the correct trade once prevention has been deliberately deferred.
+- **A third credential is on the same deferral.** `.kiro/steering/cloudflare-dns.md` item 3 records that
+  the Cloudflare API token was read into a message on 2026-08-09 and is compromised until rotated, so the
+  list is three: both bot tokens and the zone token. The zone token is the odd one out and worth calling
+  separately, because nothing in the deployment ever holds it: no service, no container, no environment
+  file. It is only ever used by hand from the operator's laptop, so rotating it breaks nothing and needs no
+  coordinated sitting. If any of the three is rotated early, it should be that one. One follow-up on the steering file: item 3 there states
+  the token is compromised until rotated, which stays true under the deferral and is not a contradiction -
+  but it reads as an instruction to a session that has not seen D-ROTATE, and steering is what an agent
+  loads first. The deferral belongs in `.kiro/steering/cloudflare-dns.md` item 3 so no future session
+  rotates unilaterally in good faith.
 - **`.secrets/` is the wrong class of home for this credential.** `docs/PFOS_SECRETS_PLAN.md` scopes the
   development machine's `.secrets/` to dev, browser-safe, low-privilege credentials, and states that
   production secrets never live there. A bot token reaches the deployment, so its two legitimate homes
