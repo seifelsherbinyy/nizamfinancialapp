@@ -125,7 +125,7 @@ OpenRouter model/pricing pages, OAuth consent-screen config. These are *steps*, 
 - **Needed:** bot token (secret) + your numeric user id (allowlist - the primary auth per 02 section 9).
 - **Home:** token -> VPS secret store; user id -> server config.
 - **Verify:** `GET https://api.telegram.org/bot<TOKEN>/getMe` returns your bot.
-- **Rotate:** `/revoke` in BotFather, reissue, update the server secret.
+- **Rotate:** `/token` in BotFather, reissue, update the server secret, then re-register the webhook. There is **no** `/revoke` command in the documented BotFather command set (verified against `https://core.telegram.org/bots/features` on 2026-08-09); issuing a new token kills the old one instantly, so the env file and the webhook registration must both be updated in the same sitting or that bot goes dark.
 
 ### [server] 8 · Gmail API (email-relay ingest) · BLOCKED until D2
 - **Purpose:** ingest bank/statement emails from a dedicated, restricted label.

@@ -148,7 +148,7 @@ integrations:
     verification:
       - GET https://api.telegram.org/bot<TOKEN>/getMe returns the bot.
     failure_recovery:
-      - /revoke in BotFather, reissue, update the server secret.
+      - /token in BotFather, reissue, update the server secret, then re-register the webhook. There is no /revoke command in the documented BotFather command set (verified 2026-08-09); a new token kills the old one instantly.
 
   - id: telegram_user_allowlist
     status: BLOCKED
