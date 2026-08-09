@@ -55,3 +55,12 @@ docs/research/2026-08-07-oss-design-scan/
 .env.*.local
 *client_secret*.json
 secretsgoogle*.txt
+# A FILLED-IN container env file. `ops/env/*.env.example` are the tracked templates, but a real
+# `ops/env/<name>.env` holds live bot tokens and API keys. The `.env` rule above matches only a
+# file named exactly ".env", so `ops/env/proxy.env` was NOT ignored: proven with
+# `git check-ignore -v` on 2026-08-09, on a PUBLIC repository. The `.example` templates are
+# unaffected because they do not end in `.env`.
+ops/env/*.env
+# any Cloudflare API token file, wherever it lands
+*cloudflare*.env
+cf_token*

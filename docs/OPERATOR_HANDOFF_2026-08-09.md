@@ -14,13 +14,14 @@ Authoritative sources this summarises, in fetch order for a Kiro session:
 4. `outputs/DEPLOYMENT_PARTICULARS.local.md` - the host facts (untracked).
 5. `docs/TELEGRAM_BOTS_SETUP_G3.md` - gate G3 step by step: create, harden and verify the two bots.
 6. `.kiro/specs/06-two-agent-vps/TELEGRAM_VALUE_LEDGER.md` - which transport value goes in which file, and the command that proves it (G3 + G6). Fill-in card: `outputs/BOT_SETUP_WORKSHEET.local.md` (untracked).
+7. `docs/CLOUDFLARE_DNS_SETUP_G2.md` - gate G2 step by step: the two grey-cloud records, verification by resolution, and why the proxy must stay off. Fill-in card: `outputs/DNS_SETUP_WORKSHEET.local.md` (untracked).
 
 ## Where things stand
 
 | Gate | State | Your next move |
 |---|---|---|
 | G1 host | **host exists, active; not hardened** | SSH in, run register G1 steps 2-9 (operator user, key-only login, default-deny firewall, container runtime, swap, root-owned config dir). |
-| G2 DNS | **blocked: no domain yet** | Own a domain, point two A records at the host, **grey cloud**, no bus record. This is the one input that unblocks the reachability chain. |
+| G2 DNS | **blocked: no domain yet** | Own a domain, point two A records at the host, **grey cloud (DNS only)**, no bus record. Buying the domain at the DNS provider itself removes the nameserver step entirely. Steps and the four reasons proxied is wrong here: `docs/CLOUDFLARE_DNS_SETUP_G2.md`. |
 | G3 bots | **two bots exist and are verified; both tokens still disclosed** | Verified live 2026-08-09 23:57: join-groups off on both (observed `true` then `false`, so the change is evidenced), privacy value correct, `ok`/`is_bot` true, the two bot ids differ, your numeric id read via `getUpdates` on both bots, and `getWebhookInfo` confirms no webhook exists. Open: **rotate both with `/token`**, move the new tokens to the password manager rather than `.secrets/`, then place them once G1 exists. Steps: `docs/TELEGRAM_BOTS_SETUP_G3.md`. |
 | G4 keys | **blocked on D-CAP below** | Two OpenRouter keys with weekly caps + training opt-out. |
 | G5 storage | ready once G1 exists | Google `drive.file` consent, **publish the consent screen**, let the uploader create the folder. |
@@ -48,6 +49,22 @@ low-privilege development credentials only. A bot token has exactly two homes: y
 Open **port 80** as well as the TLS and admin ports. Automatic certificate issuance does an HTTP-01
 challenge on 80; the step as written opens only TLS + admin, which would leave the proxy unable to get
 its own certificate. Recorded under G1 in the register too.
+
+## One thing to get right on the DNS records
+
+Set both records to **DNS only (grey cloud)**, not proxied. The console defaults to proxied and it looks
+like the safer choice. It is not, for four reasons, and the first is decisive: a proxied record routes
+every delivery through an intermediary whose request log carries the full path and query string, and the
+webhook path segment is a secret precisely so it stays out of proxy logs. Contract 12 section 2.2.4 is
+the rule; the Caddyfile keeps no access log for the same reason. Proxying would put that secret in a log
+you do not own and cannot rotate.
+
+The other three: an intermediary replaces the Caddyfile's closed-connection deny with its own error page,
+so a probe learns the hostname is real; the origin can no longer complete its own HTTP-01 challenge; and
+only a fixed list of ports is proxied at all, which your admin port is probably not on. Full detail with
+citations in `docs/CLOUDFLARE_DNS_SETUP_G2.md` section 6.
+
+Verify by resolution, never by the console. Grey cloud returns your address, orange cloud returns theirs.
 
 ## Two build-side blockers (not gates - a Kiro session resolves these)
 

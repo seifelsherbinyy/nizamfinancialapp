@@ -34,6 +34,7 @@ Private YNAB-style personal-finance webapp · Google Drive as database · built 
 - `.kiro/specs/06-two-agent-vps/OPERATOR_STATE_2026-08-09.md` — machine-readable gate snapshot + build findings (O1 no images/entrypoint)
 - `ops/GATE_REGISTER.md` — the G1–G8 human-gate register (authority; carries a 2026-08-09 G1 observation)
 - `docs/TELEGRAM_BOTS_SETUP_G3.md` — operator walkthrough for gate G3: create, harden and verify the two bots
+- `docs/CLOUDFLARE_DNS_SETUP_G2.md` — operator walkthrough for gate G2: the two grey-cloud A records, and why proxied is wrong here
 - `.kiro/specs/06-two-agent-vps/TELEGRAM_VALUE_LEDGER.md` — transport value routing (G3 + G6): entry, file, secret flag, proof
 - `.kiro/specs/06-two-agent-vps/FINAL_REPORT.md` — the build's own what-is-built / what-is-gated report
 - deployment particulars are **untracked** by design (R24): see `outputs/*.local.md` on the operator machine

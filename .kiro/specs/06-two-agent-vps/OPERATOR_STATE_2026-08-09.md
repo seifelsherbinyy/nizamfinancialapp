@@ -17,8 +17,8 @@
 | Gate | Blocked-on | Movement since the register was authored |
 |---|---|---|
 | G1 provision + harden | precondition met, hardening outstanding | **The host now exists** (provider, active). Steps 2-9 + `/etc/<CONFIG_DIR>` not yet worked. Recorded observation added under G1 in the register. Status stays `BLOCKED - awaiting human`. |
-| G2 DNS for two hostnames | **no zone yet** | Still blocked on the single missing input: a domain / DNS zone does not yet exist. Intended host Cloudflare. Records must be **A -> host, grey cloud (DNS only)**. |
-| G3 two bots | hardening + verification + a place to put tokens | **Two bot identities now exist** (created 2026-08-09), so the creation half has moved; Hardening, distinctness and the operator identifier were then **verified live** at 23:57 local on 2026-08-09 (see §4). G3 stays `BLOCKED` on two things only: **placement** (needs G1's config dir) and **rotation** of the two disclosed tokens. Only **placement** needs G1's config dir. A step-by-step walkthrough (`docs/TELEGRAM_BOTS_SETUP_G3.md`) and a transport value ledger (`TELEGRAM_VALUE_LEDGER.md`, this folder) were authored 2026-08-09 and carry three findings: F1 the allowlist delimiter is undeclared and nothing reads the environment yet (decision **D-ALLOWLIST**), F2 `MAX_CONNECTIONS` is verified against a value stored nowhere, F3 G3's verification does not assert G3 step 3 although `getMe` makes it machine-checkable. |
+| G2 DNS for two hostnames | **no zone yet** | Still blocked on the single missing input: a domain / DNS zone does not yet exist. Intended host Cloudflare. Records must be **A -> host, grey cloud (DNS only)**. A step-by-step walkthrough (`docs/CLOUDFLARE_DNS_SETUP_G2.md`) was authored 2026-08-09 against the provider's current documentation and carries four findings: F5 the register mandates grey cloud without recording why (the reason is contract 12 section 2.2.4 plus the intermediary's own `ClientRequestURI` log field), F6 the Caddyfile's closed-connection indistinguishability is a property of every hop in front of it and no line records that dependency, F7 `ACME_CONTACT` is an operator entry with no gate, F8 `<ADMIN_PORT>` is unconstrained while the proxied-port list is not. Fill-in card: `outputs/DNS_SETUP_WORKSHEET.local.md` (untracked). |
+| G3 two bots | hardening + verification + a place to put tokens | **Two bot identities now exist** (created 2026-08-09), so the creation half has moved; Hardening, distinctness and the operator identifier were then **verified live** at 23:57 local on 2026-08-09 (see §4). G3 stays `BLOCKED` on two things only: **placement** (needs G1's config dir) and **rotation** of the two disclosed tokens. A step-by-step walkthrough (`docs/TELEGRAM_BOTS_SETUP_G3.md`) and a transport value ledger (`TELEGRAM_VALUE_LEDGER.md`, this folder) were authored 2026-08-09 and carry three findings: F1 the allowlist delimiter is undeclared and nothing reads the environment yet (decision **D-ALLOWLIST**), F2 `MAX_CONNECTIONS` is verified against a value stored nowhere, F3 G3's verification does not assert G3 step 3 although `getMe` makes it machine-checkable. |
 | G4 two model keys + caps | **D-CAP ruling** (see §3) | Unchanged, and now carries an unresolved decision the register's step does not name. |
 | G5 storage consent | nothing but G1 | Unchanged. Two traps re-confirmed live (§3, D-G5). |
 | G6 register webhooks | G1 + G2 + G3 | Unchanged. Last of the reachability chain. |
@@ -76,6 +76,7 @@ affordable. Still an owner decision, because it spends the owner's money.
 | **D-CAP** | Is the weekly cap **5 per agent** (a USD 10/week provider ceiling) or **5 total**? G4 mints two keys and its step says both caps equal "the value already in the code". The code pins exactly one number: `WEEKLY_BUDGET_USD = 5`, with `budgetPhase(5)` exhausted (`src/features/routing/k4Constants.test.ts`). Two keys at 5 each is twice K4's stated "hard USD 5.00/week". | G4 cannot be executed correctly until this is settled. If "5 total", `WEEKLY_BUDGET_USD` needs a per-agent companion and the two provider-side limits become 2.50 each or an asymmetric split. |
 | **D-WAL** | The write-ahead-log sidecar determination. Take **outcome B** (documented default): the owning service snapshots and hands the artifact over, widening no mount. | Until recorded, rollback across a migration stays blocked (register G8 sub-section). |
 | **D-BENCH** | Authorize one Phase-1 benchmark pass from the dev machine (~1/3 of the dev key's USD 1 weekly allowance) or leave the registry provisional. | A provisional registry can never promote a model, so routing stays off either way (register "dev-key carve-out"). |
+| **D-ALLOWLIST** | What delimiter does `ALLOWED_USER_IDS` use, and which module reads it? Raised as F1 in `TELEGRAM_VALUE_LEDGER.md` section 5. Nothing reads the environment at all today, so the string-to-array shape is undecided and a loader written later could disagree with what the operator wrote. `senderIsAllowlisted` resolves membership by exact string identity, so a stray space or quote refuses the only sender on the list. Interim shape: one identifier, bare digits, no quotes, no brackets, no spaces. | Not blocking G3, but it is the first thing the O1 entrypoint work has to settle, and getting it wrong locks the owner out of both bots with a refusal that is deliberately indistinguishable from a wrong secret token. |
 | **D-G5** | Two G5 traps to apply when doing the consent grant: (1) the OAuth consent screen must be **published to production**, not left in "Testing", or the refresh token expires in 7 days and the unattended uploader dies silently on day 8 - safe because `drive.file` is non-sensitive and needs no review; (2) `BACKUP_FOLDER_REF` must be a folder the **uploader creates on first run**, not a hand-made one, because `drive.file` reaches only files the app created. | Not blocking today, but both make G5 pass on day 1 and fail later. |
 
 ## 4. Recorded observation - the G3 creation half happened, and what it left open
@@ -120,6 +121,10 @@ Both tokens were disclosed to a third-party assistant chat at creation time, and
   depends on the values; after G6 it costs a same-sitting update of the environment file and the webhook
   registration, or that bot goes dark. A disclosed bot token lets a holder register its own webhook and
   receive every delivery, which is exactly the reachability G6 exists to control.
+- **A third credential joins the same obligation.** `.kiro/steering/cloudflare-dns.md` item 3 records that the
+  Cloudflare API token was read into a message on 2026-08-09 and is compromised until rotated. The rotation list
+  is therefore three items, not two: both bot tokens and the zone token. The zone token is the cheapest to rotate,
+  because no record and no deployment depends on it yet.
 - **`.secrets/` is the wrong class of home for this credential.** `docs/PFOS_SECRETS_PLAN.md` scopes the
   development machine's `.secrets/` to dev, browser-safe, low-privilege credentials, and states that
   production secrets never live there. A bot token reaches the deployment, so its two legitimate homes
@@ -159,3 +164,39 @@ apply any cross-repo patch, or tick any box in `tasks.md`. It also did not **rea
 call the provider with one, or rotate one: the credential audit counted entry names and never a value,
 and every provider call in gate G3 belongs to the owner's own session (steering section 2). Those remain the owner's, exactly as the
 register requires.
+
+## 6. Findings index
+
+Every finding raised across this tier, with where it is recorded. This table is pointers only: the
+owning file is the authority and this row is never the place to read the detail.
+
+| Id | One line | Recorded in |
+|---|---|---|
+| **O1** | No container image is built by anything in-repo and the finance agent has no process entrypoint, so `docker compose up` cannot run even after every gate clears | this file, section 2 (re-proved by count in section 4) |
+| **O2** | The eligibility registry is still `provisional: true`, so live routing stays gated on G4 | this file, section 2 |
+| **F1** | `ALLOWED_USER_IDS` has no declared delimiter and nothing reads the environment yet | `TELEGRAM_VALUE_LEDGER.md` section 5; decision **D-ALLOWLIST** in section 3 above |
+| **F2** | `MAX_CONNECTIONS` is used by G6's command and verification but stored in no template and no `ENV_ENTRIES` row | `TELEGRAM_VALUE_LEDGER.md` section 5; interim capture in `outputs/BOT_SETUP_WORKSHEET.local.md` |
+| **F3** | G3's register verification does not assert G3 step 3, although `getMe` returns both hardening fields | `TELEGRAM_VALUE_LEDGER.md` section 5; asserted in `docs/TELEGRAM_BOTS_SETUP_G3.md` section 7a |
+| **F4** | The rotation command is BotFather `/token`; there is no `/revoke`. Two tracked docs said otherwise and were corrected | `docs/TELEGRAM_BOTS_SETUP_G3.md` finding F4; fixed in `docs/PFOS_BUILD_READINESS.md` and `docs/pfos_build_readiness.yaml` |
+| **F5** | The register mandates grey cloud without recording why; the reason is contract 12 section 2.2.4 plus the intermediary's own `ClientRequestURI` log field | `docs/CLOUDFLARE_DNS_SETUP_G2.md` sections 6 and 8 |
+| **F6** | The Caddyfile's closed-connection indistinguishability is a property of every hop in front of it, and no line records that dependency | `docs/CLOUDFLARE_DNS_SETUP_G2.md` section 8 |
+| **F7** | `ACME_CONTACT` is an operator-gated entry with no gate step and a real consequence (certificate expiry notices) | `docs/CLOUDFLARE_DNS_SETUP_G2.md` section 8 |
+| **F8** | `<ADMIN_PORT>` is unconstrained while the provider's proxied-port list is not, so a future flip to proxied would take the admin path down | `docs/CLOUDFLARE_DNS_SETUP_G2.md` section 8 |
+| **F9** | `scripts/cf_dns.sh` demanded a token for `resolve`, the one subcommand that authenticates with nothing and the one the G2 walkthrough names as the actual evidence. The credential block ran unconditionally at script top, so on a fresh clone the only credential-free command died on a missing credential. **Fixed** in this snapshot: the env file is still sourced for `CF_ZONE_NAME` and `HOST_IP`, the token is asserted per command by `need_token`, and an exported token is preserved across the source so the documented first-hit-wins order holds. Both halves negative-tested. | `scripts/cf_dns.sh` credential section |
+| **F10** | The same script's failure message told the operator to create the env file `from ops/env/cloudflare.env.example`, which does not exist and should not: `ops/env/` holds the six container templates audited against `ENV_ENTRIES`, and this token belongs to the operator's laptop rather than to any container. **Fixed**: the three required entries are documented inline in the script header instead. | `scripts/cf_dns.sh` header |
+| **F11** | **Steering now contradicts steering, and no precedence line resolves it.** `.kiro/steering/two-agent-vps.md` section 2 puts "any use of a production secret" in its STOP-and-record column. The newer `.kiro/steering/cloudflare-dns.md` item 5 says "Reads are free, writes are gated", and declares precedence only against `docs/CLOUDFLARE_DNS_SETUP_G2.md` - not against `two-agent-vps.md`. Both are canonical, both load, and they disagree on whether an agent may authenticate with the owner's zone token in order to read. The same question was already answered once by exception rather than by rule: the two read-only bot calls in section 4 are labelled agent-run **owner-directed**, which is a waiver, not a standing permission. Owner decision: either add an explicit read-only carve-out to `two-agent-vps.md` section 2 and cite it from the newer file, or narrow item 5 to match. Leaving two canonical files disagreeing means the next session obeys whichever it happens to read first. | this row; `.kiro/steering/cloudflare-dns.md` item 5 vs `.kiro/steering/two-agent-vps.md` section 2 |
+
+### Independent evidence for the G2 blocker, from the operator's own configuration
+
+`.secrets/cloudflare.env` (gitignored, never committed) holds a token, and `CF_ZONE_NAME`, `CF_ZONE_ID`
+and `HOST_IP` are all **empty**. Read by field name and emptiness only; no value was printed. Two
+consequences worth acting on: the empty zone fields are independent confirmation that no domain exists
+yet, which is exactly what G2 is blocked on and is now attested by something other than a chat message;
+and `HOST_IP` being empty means `resolve`'s match check silently degrades to printing the answer without
+comparing it, so filling it in is what turns that command into real evidence rather than an observation.
+
+**Three of these are deferred `ops/**` edits, not oversights.** F3, F5 and F6 all want a line in
+`ops/GATE_REGISTER.md`, and `ops/**` is scanned for declared dotted tokens, so any new filename reference
+there needs a matching entry in `src/server/ops/deploymentParticulars.ts` and its sibling list. Doing that
+as a side effect of a documentation increment is how a scanner allowlist quietly grows. They belong to the
+next ops increment, together.
