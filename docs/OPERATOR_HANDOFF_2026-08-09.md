@@ -10,6 +10,8 @@ Authoritative sources this summarises, in fetch order for a Kiro session:
 2. `.kiro/specs/06-two-agent-vps/OPERATOR_STATE_2026-08-09.md` - machine-readable state + build findings.
 3. `outputs/OPERATOR_URL_WORKSHEET.md` - every console URL, what to click, what value returns (untracked).
 4. `outputs/DEPLOYMENT_PARTICULARS.local.md` - the host facts (untracked).
+5. `docs/TELEGRAM_BOTS_SETUP_G3.md` - gate G3 step by step: create, harden and verify the two bots.
+6. `.kiro/specs/06-two-agent-vps/TELEGRAM_VALUE_LEDGER.md` - which transport value goes in which file, and the command that proves it (G3 + G6). Fill-in card: `outputs/BOT_SETUP_WORKSHEET.local.md` (untracked).
 
 ## Where things stand
 
@@ -17,7 +19,7 @@ Authoritative sources this summarises, in fetch order for a Kiro session:
 |---|---|---|
 | G1 host | **host exists, active; not hardened** | SSH in, run register G1 steps 2-9 (operator user, key-only login, default-deny firewall, container runtime, swap, root-owned config dir). |
 | G2 DNS | **blocked: no domain yet** | Own a domain, point two A records at the host, **grey cloud**, no bus record. This is the one input that unblocks the reachability chain. |
-| G3 bots | ready once G1 dir exists | Two bots in BotFather, join-groups off, privacy on, your numeric id as the allowlist. |
+| G3 bots | **creatable now**; placement needs G1's config dir | Two bots in BotFather, join-groups off, privacy on, your numeric id as the allowlist. Tokens sit in the password manager until `/etc/<CONFIG_DIR>` exists. Steps: `docs/TELEGRAM_BOTS_SETUP_G3.md`. |
 | G4 keys | **blocked on D-CAP below** | Two OpenRouter keys with weekly caps + training opt-out. |
 | G5 storage | ready once G1 exists | Google `drive.file` consent, **publish the consent screen**, let the uploader create the folder. |
 | G6 webhooks | needs G1+G2+G3 | Register both, verify with getWebhookInfo. Last step. |

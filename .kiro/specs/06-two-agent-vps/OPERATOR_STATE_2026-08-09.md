@@ -4,6 +4,8 @@
 > **Register:** `ops/GATE_REGISTER.md` (the authority on gate meaning and verification).
 > **Companion (human-facing):** `docs/OPERATOR_HANDOFF_2026-08-09.md`.
 > **Particulars (untracked):** `outputs/DEPLOYMENT_PARTICULARS.local.md` + `outputs/OPERATOR_URL_WORKSHEET.md`.
+> **Transport values (G3 + G6):** `TELEGRAM_VALUE_LEDGER.md` in this folder; operator steps in
+> `docs/TELEGRAM_BOTS_SETUP_G3.md`; fill-in card `outputs/BOT_SETUP_WORKSHEET.local.md` (untracked).
 >
 > This file is a recorded observation, not a task edit. It renumbers no gate, ticks no box, softens
 > no verification line, and contains no deployment particular (R24). It exists so a later Kiro session
@@ -16,7 +18,7 @@
 |---|---|---|
 | G1 provision + harden | precondition met, hardening outstanding | **The host now exists** (provider, active). Steps 2-9 + `/etc/<CONFIG_DIR>` not yet worked. Recorded observation added under G1 in the register. Status stays `BLOCKED - awaiting human`. |
 | G2 DNS for two hostnames | **no zone yet** | Still blocked on the single missing input: a domain / DNS zone does not yet exist. Intended host Cloudflare. Records must be **A -> host, grey cloud (DNS only)**. |
-| G3 two bots | nothing but a place to put tokens | Unchanged. Needs G1's config dir to exist first. |
+| G3 two bots | nothing but a place to put tokens | Creation is unblocked and can be done today; only **placement** needs G1's config dir. A step-by-step walkthrough (`docs/TELEGRAM_BOTS_SETUP_G3.md`) and a transport value ledger (`TELEGRAM_VALUE_LEDGER.md`, this folder) were authored 2026-08-09 and carry three findings: F1 the allowlist delimiter is undeclared and nothing reads the environment yet (decision **D-ALLOWLIST**), F2 `MAX_CONNECTIONS` is verified against a value stored nowhere, F3 G3's verification does not assert G3 step 3 although `getMe` makes it machine-checkable. |
 | G4 two model keys + caps | **D-CAP ruling** (see §3) | Unchanged, and now carries an unresolved decision the register's step does not name. |
 | G5 storage consent | nothing but G1 | Unchanged. Two traps re-confirmed live (§3, D-G5). |
 | G6 register webhooks | G1 + G2 + G3 | Unchanged. Last of the reachability chain. |
