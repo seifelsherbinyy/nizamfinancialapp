@@ -496,3 +496,24 @@ deserves its own task and tests. `scripts/ladder/ts-resolve.mjs` restores **exac
 the toolchain performs, and nothing else, so the rung F20 blocks was still observable. **No contract file
 was edited**, `ops/GATE_REGISTER.md` untouched, no gate ticked, nothing steering §2 gates was run, and no
 test was added — the deliverable is an observation. Floor stays **2126** against a real 2126.
+
+**R31 is authored and the two agents now have ONE document to agree on, 2026-08-10 (task 10.16).** The
+owner's clarification settles the scope: "clone and migrate both repositories" means *making the two
+understand each other*, not a code migration and not a repository move — so `ops/INTEROP_CONTRACT.md` is
+the deliverable and no git operation is. The test applied to every sentence was whether the other side
+could act on it **with no access to this tree**, because the life agent is authored in a session opened on
+the other repository by a reader who cannot resolve an import into this one. So the eight envelope fields,
+the three payload keys, the two forms and their single difference, all 24 validation reason codes, the
+four consent-by-absence rules, the query's four keys, both response shapes, the eleven protocol refusals
+with their statuses and the eight endpoint refusals are **written out** rather than referred to. Four
+things are stated because a reader would otherwise get them wrong: **absent is not filtered** (a filter
+can be forgotten on a new path, an absent field cannot be populated on any path); a **refusal is not an
+empty list**; **every kind is `producer_only` today** because the widening list is empty, so a
+cross-agent read is refused right now and that is the fail-closed starting position rather than a defect;
+and **the bus authenticates nothing**, under a heading that says not to fix it with a credential, with
+the three reasons one would be worse — the §2.2.6 argument restated where the person tempted to undo it
+will be reading. `strict_local_maximum` is recorded as excluded **twice**, the binding one being that the
+classification is not a member of the `tier` enum. The three `ops/nizamcore-patches/` items are named as
+**change specifications and not applicable diffs**, and the read-only clone at an ignored path is recorded
+as permitted with modify and push owner-gated — nothing was cloned, fetched or read. **No contract file
+was edited**, `ops/GATE_REGISTER.md` untouched, no gate ticked, no test added; floor stays 2126.

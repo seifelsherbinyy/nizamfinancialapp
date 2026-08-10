@@ -5398,3 +5398,72 @@ temporary directory outside the tree and removed at the end (R24).
 
 No test added — this task's deliverable is an observation, not a mechanism. Floor stays **2126**
 against a real 2126.
+
+### Phase 10 task 10.16 — the cross-repo interop contract, and R31 (2026-08-10)
+
+`ops/INTEROP_CONTRACT.md`. **R31** authored in `.kiro/specs/06-two-agent-vps/requirements.md` under a
+new *Cross-repository interoperation* heading, with its finding note.
+
+**The owner's clarification is the whole of the scope decision.** "Clone and migrate both repositories"
+means *making the two agents understand each other* — feeding information and communicating — **not** a
+code migration and **not** a repository move. So the deliverable is a contract and not a git operation,
+and nothing in this increment touched, cloned, fetched or read the other repository.
+
+**The test applied to every sentence: could the other side act on this with no access to this tree?**
+That is what makes the document long, and it is not padding. Written out in full rather than cited: the
+eight stored-envelope fields with their forms; the three payload keys; the two envelope forms and the
+one field that differs between them, with the reason a producer may not assert its own integrity; all
+**24** validation reason codes; the four consent-by-absence rules with a code each; the note's two
+separate fences; the query's four keys; both response shapes; all eleven protocol-level refusals with
+their statuses; and all eight endpoint refusals with what each one catches. A reader in the other
+repository cannot resolve an import into this one, so a citation would have been a dead end.
+
+**Four things are stated because a reader would otherwise get them wrong.**
+
+1. **Absent, not filtered.** A filter is code that can be bypassed, mis-ordered or forgotten on a new
+   path; an absent field cannot be populated by any caller on any path. So the rule is a schema refusal
+   with its own reason code, not a scrub, and the document says so where a reader would look for the
+   scrub.
+2. **A refusal is not an empty list.** The two are different shapes deliberately, so "you may not see
+   this" cannot be conflated with "there is nothing here".
+3. **Today every kind is `producer_only`**, because the widening list is empty — so a cross-agent read
+   is refused *right now*. That is the fail-closed starting position and it is written down so the other
+   side does not read its first refusal as a defect and start looking for the bug.
+4. **The bus authenticates nothing**, under a heading that says *do not fix this by adding a
+   credential*, with the three reasons it would be worse: it guards a route that does not exist; it is a
+   secret with a lifecycle that must be kept equal in two files on a public repository; and reachability
+   already excludes everything but the two agents. This is the argument contract 12 §2.2.6 makes,
+   restated where the person tempted to undo it will be reading.
+
+**The excluded classification is recorded WITHOUT being named, and that rule was learned by breaking
+it.** Contract 12 §4.4.3 forbids any artifact in this tier from naming, counting, summarizing or
+pointing at that content, and `src/server/signals/exclusion.test.ts` holds it over `ops/**` among four
+roots. The first draft of this document spelled the classification and failed three of that file's
+thirteen cases — which is the checker working exactly as intended, and it is worth recording that the
+mistake was caught by the tree scan rather than by review. The document now uses the phrasing the
+vendored schema and the port already use — *the classification whose egress set is empty in the other
+repository* — and it states in one sentence **why** it does not name it, so that a later editor does not
+read the omission as an oversight and helpfully repair it. The exclusion is recorded as enforced twice:
+the egress set excludes it at source in the other repository, and the `tier` enum has two members, so
+the excluded classification **is not a member of the union** and a signal claiming it fails as an unknown
+member (`tier_not_a_member`) rather than being filtered somewhere later.
+
+**The three change specifications are named as change specifications.** `ops/nizamcore-patches/` is the
+mechanism by which the other side acquires its half, and the document states explicitly that they are
+**not applicable diffs**: the other repository was never read, so there are no verified context lines
+and no blob hashes, and none were invented. The read-only clone at an **ignored** path is recorded as
+permitted (steering §6 as amended by task 10.1's §2a), with modify and push still owner-gated, and the
+present fact stated plainly — nothing cloned, nothing fetched, the three specifications emitted and
+unapplied. Option **(b)** is recorded as authorised, together with the observation that makes it cheap:
+nothing in this contract changes when the second agent arrives.
+
+**R24 held under AC18, which scans this file.** No host, address, port, token, identifier or monetary
+figure appears; the weekly bound is referred to and never printed. Five dotted tokens were added to
+`DECLARED_DOTTED_TOKENS` (`INTEROP_CONTRACT.md`, `AGENT_CAPABILITY_SPLIT.md`, `consentGate.ts`,
+`envelopeValidation.ts`, `internalEndpoint.ts`) because that list is **bidirectional** — a declared token
+that appears in no scanned artifact is itself a finding — so each one is a file this document actually
+names, and the document names its own path once for the same reason. Feature and module citations are by
+**directory** wherever a file name would have been a sixth declaration, which is both accurate and
+smaller.
+
+No test added — the deliverable is a document. Floor stays **2126**.

@@ -297,6 +297,32 @@ plus the text artifacts and the gate register needed to hand the remainder to a 
 > and that the choice must be written down; it is deliberately not the choice. Nothing in phase 1 is blocked
 > by it, because `longPoll` publishes no port at all and needs no certificate.
 
+### Cross-repository interoperation (Contract 12, added by Phase 10)
+
+- **R31** WHERE the two agents exchange anything at all, THEN a single interop contract SHALL exist naming
+  every thing they exchange and every thing they must never exchange; it SHALL be **applicable from the
+  other repository without this repository being present**, so every shape it depends on is written out in
+  it rather than referred to by an import; it SHALL name the signal envelope as the **sole** channel, the
+  band-not-figure rule with the fact that the forbidden field **does not exist** rather than being
+  filtered, `BUS_INTERNAL_ENDPOINT` as the only address either side dials with each refused endpoint shape,
+  the routes the bus serves with their request shapes and their refusal vocabulary, the `producer_only`
+  refusal (**R8**), the classification that never crosses (**R10**), and per-agent store and key isolation
+  (**R17**); it SHALL record that the bus **authenticates nothing** together with the reason, so that a
+  later reader on either side does not add a credential believing it an improvement; it SHALL name the
+  change specifications under `ops/nizamcore-patches/` as the mechanism by which the other side acquires
+  its half, and SHALL state that they are **change specifications and not applicable diffs**; AND it SHALL
+  record that a read-only clone or fetch of the other repository is permitted at a path outside this
+  repository's tracked tree while a modify or a push remains owner-gated (steering §6 as amended by §2a).
+
+> **Finding note - R31 is a contract, not a git operation, and that is the owner's own reading.** "Clone
+> and migrate both repositories" was clarified on 2026-08-10 to mean *making the two understand each
+> other* - feeding information and communicating. So nothing in R31 moves code, and nothing in it obliges
+> a session to touch the other repository. It obliges the two sides to agree, in one place, on shapes that
+> already exist: the envelope document both of them vendor, the endpoint rule, the two routes, and the two
+> consent gates. The reason it must be applicable from the other side **without this repository present**
+> is practical rather than stylistic - the life agent is authored in a session opened on the other
+> repository, by a reader who cannot resolve an import into this tree.
+
 ## Decision note - the seven owner rulings, settled
 
 > **Authority and date.** `KIRO_SHIP_LIVE.prompt.md` rev 2, 2026-08-10, §1. That file carries owner

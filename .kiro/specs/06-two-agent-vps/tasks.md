@@ -502,7 +502,7 @@
       `phaseOneServicesNamedIn` reads that command back and compares it with the code, so neither can
       move alone. `OWNER_GATE_ACTIONS.md` step 4 was **wrong** and now names the three services.
       7 tests; floor 2086 -> 2093.
-- [ ] 10.16 **The cross-repo interop contract** (owner clarification 2026-08-10, and **R31**). The owner
+- [x] 10.16 **The cross-repo interop contract** (owner clarification 2026-08-10, and **R31**). The owner
       defines "clone and migrate both repositories" as *making the two understand each other* - feeding
       information and communicating - **not** a code migration and not a repository move. So the
       deliverable is a contract, not a git operation: author `ops/INTEROP_CONTRACT.md` naming every
@@ -518,6 +518,49 @@
       repository is permitted at an **ignored** path (steering §6, as amended by task 10.1) and that
       modify/push stays owner-gated. **Option (b) is authorised**: phase 1 ships the finance agent on
       bot B only; bot A stays created, hardened and idle.
+      **Done 2026-08-10.** `ops/INTEROP_CONTRACT.md`, and **R31** is authored in `requirements.md` under a
+      new *Cross-repository interoperation* heading with its finding note. Twelve sections, and the test
+      of every one of them was: **could the other side act on this with no access to this tree?** So the
+      eight stored-envelope fields, the three payload keys, the two forms and their one difference, all
+      **24** validation reason codes, the four consent-by-absence rules with a code each, the note's two
+      fences, the query's four keys, both response shapes, all eleven protocol refusals with their
+      statuses and the eight endpoint refusals are **written out** rather than cited - a reader in the
+      other repository cannot resolve an import into this one. Everything is cited to steering, contract
+      12 or code, and the header states that the source wins where they disagree.
+      **Four things are stated that a reader would otherwise get wrong.** (1) *Filtered* versus *absent*:
+      a filter can be bypassed or forgotten on a new path, an absent field cannot be populated on any
+      path - so the rule is a schema refusal with its own code, not a scrub. (2) A **refusal is not an
+      empty list**, and the two are different shapes so a caller cannot conflate "you may not see this"
+      with "there is nothing here". (3) **Today every kind is `producer_only`** because the widening list
+      is empty, so a cross-agent read is refused right now - that is the fail-closed starting position and
+      it is written down so the other side does not read its first refusal as a defect. (4) The bus
+      **authenticates nothing**, with the three reasons a credential would make it worse, under a heading
+      that says *do not fix this by adding one* - the one instruction most likely to be needed and least
+      likely to be guessed.
+      **One rule was learned by breaking it, and the checker caught it before the harness did.** The
+      excluded classification is recorded **without being named**: contract 12 §4.4.3 forbids any
+      artifact in this tier from naming or pointing at that content, and `exclusion.test.ts` holds it over
+      `ops/**` - the first draft spelled the classification and failed three of its thirteen cases. The
+      document now uses the phrasing the schema and the port already use, *the classification whose
+      egress set is empty in the other repository*, and states why it does not name it, so a later
+      editor does not read the omission as an oversight and repair it.
+      The exclusion is recorded as enforced **twice**, and the second is the one that holds: the
+      excluded classification is **not a member** of the `tier` enum, so a signal claiming it fails as an
+      unknown member rather than being filtered later. The three change specifications are named as the
+      mechanism for the other side's half and **explicitly as change specifications, not applicable
+      diffs** - the other repository was never read, so there are no verified context lines and none were
+      invented. The read-only clone at an ignored path is recorded as permitted with modify and push
+      owner-gated, and the current fact stated plainly: nothing has been cloned, fetched or read, and the
+      three specifications are emitted and unapplied. Option **(b)** is recorded as authorised, with the
+      note that nothing in the contract changes when the second agent arrives - which is why it was worth
+      writing before that agent exists.
+      **R24 held under AC18, which scans this file.** Every value is an `<ANGLE_BRACKET>` placeholder or a
+      vocabulary member; no host, address, port, token, identifier or figure appears, and the weekly bound
+      is referred to and never printed. Five dotted tokens were added to `DECLARED_DOTTED_TOKENS` because
+      that list is **bidirectional** - a declared token absent from the tree is itself a finding - so each
+      is a file this document actually names, and the document names its own path once for the same reason.
+      Feature modules are cited by directory rather than by file, which is both accurate and avoids
+      declaring a token per engine. No test added - the deliverable is a document; floor stays 2126.
 - [ ] 10.17 **Full-scope split, recorded for the life side** (owner clarification, and **R32**). The
       owner states the same treatment is owed to the life/therapy agent ("myNIZAM") so the full NIZAM
       scope exists with features split across the two bots **by functionality**. Author

@@ -117,6 +117,12 @@ export const DECLARED_DOTTED_TOKENS: readonly string[] = [
   'two-agent-vps.md',
   'NIZAM_TWO_AGENT_VPS_ARCHITECTURE.md',
   'nizam-signalbus.envelope.schema.json',
+  // the two cross-repository documents of phase 10 tasks 10.16 and 10.17, and each other's name
+  'INTEROP_CONTRACT.md',
+  'AGENT_CAPABILITY_SPLIT.md',
+  'consentGate.ts',
+  'envelopeValidation.ts',
+  'internalEndpoint.ts',
   'updateDedupRepo.ts',
   'backup.sh',
   'restore.sh',
