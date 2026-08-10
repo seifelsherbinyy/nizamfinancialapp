@@ -97,6 +97,30 @@ audit mirror, validated on write and again on read. It names no host, no port, a
 (`src/server/ports/signalBus.ts`, Phase 2.1). That is deliberate: the code cannot publish a bus it has
 no way to address, and the repository cannot leak an address it never held.
 
+**The process is `src/server/process/busServer.ts` (task 10.19).** When this file was written there was
+no process at all, which is why it addressed only phases 7.1 and 7.2; the process's own half of R9 is
+now three properties, each asserted rather than described:
+
+1. **It binds exactly one port - the one the internal endpoint entry names - and there is no second
+   listener of any kind.** The listening boundary it is given takes a PORT and nothing else: no host
+   argument, no publish flag. Readiness is an exec check computed against local files, so there is no
+   health route to add either. The absence is asserted against the process's own listener set and the
+   injected host's own bind record, in both directions, rather than by probing a socket - a socket
+   probe that finds nothing is also what a crashed listener, a wrong port and a firewall look like.
+2. **It refuses an endpoint that would be reachable anywhere else.** A scheme, a path, an address
+   literal, a wildcard, a reserved name that resolves to the container itself, and an out-of-range
+   port are each refused at boot rather than coerced. The accepted shape is an internal service name
+   and a port - the same shape the verification block above uses - so a deployment cannot be repointed
+   at an address the host can reach without the boot failing first.
+3. **It authenticates nothing, on purpose.** §2.2.6 is explicit that the correct failure is refusal at
+   the network layer rather than an authentication check on a reachable port, and this service holds no
+   credential of any kind. So the subscriber a read declares and the producer a publish declares are
+   asserted by the client, and the compensating control is item 4 above: exactly two containers can
+   address the port at all. That is consistent with the envelope schema, where `producer` has always
+   been a field rather than a proof (§4.2); it is written down here so a later reader does not mistake
+   the absence for an oversight and "fix" it by adding a credential to the one service where holding
+   one would be worst.
+
 Network binding is the second of the four defence layers in §4.6. It survives a misconfigured proxy
 rule that exposes an agent. It does **not** substitute for layer 4 - the envelope having no field for a
 figure or a narrative - and layer 4 does not substitute for it.

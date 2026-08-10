@@ -39,12 +39,18 @@ of three states, and the state is checked rather than asserted in prose.
 | `OWNED_BUILD_PENDING` | This repository owns it and **cannot honestly build it yet**, because the process or the entry point the image would run does not exist. | No recipe path. A reason. A **blocking task or finding**, so the gap has an owner rather than a hope. |
 
 `OWNED_BUILD_PENDING` is a state R28 did not anticipate, and it is recorded rather than avoided.
-R28 has a binary ownership axis - the repository owns an image, or it does not - and two of the six
-sit in neither box: the consent bus and the scheduler are owned here **in library form** and have no
-process to package. Collapsing them into `EXTERNAL` would hand them to a repository that does not
-have their code; collapsing them into `BUILT_HERE` would need an entry point nobody has written. The
-third state is the honest shape, and the audit makes it strictly stronger than silence, because a row
-in it must name the task that closes it.
+R28 has a binary ownership axis - the repository owns an image, or it does not - and some of the six
+sit in neither box: they are owned here **in library form** and have no process to package.
+Collapsing them into `EXTERNAL` would hand them to a repository that does not have their code;
+collapsing them into `BUILT_HERE` would need an entry point nobody has written. The third state is
+the honest shape, and the audit makes it strictly stronger than silence, because a row in it must
+name the task that closes it.
+
+**The state is a waiting room, not a resting place, and it is emptying.** Task 10.8 opened it with
+three rows. Task **10.19** closed the bus row by writing the process the state existed to admit was
+missing - which is the point of recording the gap this way rather than as prose: the row named its
+blocker, the blocker was finding **O2**, and closing O2 for one service moved exactly one row. Two
+remain, and each still names what closes it.
 
 ## The record
 
@@ -53,8 +59,8 @@ in it must name the task that closes it.
 | `<FINANCE_IMAGE_REF>` | `BUILT_HERE` | `ops/images/finance-agent/Dockerfile` | - | This repository is the finance agent (steering §1). The process exists as of task 10.7, the readiness command exists, and both are inside the image. |
 | `<LIFE_IMAGE_REF>` | `EXTERNAL` | - | - | The life agent is Python and lives in the **other repository**, which steering §6 forbids this session from modifying. Its image is additionally downstream of the three unapplied change specifications under `ops/nizamcore-patches/`, so this repository could not build a correct one even if it were permitted to try. |
 | `<PROXY_IMAGE_REF>` | `EXTERNAL` | - | - | The proxy is an **upstream release**, configured entirely by the file `ops/docker-compose.yml` mounts read-only at its configuration path. There is nothing of this repository's inside it, so a wrapper recipe would add a build step, a supply-chain surface and a second place the version is pinned, in exchange for nothing. Its healthcheck must therefore resolve to a command that **upstream** provides - see the note below, which is the one obligation this state carries. |
-| `<BUS_IMAGE_REF>` | `OWNED_BUILD_PENDING` | - | finding `O2` | The envelope schema, the validation, the consent gate and the signal store all live here, so the bus is this repository's. What does not exist is a bus **server process**: nothing listens on the endpoint the two agents dial, so there is no entry point for a recipe to name. |
-| `<SCHEDULER_IMAGE_REF>` | `OWNED_BUILD_PENDING` | - | finding `O2` | Same shape as the bus, and for the same reason: tick delivery is this repository's to own, and no process performs it. The scheduler mounts no store, so its recipe is small - it is absent because its process is, not because it is hard. |
+| `<BUS_IMAGE_REF>` | `BUILT_HERE` | `ops/images/signal-bus/Dockerfile` | - | The envelope schema, the validation, the consent gate and the append-only store all live here, so the bus is this repository's. As of **task 10.19** the server process does too - `src/server/process/busServer.ts` binds the internal endpoint, refuses an incomplete environment, enforces the schema on every write and the consent gate on every read, and answers readiness as an exec check against local files. It installs the restore drill's probe command and a no-argument health command, and it publishes no port. |
+| `<SCHEDULER_IMAGE_REF>` | `OWNED_BUILD_PENDING` | - | finding `O2` | The shape the bus was in until task 10.19, for the same reason: tick delivery is this repository's to own, and no process performs it. The scheduler mounts no store, so its recipe is the smallest of the six - it is absent because its process is, not because it is hard. Task 10.20 owns the process and therefore owns the recipe. |
 | `<BACKUP_IMAGE_REF>` | `OWNED_BUILD_PENDING` | - | `task 10.9` | `ops/backup/backup.sh` lives here and fixes the tool set exactly - the engine's snapshot statement, the public-key encryption, the shred, and the readiness probe the drill under `ops/restore/restore.sh` invokes. But the script's fourth step calls the `nizam-backup` uploader, and that uploader does not exist: the live storage adapter is gated on G5. An image whose entrypoint fails at step four after writing a plaintext snapshot is not a partial backup, it is a new failure mode. Task 10.9 owns the wiring and therefore owns the recipe. |
 
 ### The one obligation the `EXTERNAL` proxy row carries
@@ -88,9 +94,12 @@ convention that they should match": there is nothing to match, because there is 
 
    ```
    docker build --file ops/images/finance-agent/Dockerfile --tag <FINANCE_IMAGE_REF> .
+   docker build --file ops/images/signal-bus/Dockerfile --tag <BUS_IMAGE_REF> .
    ```
 
-   The context is the root because the recipe copies `package.json`, `package-lock.json` and `src`,
+   Each recipe names its own reference on its own statement, which is the whole of the property: one
+   value is resolved once and both the build and the topology receive that same string, so there is
+   nothing to reconcile. The context is the root because the recipe copies `package.json`, `package-lock.json` and `src`,
    and the root `.dockerignore` is what keeps the untracked secret material, the local environment
    files and the browser bundle out of that context. **Read that file before widening any `COPY`.**
 4. **The digest is recorded in the operator's own build receipt**, not here. `docker image inspect`

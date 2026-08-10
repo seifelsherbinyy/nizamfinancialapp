@@ -4700,3 +4700,167 @@ L2/L3 plus G4; L5 waits on task 10.9 and then G5 step 4 and G8 step 6.
 - Every value in the new document is an `<ANGLE_BRACKET>` placeholder and none resolves to anything real.
   It lives under `.kiro/specs/`, outside AC18's `ops/**` scan roots, and was held to the same standard
   regardless.
+
+## Task 10.19 - the signal-bus process, the one thing between a gated host and a bot that answers (2026-08-10)
+
+**Spec:** `.kiro/specs/06-two-agent-vps/` task 10.19. **Contract:** PFOS 12 §2.1, §2.2.5, §2.2.6, §4.1, §4.5,
+§7.3. **Requirements:** **R34** (authored by this task), R9, R7, R8, R10, R22, R27, R28, R24.
+**Finding closed:** **O2**, for one of its two services.
+
+### The defect, stated without hedging
+
+Task 10.11 established the ceiling: with every one of the gates G1 through G8 observed and every environment
+file filled in, `docker compose up` still could not stand the phase-1 stack up. This task is that reason.
+`ops/docker-compose.yml` gives `finance-agent` and `life-agent` a `depends_on: signalbus: condition:
+service_healthy`, and `<BUS_IMAGE_REF>` built nothing. The bus's *library* was complete and tested - the
+envelope schema, its validator, the consent gate, the append-only store and its audit mirror - and **no process
+listened** on the endpoint the two agents dial. That is build work in this repository, not a gate, which is why
+O2 was recorded as a build-side finding and never added to the register.
+
+### What was written, and what was only exposed
+
+**`src/server/process/busServer.ts`** - the process. **`src/server/process/busMain.ts`** - the only file in the
+bus tier that names a platform facility, and it names five: the HTTP server, the filesystem the liveness record
+lives on, the error stream, a source of surrogate identifiers, and the termination signals.
+**`src/server/process/busStart.ts`** - one statement wide, so `busMain.ts` can be imported without being run.
+The same three-file split, for the same reasons, as `financeAgent.ts` / `main.ts` / `start.ts`.
+
+**Nothing in the signals tier was reimplemented, and that was the point of reading before writing.** The write
+path is `appendSignal`, which validates through Phase 3.1's `validateForWrite` and audits the refusal without
+retaining the value. The read path is `readSignals` - which re-runs every field rule and re-checks the digest
+before a row is served - followed by Phase 3.2's `serveToSubscriber`, which re-validates again, re-derives the
+de-identification claims over the value about to cross, and applies the tier and scope gates independently. No
+field rule, note cap, enum, integrity digest or scope decision is written in the process. The environment
+refusal is the existing `requireServiceEnvironment` over `SERVICE_ENTRY_NAMES.bus`; no second entry table was
+added. The readiness answer is the existing `probeReadiness`, given the **signals** migration series' expected
+version rather than the finance one.
+
+**No server framework was added**, for the reason 10.7 gave and which holds more strongly here: the accept
+surface is two routes whose handler is synchronous and performs one local transaction, so `node:http` covers it
+and a dependency would buy a supply-chain surface on the one service where both agents' state meets.
+
+### The four properties a process has that a module cannot
+
+1. **It refuses to boot on an incomplete environment, and the refusal is not caught.** All three bus entries
+   named in one message, so one restart answers the whole question. Asserted with two entries removed at once,
+   with an unfilled `<ANGLE_BRACKET>` placeholder, with an empty value, and through the run wrapper for the
+   non-zero exit - and asserted to refuse **before** it binds anything, so a refused bus holds no listener.
+2. **It binds the internal endpoint and only that one (R9).** The listening boundary it is handed takes a
+   **port**: no host argument, no publish flag. Readiness is an exec check, so there is no second route to add.
+3. **It answers readiness without a listener (R22).** The orchestrator's check is an exec probe, so the answer
+   has to survive a process boundary, and the only thing the health command and the server share is the volume.
+   The server records that its listener is up in a **content-free** file beside the store; the command reads how
+   old that record is. An absent record and a stale one both read as not ready - silence is not health - and
+   shutdown removes the record so a stopped bus reports not-ready at once rather than after the window.
+4. **It refuses an endpoint that would be reachable anywhere else.** This is the one guard the task added rather
+   than reused, and it is the process's whole contribution to R9: a scheme, a path, an address literal, a
+   wildcard, a name resolving to the container itself, and an out-of-range port are each refused at boot. All
+   **eight** declared refusals are exercised, and a test asserts the vocabulary carries no unexercised member.
+
+### How the internal-only binding is asserted (delta D6, applied a second time)
+
+Not by probing a socket: a socket that answers nothing is also what a crashed listener, a wrong port and a
+firewall look like, so it would pass for the wrong reason. Three assertions, in both directions:
+
+- the process's own `listeningPorts` holds exactly the configured port, and still holds exactly that after
+  publish traffic, read traffic, a readiness call and a liveness tick;
+- the injected listener host's own **bind record** holds exactly one request, for that port, and is empty on
+  every refused boot;
+- the real `ops/docker-compose.yml`, read through the existing compose parser, gives `signalbus` **no `ports:`
+  key** and exactly the one internal network - so no bind the process makes can reach the host.
+
+### Where the halt is, and why it is not here
+
+The task brief expected a halt gate in the bus. The artifacts had already settled it the other way, and the
+decision is sound rather than an oversight: contract 12 §8.2 names the two agents, the scheduler and the backup
+service; `ops/docker-compose.yml` mounts the sentinel volume into exactly those four; and
+`ops/env/bus.env.example` records the absence with its reason - *a publish is halted at the publisher, before
+the envelope is built, so halting the store as well would add a second place for the halt to be wrong without
+closing anything the first place leaves open*. Adding a sentinel entry here would also mean a halt this service
+examines and the operator's mount never creates, which `collectKillSentinelFindings` correctly calls a kill
+switch that silently does nothing. So the halt is **observed where it lives**: a test boots the real finance
+agent against the real bus process and shows `publishSignal` refusing with `HaltEngagedError` while the
+append-only store holds no row and its audit mirror holds no line - with the released-halt case beside it
+storing the same envelope, so the refusal is not vacuous.
+
+### Negative tests, every one shown failing the guarded operation
+
+Not merely returning a refusal shape: after each refusal the store's row count **and** its audit mirror are
+read, so a rule that returned the right word and wrote the row anyway would fail.
+
+- a payload carrying a **figure** - refused `field_numeric`, nothing stored, `refused_on_write` audited, and the
+  answer asserted to contain no field the value could have travelled in;
+- a **due date** - `field_temporal`; an **account identifier** - `field_identifier`; a surplus field **beside**
+  the payload - `field_temporal`, because a date next to the payload leaks as well as one inside it;
+- **over-length text** - `note_exceeds_cap`, and the point is that it is refused rather than truncated: nothing
+  is stored, so no first-120-characters copy exists anywhere;
+- a note carrying a digit - `note_carries_a_figure`; a producer asserting its own digest -
+  `hash_asserted_by_producer`;
+- the **excluded classification** - `tier_not_a_member`, refused as an unknown member rather than filtered
+  later, and spelled from fragments the way every other refusal test spells it;
+- a repeated signal identifier - refused, and the originally stored envelope shown **unchanged**;
+- **`producer_only` read by the other agent** - refused with `consent_scope_producer_only`, and asserted to be a
+  refusal rather than an empty delivery (the answer carries no `signals` field at all), with the producer's own
+  read as the positive control;
+- a kind the producer marked `shared` - still refused, because the widened-kinds allowlist ships **empty** and
+  the effective scope is the narrower of the two;
+- an incomplete environment, an endpoint that would be reachable elsewhere, an absent and a stale liveness
+  record, a wrong method, an unknown route, an over-bound body, a non-JSON body, and every malformed query
+  field.
+
+### The image, and the record
+
+`ops/images/signal-bus/Dockerfile`: pinned to the runtime major `.nvmrc` names in both stages, ending on an
+unprivileged `USER`, installing `nizam-health-probe` (the restore drill's grammar) and `nizam-bus-health` (the
+no-argument command `<BUS_HEALTH_PROBE>` resolves to), with no `EXPOSE`, no `HEALTHCHECK`, no `ENV`/`ARG` default
+and an `ENTRYPOINT`. `ops/IMAGE_BUILD.md`'s row moved from `OWNED_BUILD_PENDING` to `BUILT_HERE` with its recipe
+path and **no blocker**, and the build path gained a second invocation naming `--file` and `--tag` on one
+statement. `src/server/ops/imageOwnership.ts` audits the row shape in both directions and needed **no change** -
+the record and the tree agree, which is what that audit exists to establish. Its test's per-state sets and one
+mutation anchor moved to the scheduler row, which is the only row still in that state alongside the backup.
+`ops/BUS_NETWORK_BINDING.md` gained the process half of R9, which it could not name in Phase 3.3 because no
+process existed.
+
+### Findings, reported rather than papered over
+
+- **`nizam-finance-health` can never report ready, so `finance-agent`'s own healthcheck cannot pass.**
+  `main.ts`'s `runHealthCommand` calls `runProbe(['--store', …])` with **no** probe environment, so
+  `queueWorkerAlive` is absent, and `probeReadiness` correctly treats absence as `queue_worker_not_reporting` in
+  `service` mode. The command therefore always exits 1. It has no test. Consequence: `caddy` and `scheduler`
+  both declare `depends_on: finance-agent: condition: service_healthy`, so **the stack still cannot come up** -
+  the blocker has moved from the bus to the finance agent's health command. This is task 10.7/10.8's artifact and
+  was left unchanged rather than fixed inside this task; the bus does **not** repeat the defect, and its
+  liveness-record mechanism is the shape that would fix the finance side.
+- **The bus authenticates nothing, by design, and the subscriber is self-declared.** §2.2.6 requires refusal at
+  the network layer rather than an authentication check on a reachable port, and `ops/env/bus.env.example` gives
+  this service no credential of any kind. So the `subscriber` a read declares and the `producer` a publish
+  declares are claims, and the compensating control is that exactly two containers can address the port. That is
+  consistent with the envelope schema, where `producer` has always been a field rather than a proof - written
+  down in the process and in `ops/BUS_NETWORK_BINDING.md` so a later reader does not "fix" it by putting a
+  credential in the one service where holding one would be worst.
+- **The bus's busy timeout is a constant, not an entry.** `ops/env/bus.env.example` declares exactly three
+  entries and states why it is short; a lock wait is a per-process capacity choice, which is why
+  `STORE_BUSY_TIMEOUT_MS` belongs to the two agents. A fourth bus entry would need a row in the fill-in sheet,
+  the value ledger and the template audit to configure something no operator has an opinion about.
+- **The bus emits no application log line.** `redactedLogger.ts` binds a line to a `SpendAgent`, and the bus is
+  not one; widening that type would widen the identity per-agent cap isolation depends on (R17). It costs
+  nothing: `signal_audit` is append-only and records every accept and every refusal with its reason, its path
+  and its failure code, which is a stronger record than a line could carry.
+
+### Gate result
+
+- `npm run typecheck`, `npm run lint`, `npm run test` green throughout.
+- `npm run verify:all -- --all` - **20 of 20 executed checks passed**, run after the commit because AC14 and
+  AC15 require a clean tree.
+- **49 tests added; the AC04 `--min` floor raised 1982 -> 2031.** Up only, and nothing lowered, allowlisted,
+  skipped or exempted.
+- `src/server/signals/exclusion.test.ts`'s refusal-test allowlist gained the new test file, in both directions,
+  because the bus process is now a place where an attempt to introduce the excluded classification is refused.
+- **`ops/GATE_REGISTER.md` was NOT edited.** No gate renumbered, removed, softened or reopened, no `Status:`
+  moved, no verification line changed, and **no checkbox ticked** anywhere except `10.19`'s own line in
+  `tasks.md`.
+- **Nothing was run that steering §2 gates.** No image built, no tag resolved, no registry contacted, no stack
+  started, no port published, no outbound network call, and the other repository was not touched. Writing a
+  recipe is permitted; running one is not.
+- Every value in every new artifact is an `<ANGLE_BRACKET>` placeholder or a synthetic value derived from an
+  entry name. AC18's tree scan gained two declared file-name tokens and no host, address, identifier or figure.

@@ -309,6 +309,54 @@
       `BLOCKED - awaiting human`, `BLOCKED - awaiting build`, `NOT STARTED`; `Evidence` mandatory for
       `OBSERVED` (a row with no evidence is `NOT STARTED`). Close with three lines: what is live, the
       single next blocking action and whose it is, and the count of §5's seven conditions observed.
+- [x] 10.19 **The signal-bus server process and its image** (finding **O2**, and **R34**). This is the
+      one thing standing between a fully gated host and a bot that answers, and it is build work in
+      this repository rather than a gate. `ops/IMAGE_BUILD.md` records `<BUS_IMAGE_REF>` as
+      `OWNED_BUILD_PENDING`: the envelope schema, the validation, the consent gate and the append-only
+      store all live here, but **no process listens** on the endpoint the two agents dial - and
+      `ops/docker-compose.yml` gives `finance-agent` a `depends_on: signalbus: condition:
+      service_healthy`, so the finance agent will not start without a healthy bus. Build the process
+      in the shape task 10.7 established for the finance agent: it binds `BUS_INTERNAL_ENDPOINT` on
+      the **internal** network only (never a published port, **R9**), refuses to boot on an incomplete
+      environment (**R27**), answers the health probe `<BUS_HEALTH_PROBE>` resolves to (**R22**),
+      enforces the consent gate on every read (`producer_only` refused, **R8**) and the envelope
+      schema on every write (**R7** - a payload carrying a figure, a due date, an account identifier
+      or over-length text is rejected because the field does not exist). Then a Dockerfile under
+      `ops/images/`, and move the record's row from `OWNED_BUILD_PENDING` to `BUILT_HERE` (**R28**).
+      **Done 2026-08-10.** `src/server/process/` - `busServer.ts` (the process), `busMain.ts` (the only
+      file in the bus tier that names a platform facility) and `busStart.ts` (one statement wide), in the
+      three-file shape 10.7 established. **Nothing in the signals tier was reimplemented:** the write path
+      calls `appendSignal`/`validateForWrite`, the read path calls `readSignals` then `serveToSubscriber`
+      (which re-validates, re-derives the de-identification claims, and applies tier and scope
+      independently), the boot refusal is `requireServiceEnvironment` over `SERVICE_ENTRY_NAMES.bus`, and
+      readiness is `probeReadiness` given the **signals** series' expected version. No server framework
+      added. **R9 is asserted three ways, never by probing a socket** (delta D6 again): the process's own
+      `listeningPorts` holds exactly the configured port after publish, read, readiness and tick traffic;
+      the injected host's bind record holds exactly one request and is empty on every refused boot; and the
+      real compose file gives `signalbus` no `ports:` key. The one guard added rather than reused is the
+      endpoint parser - a scheme, a path, an address literal, a wildcard, a name resolving to the container
+      itself and an out-of-range port are each refused at boot, and all eight declared refusals are
+      exercised. **Readiness needs no listener:** the server records its listener in a content-free file
+      beside the store and the exec command reads that record's age, so an absent or stale record is
+      not-ready and shutdown clears it. **The halt stayed where §8.2 puts it** - the bus mounts no sentinel
+      and `ops/env/bus.env.example` records why - so it is observed at the publisher instead: the real
+      finance agent's `publishSignal` refuses with `HaltEngagedError` while the real bus store holds no row
+      and no audit line, with the released case beside it. `ops/images/signal-bus/Dockerfile` and
+      `ops/IMAGE_BUILD.md`'s row moved to `BUILT_HERE` with a recipe path and no blocker;
+      `imageOwnership.ts` needed no change, which is what that audit exists to establish.
+      **Finding: the stack still cannot come up, and the blocker has moved.** `nizam-finance-health` calls
+      `runProbe` with no probe environment, so `queueWorkerAlive` is absent and `probeReadiness` correctly
+      reports `queue_worker_not_reporting` - the command always exits 1, it has no test, and `caddy` and
+      `scheduler` both depend on `finance-agent: service_healthy`. That is 10.7/10.8's artifact and was left
+      unchanged; the bus does not repeat the defect. Also recorded: the bus authenticates nothing by design
+      (§2.2.6), its busy timeout is a constant rather than a fourth entry, and it emits no log line because
+      `redactedLogger` binds a line to a spend identity it does not have. 49 tests; floor 1982 -> 2031.
+- [ ] 10.20 **The scheduler process and its image** (finding **O2**, and **R34**). Same shape and the
+      same reason: `<SCHEDULER_IMAGE_REF>` is `OWNED_BUILD_PENDING` because tick delivery is owned
+      here and no process performs it. It mounts no store and holds no credential, so it is the
+      smallest of the six. It must honour the kill sentinel in both forms (**R29**), dial
+      `LIFE_TICK_ENDPOINT` and `FINANCE_TICK_ENDPOINT` on the internal network only, and bind no
+      public port. Then a Dockerfile, and move its record row to `BUILT_HERE`.
 - [ ] 10.16 **The cross-repo interop contract** (owner clarification 2026-08-10, and **R31**). The owner
       defines "clone and migrate both repositories" as *making the two understand each other* - feeding
       information and communicating - **not** a code migration and not a repository move. So the
@@ -363,7 +411,7 @@
     { "wave": 5, "tasks": ["10.6"] },
     { "wave": 6, "tasks": ["10.7"] },
     { "wave": 7, "tasks": ["10.8"] },
-    { "wave": 8, "tasks": ["10.9", "10.11", "10.18"] },
+    { "wave": 8, "tasks": ["10.9", "10.11", "10.18", "10.19", "10.20"] },
     { "wave": 9, "tasks": ["10.12"] },
     { "wave": 10, "tasks": ["10.13"] },
     { "wave": 11, "tasks": ["10.14", "10.15", "10.16", "10.17"] }

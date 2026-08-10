@@ -127,6 +127,8 @@ export const DECLARED_DOTTED_TOKENS: readonly string[] = [
   'auth.ts',
   'drive.ts',
   'backupScripts.ts',
+  'busServer.ts',
+  'busStart.ts',
   'caddyTemplate.ts',
   'composeTemplate.ts',
   'envTemplates.ts',

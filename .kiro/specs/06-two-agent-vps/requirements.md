@@ -160,6 +160,47 @@ plus the text artifacts and the gate register needed to hand the remainder to a 
   that same port, and WHERE compose binds a port, THEN the firewall posture recorded for the host SHALL
   admit it; AND the resolution chosen for the certificate-challenge port SHALL be **recorded** in
   `ops/GATE_REGISTER.md` rather than left to be inferred from either artifact alone.
+- **R34** WHERE `ops/docker-compose.yml` declares a service this repository owns, THEN that service SHALL
+  have a **process** that runs it, an **image recipe** that packages that process, and an ownership row in
+  `ops/IMAGE_BUILD.md` recorded as `BUILT_HERE` naming that recipe; AND WHEN such a process starts, THEN it
+  SHALL refuse to boot on an incomplete environment rather than boot degraded, naming every incomplete
+  entry in a single message (**R27**); AND WHERE the service is attached to an **internal** network, THEN
+  the process SHALL bind only the endpoint that service's own entry names and SHALL bind no other, AND
+  SHALL refuse an endpoint value that names a scheme, a path, an address literal, a wildcard, or a name
+  that resolves to the container itself; AND the absence of any further binding SHALL be asserted against
+  the **process's own listener set** rather than by probing a socket; AND WHEN the orchestrator polls the
+  healthcheck the topology declares for that service, THEN the command it names SHALL exist inside that
+  image and SHALL answer readiness **without a listener**, as a check computed in process against local
+  state (**R22**).
+
+> **Finding note - R34 closes O2, which R28 and R29 together left open.** R28 requires an image for every
+> service this repository owns; R29 requires a process, and names exactly one - the finance agent. The gap
+> between them is finding **O2**: two of the six services are owned here **in library form** and had no
+> process to package, so `ops/IMAGE_BUILD.md` had to record them in a third state,
+> `OWNED_BUILD_PENDING`, that R28 did not anticipate. That state is honest and is strictly stronger than
+> silence, because a row in it must name its blocker - but a blocker with no requirement behind it is a
+> row nobody is obliged to close.
+>
+> The consequence was not cosmetic and is worth stating plainly, because it is the whole reason this
+> requirement exists rather than being folded into R28. `ops/docker-compose.yml` gives **both agents**
+> `depends_on: signalbus: condition: service_healthy`. So with every one of the gates G1 through G8
+> observed, and every environment file filled in, `docker compose up` still could not stand the phase-1
+> stack up: the finance agent would wait for a bus whose image nothing built and whose endpoint nothing
+> listened on. **That is build work in this repository, not a gate**, which is why O2 was recorded as a
+> build-side finding and never added to the gate register.
+>
+> R34 is deliberately written over "a service this repository owns" rather than over the bus alone, so it
+> binds task 10.19 (the bus) and task 10.20 (the scheduler) with one rule instead of two. It adds nothing
+> to the two `EXTERNAL` rows: the life agent belongs to the other repository, which steering §6 forbids
+> this session from modifying, and the proxy is an upstream release with nothing of this repository's
+> inside it.
+>
+> **What R34 does NOT do is extend the halt.** Contract 12 §8.2 names the two agents, the scheduler and
+> the backup service, and `ops/docker-compose.yml` mounts the sentinel volume into exactly those four. A
+> bus publish is halted at the **publisher**, before the envelope is built (R29), and adding a second
+> refusal inside the bus would add another place for the halt to be wrong without closing anything the
+> first place leaves open. R34 therefore says nothing about the sentinel for a service §8.2 does not name;
+> where a service **is** named there, R29 already governs it.
 
 > **Finding note - R28 closes O1.** `OPERATOR_STATE_2026-08-09.md` §2 records, and §4 re-proves by count,
 > that **no** `Dockerfile` or `Containerfile` exists anywhere in the tree, while `ops/docker-compose.yml`

@@ -126,7 +126,7 @@ expected to evolve here, so no SHA is pinned that would silently go stale.
 | # | File | Bytes at authoring | Owning requirements | Scope it governs |
 |---|------|--------------------|---------------------|------------------|
 | 06 | `06_PFOS_Database_and_Knowledge_Model.md` | 34,327 | R1, R2, R3, R4, R5 (and R6 jointly with 12) | Store topology and per-agent isolation, `finance.db` schema, the money persistence boundary (integer milliunits across the store edge), migrations, the token-spend ledger that supplies `modelPolicy`, the knowledge model, retention, and what may never be stored |
-| 12 | `12_PFOS_Two_Agent_VPS_Deployment_and_Operations.md` | 76,544 | R6-R30 (R6 jointly with 06; R16-R19 extend 09/10/11 rather than replacing them) | Two-agent topology on one host, isolation, the consent bus and what may cross it, transport security and de-duplication, deployment-level model-routing governance, operations (backup, restore, health, rollback, disaster recovery), the kill switch, the human gate register, and the public-repository posture |
+| 12 | `12_PFOS_Two_Agent_VPS_Deployment_and_Operations.md` | 76,544 | R6-R30 and R34 (R6 jointly with 06; R16-R19 extend 09/10/11 rather than replacing them) | Two-agent topology on one host, isolation, the consent bus and what may cross it, transport security and de-duplication, deployment-level model-routing governance, operations (backup, restore, health, rollback, disaster recovery), the kill switch, the human gate register, and the public-repository posture |
 
 Requirement identifiers refer to `.kiro/specs/06-two-agent-vps/requirements.md`.
 
@@ -140,6 +140,20 @@ requirements of the spec that contract 12 owns, and each records its own authori
 note, R26-R30 the owner mandate `KIRO_SHIP_LIVE.prompt.md` rev 2 - so nothing was invented here that the
 contract would have to govern. The `<..._IMAGE_REF>` placeholders R28 speaks to, and the single published port
 R30 speaks to, are both in `ops/docker-compose.yml` and neither was changed by this increment.
+
+**R34 added 2026-08-10 (task 10.19), so the row now reads `R6-R30 and R34`.** R28 requires an image for every
+service this repository owns and R29 requires a process, naming exactly one - the finance agent. The gap
+between them is finding **O2**, and it is not a documentation gap: two services are owned here **in library
+form**, `ops/docker-compose.yml` gives both agents `depends_on: signalbus: condition: service_healthy`, and so
+with every gate observed `docker compose up` still could not stand the phase-1 stack up. R34 states the joint
+rule - a service this repository owns has a process, an image recipe, a `BUILT_HERE` row, a boot that refuses
+an incomplete environment, an internal-only binding asserted against the process's own listener set, and a
+healthcheck command that answers without a listener - so tasks 10.19 and 10.20 are bound by one requirement
+rather than by two halves of others. **The contract file itself was not edited**: R34 restates §2.1, §2.2.5,
+§2.2.6, §4.1, §4.5 and §7.3 obligations contract 12 already owns, and it deliberately says nothing about the
+kill sentinel, because §8.2 names the four services that honour it and a bus publish is halted at the
+publisher. The gap at R31-R33 is not an omission of this increment: those identifiers belong to tasks 10.16,
+10.17 and 10.18, which are not yet done and will author them.
 
 **R27 is now mechanical rather than documented, 2026-08-10 (task 10.2).** Contract 12 §5.2/§5.3's "no default
 for anything" rule, and §3.2.7's one-environment-file-per-service rule, are held in code over **all six**
@@ -344,3 +358,31 @@ step 1 has no command in this repository; and the walkthrough **cannot close end
 requirement range moved.** `ops/GATE_REGISTER.md` was **not** edited - no gate renumbered, removed, softened or
 reopened, no `Status:` moved, and no box ticked anywhere but `10.11`'s own line. No gate step was performed, no
 network call made, and the other repository was not touched.
+
+**The consent bus has a process and an image, and O2 is half closed, 2026-08-10 (task 10.19).** Contract 12 §4
+gives the bus an envelope schema with no field for a figure, a validator that runs on write and again on read,
+two independent consent gates, and an append-only store with an audit mirror - all of which existed here and
+were tested - and §2.2.5/§2.2.6 give it an internal-only binding. What did not exist was a **process**: nothing
+listened on the endpoint the two agents dial, which is finding **O2** and is why `ops/IMAGE_BUILD.md` had to
+carry `<BUS_IMAGE_REF>` in the third state R28 did not anticipate. `src/server/process/busServer.ts` is that
+process, in the shape task 10.7 established: it refuses to boot on an incomplete environment through the one
+`requireServiceEnvironment` pass, naming all three bus entries in a single message (**R27**); it binds the port
+`BUS_INTERNAL_ENDPOINT` names and **only** that one, with a listening boundary that takes a port and offers no
+host argument and no publish flag; it enforces the envelope schema on every write and the consent gate on every
+read by **calling** Phase 3.1's and Phase 3.2's modules rather than restating a single field rule; and it
+answers readiness as an exec check computed against local state, so no listener is needed for the healthcheck
+(**R22**). **It adds one guard of its own and nothing else:** `BUS_INTERNAL_ENDPOINT` is refused if it names a
+scheme, a path, an address literal, a wildcard, a name that resolves to the container itself, or a port outside
+the protocol's range - each of which is a way the bus ends up reachable where **R9** forbids it, or unreachable
+by its only two clients. The R9 absence is asserted against the **process's own listener set** and the injected
+host's own bind record, in both directions, plus the topology's absent `ports:` key read through the existing
+compose parser - never by probing a socket, because a socket that answers nothing is also what a crashed
+listener looks like (delta **D6**, applied a second time). `ops/images/signal-bus/Dockerfile` packages it with
+the same properties the audit already held the finance recipe to, and `ops/IMAGE_BUILD.md`'s row moved from
+`OWNED_BUILD_PENDING` to `BUILT_HERE` with its recipe path and no blocker (**R28**). **Two absences are recorded
+rather than filled:** the bus honours no kill sentinel, because §8.2 names four services and a publish is halted
+at the publisher - shown by a test in which a halted `publishSignal` never reaches this store - and the bus
+emits no log line, because `redactedLogger.ts` binds a line to a spend identity the bus does not have and its
+own append-only audit mirror is the stronger record. **No contract file was edited.** No image was built, no tag
+resolved, no registry contacted, no stack started, no port published and no outbound call made;
+`ops/GATE_REGISTER.md` was not edited and no box was ticked anywhere but `10.19`'s own line.

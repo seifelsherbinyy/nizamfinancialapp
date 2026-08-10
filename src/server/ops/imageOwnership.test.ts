@@ -108,7 +108,7 @@ interface NegativeCase {
 /** The recipe row this repository owns, used as the anchor for the row-shape cases. */
 const OWNED_ROW = '| `<FINANCE_IMAGE_REF>` | `BUILT_HERE` | `ops/images/finance-agent/Dockerfile` | - |';
 const EXTERNAL_ROW = '| `<LIFE_IMAGE_REF>` | `EXTERNAL` | - | - |';
-const PENDING_ROW = '| `<BUS_IMAGE_REF>` | `OWNED_BUILD_PENDING` | - | finding `O2` |';
+const PENDING_ROW = '| `<SCHEDULER_IMAGE_REF>` | `OWNED_BUILD_PENDING` | - | finding `O2` |';
 
 function withRecord(apply: (t: string) => string): (input: ImageOwnershipInput) => ImageOwnershipInput {
   return (input) => ({ ...input, record: apply(input.record ?? '') });
@@ -266,19 +266,23 @@ describe('the ownership record accounts for every image the topology names (R28,
     expect(report.rowsExamined).toBeGreaterThan(0);
   });
 
-  it('records exactly one reference as built here, and the rest as owned elsewhere or blocked (O1)', () => {
+  it('records which references are built here, and the rest as owned elsewhere or blocked (O1, O2)', () => {
     // The ownership boundary is the substance of this task, so it is asserted rather than described:
-    // the finance agent is this repository (steering §1); the life agent is Python and belongs to the
-    // other repository, which steering §6 forbids this session from modifying; the proxy is an
-    // upstream release; and three references are owned here in library form with no process to
-    // package, which is the state R28 did not anticipate.
+    // the finance agent and the consent bus are this repository (steering §1, §4.2); the life agent is
+    // Python and belongs to the other repository, which steering §6 forbids this session from
+    // modifying; the proxy is an upstream release; and the remaining two are owned here in library
+    // form with no process to package, which is the state R28 did not anticipate.
+    //
+    // The bus moved from that third state to `BUILT_HERE` in task 10.19, which is what closing
+    // finding O2 for one service looks like from the record's side: the row named its blocker, the
+    // blocker was the missing process, and writing the process moved exactly one row.
     const rows = parseOwnershipRecord(RECORD);
     const byState = new Map<string, string[]>();
     for (const row of rows) byState.set(row.state, [...(byState.get(row.state) ?? []), row.reference]);
 
-    expect(byState.get('BUILT_HERE')).toEqual(['<FINANCE_IMAGE_REF>']);
+    expect(byState.get('BUILT_HERE')).toEqual(['<FINANCE_IMAGE_REF>', '<BUS_IMAGE_REF>']);
     expect(byState.get('EXTERNAL')).toEqual(['<LIFE_IMAGE_REF>', '<PROXY_IMAGE_REF>']);
-    expect(byState.get('OWNED_BUILD_PENDING')).toEqual(['<BUS_IMAGE_REF>', '<SCHEDULER_IMAGE_REF>', '<BACKUP_IMAGE_REF>']);
+    expect(byState.get('OWNED_BUILD_PENDING')).toEqual(['<SCHEDULER_IMAGE_REF>', '<BACKUP_IMAGE_REF>']);
     for (const row of rows) expect(row.reference).toMatch(IMAGE_REFERENCE_SHAPE);
     for (const row of rows) expect(OWNERSHIP_STATES).toContain(row.state as (typeof OWNERSHIP_STATES)[number]);
   });

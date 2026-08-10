@@ -102,6 +102,9 @@ const REFUSAL_TESTS: readonly string[] = [
   'src/server/signals/schemaParity.test.ts',
   // Phase 3.2 — no policy can grant it, and the gate module never names it
   'src/server/signals/consentGate.test.ts',
+  // Phase 10.19 — the bus PROCESS refuses a publish claiming it, at the endpoint the agents dial,
+  // and the append-only store is read afterwards to show nothing was written
+  'src/server/process/busServer.test.ts',
   // Phase 3.4 — this scan
   'src/server/signals/exclusion.test.ts',
 ];
