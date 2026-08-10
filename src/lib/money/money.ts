@@ -60,6 +60,95 @@ export function fromDecimal(text: string): Money {
 }
 
 /**
+ * Why a strict form exists beside `fromDecimal` — spec 08 wave A2, task A2.3.
+ *
+ * `fromDecimal` is deliberately forgiving: it strips grouping separators and rounds the fourth
+ * fractional digit half away from zero. That is right for text a person typed or pasted, where the
+ * alternative is refusing a value the person clearly meant.
+ *
+ * It is wrong at a MACHINE boundary. There, a stray separator means the upstream export changed format,
+ * and a fourth decimal place means the artifact carries more precision than a milliunit can hold — and a
+ * rounded amount is indistinguishable from a measured one once it is stored. So the ingestion boundary
+ * needs a form that refuses exactly what the forgiving one absorbs, and it needs it HERE rather than
+ * beside its caller, because there is one implementation of money in this system and a second copy of
+ * the digit-by-digit conversion is the thing that would eventually disagree with this one.
+ *
+ * Added by: KIRO Contract 1 / Phase 1.4, extended for PFOS Contract 06 / Phase 2.2.
+ */
+export type StrictMoneyRefusalCode =
+  | 'GROUPING_SEPARATOR'
+  | 'NOT_A_NUMBER'
+  | 'PRECISION_WOULD_ROUND'
+  | 'FRACTION_OF_A_MILLIUNIT'
+  | 'OUT_OF_SAFE_RANGE';
+
+/** A refusal carrying its code. Never the offending value, so a message can be logged safely. */
+export class StrictMoneyError extends TypeError {
+  readonly code: StrictMoneyRefusalCode;
+
+  constructor(code: StrictMoneyRefusalCode, message: string) {
+    super(message);
+    this.name = 'StrictMoneyError';
+    this.code = code;
+  }
+}
+
+const STRICT_DECIMAL_RE = /^[+-]?\d+(?:\.\d+)?$/;
+const STRICT_GROUPING_RE = /[,\s\u00A0\u066B\u066C]/;
+
+/**
+ * Parse decimal MAJOR-UNIT text into integer milliunits, refusing anything that would be absorbed.
+ * At most three fractional digits, no grouping separator, nothing but digits and one optional sign.
+ */
+export function fromDecimalStrict(text: string): Money {
+  const v = text.trim();
+  if (STRICT_GROUPING_RE.test(v)) {
+    throw new StrictMoneyError(
+      'GROUPING_SEPARATOR',
+      'NIZAM money: a grouping separator is stripped by the forgiving parser, so at a machine boundary it is refused instead — a separator that appeared means the upstream format changed.',
+    );
+  }
+  if (!STRICT_DECIMAL_RE.test(v)) {
+    throw new StrictMoneyError('NOT_A_NUMBER', 'NIZAM money: the value is not a plain decimal number.');
+  }
+  const dot = v.indexOf('.');
+  const fractionDigits = dot < 0 ? 0 : v.length - dot - 1;
+  if (fractionDigits > 3) {
+    throw new StrictMoneyError(
+      'PRECISION_WOULD_ROUND',
+      `NIZAM money: the value carries ${fractionDigits} fractional digits and a milliunit holds three, so converting it would round. A rounded amount is indistinguishable from a measured one once stored.`,
+    );
+  }
+  try {
+    return fromDecimal(v);
+  } catch {
+    throw new StrictMoneyError('OUT_OF_SAFE_RANGE', 'NIZAM money: the value cannot be held as safe integer milliunits.');
+  }
+}
+
+/** Parse text that is ALREADY milliunits. A fractional part is refused: there is no such quantity. */
+export function fromMilliunitsStrict(text: string): Money {
+  const v = text.trim();
+  if (STRICT_GROUPING_RE.test(v)) {
+    throw new StrictMoneyError('GROUPING_SEPARATOR', 'NIZAM money: a grouping separator is refused at a machine boundary.');
+  }
+  if (!STRICT_DECIMAL_RE.test(v)) {
+    throw new StrictMoneyError('NOT_A_NUMBER', 'NIZAM money: the value is not a plain integer.');
+  }
+  if (v.includes('.')) {
+    throw new StrictMoneyError(
+      'FRACTION_OF_A_MILLIUNIT',
+      'NIZAM money: the value is declared in milliunits and carries a fractional part. A fraction of a milliunit is not a quantity this system holds, so it is refused rather than truncated.',
+    );
+  }
+  const n = Number(v);
+  if (!Number.isSafeInteger(n)) {
+    throw new StrictMoneyError('OUT_OF_SAFE_RANGE', 'NIZAM money: the value is outside the safe integer range.');
+  }
+  return n;
+}
+
+/**
  * Convert a (possibly fractional) JS number into Money via its string form.
  * Use only at external boundaries (e.g. JSON that was written with unit amounts).
  */

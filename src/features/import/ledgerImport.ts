@@ -25,7 +25,14 @@ import { verifyCanonicalHeader } from '@/lib/ledger/ledgerHeader';
 import type { NizamDb } from '@/lib/db/schema';
 import type { Transaction } from '@/features/transactions/transaction.types';
 import type { Account, AccountType } from '@/features/accounts/accounts.types';
-import { fromDecimal, type Money } from '@/lib/money/money';
+import {
+  fromDecimal,
+  fromDecimalStrict,
+  fromMilliunitsStrict,
+  StrictMoneyError,
+  type Money,
+  type StrictMoneyRefusalCode,
+} from '@/lib/money/money';
 import { knownDuplicateKeys } from '@/lib/ledger/ledgerStore';
 
 // ---------------------------------------------------------------------------
@@ -231,61 +238,33 @@ export const EXTRACTION_VOCABULARY: Readonly<Record<string, IngestExtractionMeth
   'pdftotext-layout': 'parser',
 };
 
-const MONEY_TEXT = /^[+-]?\d+(?:\.\d+)?$/;
-const GROUPING_CHARS = /[,\s\u00A0\u066B\u066C]/;
+/** The money core's refusal codes, named in this module's vocabulary and with the column at fault. */
+const MONEY_REFUSAL_CODES: Readonly<Record<StrictMoneyRefusalCode, StrictRefusalCode>> = {
+  GROUPING_SEPARATOR: 'MONEY_GROUPING_SEPARATOR',
+  NOT_A_NUMBER: 'MONEY_NOT_A_NUMBER',
+  PRECISION_WOULD_ROUND: 'MONEY_PRECISION_WOULD_ROUND',
+  FRACTION_OF_A_MILLIUNIT: 'MONEY_FRACTION_OF_A_MILLIUNIT',
+  OUT_OF_SAFE_RANGE: 'MONEY_OUT_OF_SAFE_RANGE',
+};
 
 /**
- * Money at the ingestion boundary: an integer number of milliunits, or a refusal. Three refusals
- * matter, and each corresponds to something the money core would otherwise absorb helpfully:
+ * Money at the ingestion boundary: an integer number of milliunits, or a refusal.
  *
- *  - a GROUPING SEPARATOR. `fromDecimal` strips them, which is right for text a person typed and
- *    wrong for a machine artifact, where a stray separator means the upstream export changed format.
- *  - a FRACTION OF A MILLIUNIT under a milliunit declaration. There is no such quantity.
- *  - a value that WOULD ROUND. `fromDecimal` rounds the fourth decimal place half away from zero. A
- *    rounded amount is indistinguishable from a measured one once stored, so it is refused here.
- *
- * The conversion itself is delegated to the money core. There is one implementation of money.
+ * The refusing is done by the money core's own strict parsers, not here. There is one implementation of
+ * money in this system, and a second copy of the digit-by-digit conversion beside this caller is exactly
+ * the thing that would eventually disagree with the first. This function's whole job is to pick the
+ * right one for the DECLARED unit and to say which column was at fault.
  */
 function parseMoneyStrict(value: string, column: string, unit: MoneyUnit): Money {
   const v = value.trim();
   if (v === '') return 0;
-  if (GROUPING_CHARS.test(v)) {
-    throw new LedgerIngestRefusal(
-      'MONEY_GROUPING_SEPARATOR',
-      column,
-      `${column} carries a grouping separator. The money core strips separators, so accepting one here would let an upstream format change pass unnoticed; at the ingestion boundary it is refused.`,
-    );
-  }
-  if (!MONEY_TEXT.test(v)) {
-    throw new LedgerIngestRefusal('MONEY_NOT_A_NUMBER', column, `${column} is not a plain decimal number.`);
-  }
-  const dot = v.indexOf('.');
-  if (unit === 'milliunits') {
-    if (dot >= 0) {
-      throw new LedgerIngestRefusal(
-        'MONEY_FRACTION_OF_A_MILLIUNIT',
-        column,
-        `${column} is declared in milliunits and carries a fractional part. A fraction of a milliunit is not a quantity this system can hold, so it is refused rather than truncated.`,
-      );
-    }
-    const n = Number(v);
-    if (!Number.isSafeInteger(n)) {
-      throw new LedgerIngestRefusal('MONEY_OUT_OF_SAFE_RANGE', column, `${column} is outside the safe integer range.`);
-    }
-    return n;
-  }
-  const fractionDigits = dot < 0 ? 0 : v.length - dot - 1;
-  if (fractionDigits > 3) {
-    throw new LedgerIngestRefusal(
-      'MONEY_PRECISION_WOULD_ROUND',
-      column,
-      `${column} carries ${fractionDigits} fractional digits, and a milliunit holds three. The money core would round the fourth; a rounded amount is indistinguishable from a measured one once stored, so it is refused.`,
-    );
-  }
   try {
-    return fromDecimal(v);
-  } catch {
-    throw new LedgerIngestRefusal('MONEY_OUT_OF_SAFE_RANGE', column, `${column} could not be expressed in milliunits.`);
+    return unit === 'milliunits' ? fromMilliunitsStrict(v) : fromDecimalStrict(v);
+  } catch (e) {
+    if (e instanceof StrictMoneyError) {
+      throw new LedgerIngestRefusal(MONEY_REFUSAL_CODES[e.code], column, `${column}: ${e.message}`);
+    }
+    throw e;
   }
 }
 

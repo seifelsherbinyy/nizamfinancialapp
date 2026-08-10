@@ -64,3 +64,13 @@ ops/env/*.env
 # any Cloudflare API token file, wherever it lands
 *cloudflare*.env
 cf_token*
+
+# The SEEDED SERVER STORE. Spec 08 wave A2 materialises the owner's real ledger into a local SQLite
+# file so waves A3 and A4 can reconcile and index against it, and wave A5 moves it to the host. It is
+# the single most sensitive artifact this repository's tooling produces - every row is a real
+# transaction - so it is untracked, and the ingestion gates ask `git check-ignore` about this path
+# before they write the first byte rather than trusting this entry to still be here.
+data/store/
+*.db
+*.db-wal
+*.db-shm
