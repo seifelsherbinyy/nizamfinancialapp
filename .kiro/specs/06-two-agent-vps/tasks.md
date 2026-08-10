@@ -357,6 +357,49 @@
       smallest of the six. It must honour the kill sentinel in both forms (**R29**), dial
       `LIFE_TICK_ENDPOINT` and `FINANCE_TICK_ENDPOINT` on the internal network only, and bind no
       public port. Then a Dockerfile, and move its record row to `BUILT_HERE`.
+- [x] 10.21 **The finance-agent readiness command can never report ready** (found by task 10.19, and
+      **R22**). `main.ts`'s `runHealthCommand` calls `runProbe(['--store', ...])` with **no probe
+      environment**, so `queueWorkerAlive` is absent and `probeReadiness` correctly answers
+      `queue_worker_not_reporting` in `service` mode. It therefore **always exits 1**, and it carries
+      no test. `ops/docker-compose.yml` gives both `caddy` and `scheduler` a
+      `depends_on: finance-agent: condition: service_healthy`, so this one defect holds the whole
+      phase-1 stack at unhealthy for ever - it is the top blocker to rung **L2** and therefore to
+      conversing with the bot. Task 10.19 solved the same problem for the bus and its shape is the
+      fix: a liveness record written beside the store on the service's own volume, whose **age** the
+      exec check reads, because the health command is a different process from the server and can
+      share nothing with it but the volume. Reuse that mechanism rather than inventing a second one,
+      and add the negative test 10.7 omitted - a ready answer and a not-ready answer both asserted.
+      **The mechanism ended up SHARED, not duplicated.** `src/server/process/liveness.ts` is new and
+      holds the whole rule once: the `LivenessRecord` shape, `livenessIsFresh`, the touch interval,
+      and the file-backed factory resolved through the ONE containment guard. `busServer.ts` keeps
+      `BusHeartbeat` and `heartbeatIsFresh` as its own names over that rule, `busMain.ts`'s
+      `createFileHeartbeat` is now one delegating line, and the bus's window and file name stay the
+      bus's. Each service supplies only the two things legitimately its own - its file name and its
+      staleness window - and `livenessIsFresh` has **no default window** so nobody inherits one
+      silently. The finance window is deliberately wider (**120s** against the bus's 30s) for a
+      reason about this agent's loop rather than a preference: one iteration performs a long-poll read
+      before it drains, so a bus-sized window would report a healthy agent wedged on every quiet
+      minute, and an operator who saw that would learn to ignore the check. It still sits far below
+      the 30s interval x 3 retries the orchestrator gives this healthcheck, and a test asserts it
+      clears `POLL_POLICY.timeoutSeconds`. **The defect itself:** `runHealthCommand` now derives the
+      store from the same two entries, reads the record's age, and hands `probeReadiness` a
+      `queueWorkerAlive` that answers from it - so the fourth of §7.3's four facts exists for a
+      SECOND process for the first time. `financeAgent.ts` writes the record at boot (so the answer
+      exists during the start-up grace period), at the top of every iteration and inside every drain
+      (so a 30s read is bracketed rather than followed), and **clears it on shutdown**, reported as
+      `livenessCleared` - a stopped agent answers not-ready at once rather than after the window.
+      A touch that fails is swallowed because it is already reported: absent reads as not fresh, so
+      an unwritable volume becomes not-ready instead of a crash mid-drain. **Asserted both ways:**
+      ready + exit 0 for a running agent through `runHealthCommand` itself; not-ready + exit 1 for
+      stopped, for stale, for never-written, for a record dated in the FUTURE (the backwards-clock
+      direction), and for unconfigured entries - which answer `probe_invocation_invalid` rather than
+      throwing, because a probe that threw would hand the orchestrator a non-answer. The record holds
+      **no content** and its size is asserted zero (R24). R9 stayed asserted in both directions
+      either side of a ready answer: under `longPoll` the process's own `listeningPorts` is empty AND
+      the injected host's bind record is empty; under `webhook` both hold exactly the configured port
+      and nothing else - readiness adds no second listener because it is a command, not an endpoint.
+      The in-process `readiness()` was tightened to consult the same record, so it can never be more
+      generous than the exec check that actually gates the stack. 27 tests; floor 2031 -> 2058.
 - [ ] 10.16 **The cross-repo interop contract** (owner clarification 2026-08-10, and **R31**). The owner
       defines "clone and migrate both repositories" as *making the two understand each other* - feeding
       information and communicating - **not** a code migration and not a repository move. So the

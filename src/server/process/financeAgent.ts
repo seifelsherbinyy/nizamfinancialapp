@@ -105,6 +105,7 @@ import { reclaimStalledWork, workQueueDepth, type WorkQueueContext, type WorkRet
 import { probeReadiness, type ProbeEnvironment, type ReadinessReport } from '../ops/healthProbe';
 import { createRedactedLogger, type LogSink, type RedactedLogger } from '../ops/redactedLogger';
 import { createHaltGate, killAllEngagedAtBoot, type HaltGate, type HaltedActivity } from './haltGate';
+import { livenessIsFresh, type LivenessRecord } from './liveness';
 
 // ---------------------------------------------------------------------------------------------
 // Identity, and the entries this process reads that no typed loader above owns
@@ -123,6 +124,29 @@ export const STORE_BUSY_TIMEOUT_ENTRY = 'STORE_BUSY_TIMEOUT_MS';
 
 /** The store's logical name, recorded in `schema_meta`. Not a deployment particular. */
 export const FINANCE_STORE_NAME = 'finance';
+
+/**
+ * The file this process records its own liveness in, beside the store on its own volume (task 10.21).
+ *
+ * No dot in the name, so no tool that reads extensions can mistake it for a store, a snapshot or a
+ * fixture — and it holds **no content**: what the health command reads is its AGE (R24).
+ */
+export const FINANCE_LIVENESS_FILE_NAME = 'finance-agent-liveness';
+
+/**
+ * How stale this agent's liveness record may be before readiness reports the loop stopped turning.
+ *
+ * **Wider than the bus's window, and the reason is this agent's loop rather than a preference.** One
+ * iteration performs a LONG-POLL read before it drains the queue, so under `longPoll` a perfectly
+ * healthy iteration can legitimately take as long as the provider is allowed to hold the read open
+ * (`main.ts`'s `POLL_POLICY.timeoutSeconds`). A window at the bus's few seconds would therefore
+ * report a working agent wedged on every quiet minute, and an operator who saw that would learn to
+ * ignore the check — which is worse than not having it. This window clears the longest healthy gap
+ * several times over and still sits far below the orchestrator's own budget for the service
+ * (`ops/docker-compose.yml` gives this healthcheck a 30s interval and three retries), so a genuinely
+ * wedged loop is observed rather than tolerated.
+ */
+export const FINANCE_LIVENESS_MAX_AGE_MS = 120_000;
 
 /** How long a claimed-but-unsettled row may sit before shutdown returns it to the queue. */
 export const SHUTDOWN_RECLAIM_AFTER_MS = 1;
@@ -206,6 +230,17 @@ export interface FinanceAgentDependencies {
   /** Overridden only by a test that needs the probe to read a store it controls. */
   readonly openStore?: (config: StoreOpenConfig) => { readonly handle: StoreHandle };
   readonly probeEnvironment?: ProbeEnvironment;
+  /**
+   * Where this process records that its loop is turning, for the SEPARATE process that answers the
+   * orchestrator's exec healthcheck (task 10.21, R22).
+   *
+   * Optional, and its absence opens no door in either direction. The health command reads the record
+   * unconditionally, so a deployment whose server never wrote one answers **not ready** — which is
+   * the fail-closed direction and is exactly what the defect this dependency fixes looked like. A
+   * test that omits it gets a process whose in-process {@link FinanceAgentProcess.readiness} answers
+   * on the facts it does have; it does not get a readier answer than a real deployment would.
+   */
+  readonly liveness?: LivenessRecord;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -221,6 +256,11 @@ export interface ShutdownReport {
   readonly depthAtClose: Readonly<Record<string, number>>;
   readonly listenersClosed: number;
   readonly storeClosed: boolean;
+  /**
+   * Was the liveness record removed? A stopped agent that still looked alive would hold `caddy` and
+   * `scheduler` at `service_healthy` against a service that has gone (task 10.21).
+   */
+  readonly livenessCleared: boolean;
 }
 
 /** What one loop iteration did, so a caller drives the loop without owning its ordering. */
@@ -364,6 +404,24 @@ export async function bootFinanceAgent(deps: FinanceAgentDependencies): Promise<
   const listeners: HttpListenerHandle[] = [];
   const listeningPorts: number[] = [];
 
+  /**
+   * Record that this process's loop is turning, for the separate process that answers the exec
+   * healthcheck (task 10.21).
+   *
+   * A failure to write is swallowed **because it is already reported**: an absent or stale record is
+   * not fresh, so the readiness answer turns a record this process could not write into not-ready,
+   * which is the fail-closed direction. Raising here instead would turn an unwritable volume into a
+   * crash in the middle of a queue drain — a strictly worse answer to the same fact, and one that
+   * loses the drain as well.
+   */
+  const recordLiveness = (): void => {
+    try {
+      deps.liveness?.touch();
+    } catch {
+      // See above: readiness reports it. There is nothing this call site can do about it.
+    }
+  };
+
   const guardShutdown = (subject: string): void => {
     if (shuttingDown) {
       throw new FinanceProcessError(
@@ -394,10 +452,16 @@ export async function bootFinanceAgent(deps: FinanceAgentDependencies): Promise<
     listeningPorts.push(handleBound.port);
   }
 
+  // 6. The store is open and the mode's listener, if it has one, is bound — so the liveness record
+  //    may exist. Written HERE rather than in the loop's first iteration, so the exec healthcheck is
+  //    answerable during the orchestrator's start-up grace period rather than only after a poll.
+  recordLiveness();
+
   const assertPermitted = (activity: HaltedActivity): void => halt.assertPermitted(activity);
 
   const runWorkerOnce = async (): Promise<WorkerDrainReport> => {
     workerHeartbeats += 1;
+    recordLiveness();
     return drainWorkQueue({
       queue,
       worker: deps.worker,
@@ -425,6 +489,9 @@ export async function bootFinanceAgent(deps: FinanceAgentDependencies): Promise<
 
   const runOnceLocal = async (): Promise<LoopIterationReport> => {
     const iteration = (async (): Promise<LoopIterationReport> => {
+      // Recorded at the TOP of the iteration as well as inside the drain, so a long-poll read that
+      // holds for its full timeout is bracketed by two touches rather than followed by one.
+      recordLiveness();
       const poll = transport.mode === 'longPoll' ? await pollOnce() : null;
       const drain = await runWorkerOnce();
       return { poll, drain };
@@ -508,7 +575,15 @@ export async function bootFinanceAgent(deps: FinanceAgentDependencies): Promise<
         { mode: 'service', storePath: handle.filePath },
         {
           ...deps.probeEnvironment,
-          queueWorkerAlive: () => !shuttingDown && workerHeartbeats > 0,
+          // Three facts, and all three are about something other than this method's own execution:
+          // shutdown has not begun, the worker has reported at least once, and — when this process
+          // was given a record to write — that record is fresh. The third is what the SEPARATE
+          // health-command process reads, so including it here keeps the in-process answer from
+          // being more generous than the exec check that actually gates the stack.
+          queueWorkerAlive: () =>
+            !shuttingDown &&
+            workerHeartbeats > 0 &&
+            (deps.liveness === undefined || livenessIsFresh(deps.liveness.ageMs(), FINANCE_LIVENESS_MAX_AGE_MS)),
         },
       );
     },
@@ -518,7 +593,18 @@ export async function bootFinanceAgent(deps: FinanceAgentDependencies): Promise<
       // 1. Stop accepting first, so nothing new arrives while the rest settles.
       shuttingDown = true;
 
-      // 2. Close the listeners, if this mode had any.
+      // 2. Clear the liveness record, so the next exec check reports not-ready IMMEDIATELY rather
+      //    than after the staleness window. A stopped agent that still looked alive would hold both
+      //    `caddy` and `scheduler` at `service_healthy` against a service that has gone.
+      let livenessCleared = false;
+      try {
+        deps.liveness?.clear();
+        livenessCleared = true;
+      } catch {
+        livenessCleared = false;
+      }
+
+      // 3. Close the listeners, if this mode had any.
       let listenersClosed = 0;
       for (const bound of listeners) {
         try {
@@ -531,7 +617,7 @@ export async function bootFinanceAgent(deps: FinanceAgentDependencies): Promise<
       }
       listeners.length = 0;
 
-      // 3. Let the in-flight iteration settle. Closing the store under a running drain would abort a
+      // 4. Let the in-flight iteration settle. Closing the store under a running drain would abort a
       //    transaction that was about to commit, which is the one way a clean shutdown could lose
       //    durable work. A failed iteration is not re-raised here: its own settlement already turned
       //    it into a queue state (§5.5.4).
@@ -541,7 +627,7 @@ export async function bootFinanceAgent(deps: FinanceAgentDependencies): Promise<
         // See above: the drain records its own outcome, and shutdown is not the place to re-report it.
       }
 
-      // 4. Return anything still claimed to the queue. A lane interrupted by the signal leaves a
+      // 5. Return anything still claimed to the queue. A lane interrupted by the signal leaves a
       //    `running` row; reclaiming it is what makes "no durable work is lost" true rather than
       //    hoped for. Settled rows are untouched — the reclaim is conditional on the state.
       let requeued = 0;
@@ -553,7 +639,7 @@ export async function bootFinanceAgent(deps: FinanceAgentDependencies): Promise<
         // A store that cannot be read still has to be closed.
       }
 
-      // 5. Close the store last.
+      // 6. Close the store last.
       let storeClosed = false;
       try {
         if (!alreadyDown) handle.close();
@@ -567,7 +653,7 @@ export async function bootFinanceAgent(deps: FinanceAgentDependencies): Promise<
         retainedCount: { kind: 'count', value: requeued },
       });
 
-      return { stoppedAccepting: true, requeued, depthAtClose, listenersClosed, storeClosed };
+      return { stoppedAccepting: true, requeued, depthAtClose, listenersClosed, storeClosed, livenessCleared };
     },
   };
 

@@ -4864,3 +4864,120 @@ process existed.
   recipe is permitted; running one is not.
 - Every value in every new artifact is an `<ANGLE_BRACKET>` placeholder or a synthetic value derived from an
   entry name. AC18's tree scan gained two declared file-name tokens and no host, address, identifier or figure.
+
+---
+
+## Task 10.21 - the readiness command that could never say yes, and the liveness rule now kept in one place (2026-08-10)
+
+**Spec:** `.kiro/specs/06-two-agent-vps/` task 10.21. **Contract:** PFOS 12 §7.3 (a service reports ACTUAL
+readiness, and the orchestrator restarts what reports unhealthy). **Owning requirements:** R22, R9, R24, R29.
+**Found by:** task 10.19, which recorded it as the reason the stack still could not come up after the bus gained
+a process.
+
+### The defect, stated plainly
+
+`src/server/process/main.ts`'s `runHealthCommand` called `runProbe(['--store', <path>])` and passed **no probe
+environment**. In `service` mode that leaves `queueWorkerAlive` absent; `probeReadiness` treats absence as
+`queue_worker_not_reporting`, because a probe that reads silence as health is the liveness answer §7.3 forbids
+wearing a readiness label. So the command **always exited 1** - for every store, on every host, however healthy
+the agent was. `ops/docker-compose.yml` gives both `caddy` and `scheduler` a
+`depends_on: finance-agent: condition: service_healthy`, so this one line held the whole phase-1 stack at
+unhealthy for ever. It was the top blocker to rung **L2**, and therefore to the owner's stated goal of
+conversing with the bot. It carried **no test**, which is how it survived tasks 10.7 and 10.8.
+
+### The fix reuses task 10.19's mechanism rather than inventing a second one
+
+The health command is a **different process** from the server and shares nothing with it but the container, so
+the fourth of §7.3's four facts has to survive a process boundary. Task 10.19 worked that out for the bus: the
+server records that it is alive in a content-free file, shutdown removes the record, and the command reads how
+old the record is. The instruction was to reuse that shape and, if it could be shared, to share it - because two
+copies of a liveness rule is exactly the "second place for it to be wrong" this repository keeps refusing.
+
+**It is shared.** `src/server/process/liveness.ts` is new and holds the rule once:
+
+- `LivenessRecord` - three operations and no fourth: `touch`, `clear`, `ageMs`. There is no argument through
+  which a value could be passed, so the record cannot carry one (R24).
+- `livenessIsFresh(ageMs, maxAgeMs)` - the whole rule, and every ambiguity answers false: absent, non-finite,
+  **negative** (a record dated in the future, i.e. a clock that moved backwards), and over the window. It takes
+  `maxAgeMs` as a required argument and has **no default**, so no service inherits another's window silently.
+- `LIVENESS_TOUCH_INTERVAL_MS` - the shared interval for a service with nothing else to do. A service with a
+  loop touches the record as part of that loop instead, which is better evidence: the loop turned.
+- `createFileLivenessRecord(dir, fileName, nowMs)` - the file-backed record, resolved through `db/paths`'s ONE
+  containment guard, **lazily**. Resolution had to move inside each operation: `main.ts` and `busMain.ts` both
+  assemble dependencies before `requireServiceEnvironment` has refused an incomplete environment, so resolving
+  eagerly would replace an aggregate naming every unfilled entry with a path error naming one (R27).
+
+`busServer.ts` keeps `BusHeartbeat` and `heartbeatIsFresh` as its own names **over that rule** - the type is now
+an alias and the function delegates - and `busMain.ts`'s `createFileHeartbeat` is one line supplying the bus's
+own file name. No bus behaviour changed, and `busServer.test.ts` passed unmodified, which is the observation
+that makes "shared, not rewritten" mechanical rather than asserted.
+
+Each service supplies only what is legitimately its own: its **file name**, because the record sits beside what
+that service already has, and its **staleness window**, because a window is a statement about that service's own
+loop. The finance window is deliberately wider - `FINANCE_LIVENESS_MAX_AGE_MS` at 120s against the bus's 30s -
+and the reason is the loop rather than a preference: one iteration performs a **long-poll read** before it
+drains the queue, so a bus-sized window would report a working agent wedged on every quiet minute, and an
+operator who saw that would learn to ignore the check, which is worse than not having it. A test asserts it
+clears `POLL_POLICY.timeoutSeconds`, and it still sits far below the 30s interval times three retries the
+topology gives this healthcheck, so a genuinely wedged loop is observed rather than tolerated.
+
+### What the agent now writes, and when
+
+`financeAgent.ts` takes an optional `liveness` record and touches it in three places: **at boot**, after the
+store is open and the mode's listener (if any) is bound, so the exec check is answerable during the
+orchestrator's start-up grace period rather than only after a poll; **at the top of every iteration**, so a
+30-second read is bracketed by two touches rather than followed by one; and **inside every drain**. Shutdown
+**clears** it, reported as `livenessCleared` on the shutdown report, so a stopped agent answers not-ready at
+once instead of after the window - a stopped agent that still looked alive would hold `caddy` and `scheduler`
+at `service_healthy` against a service that has gone.
+
+A touch that fails is swallowed, and that is not a shrug: an absent record is not fresh, so an unwritable volume
+becomes a **not-ready answer** rather than a crash in the middle of a queue drain, which would be a strictly
+worse answer to the same fact and would lose the drain as well.
+
+The dependency is optional and its absence opens no door in either direction. The health command reads the
+record unconditionally, so a deployment whose server never wrote one answers not ready - which is the
+fail-closed direction, and is exactly what the defect looked like. The in-process `readiness()` was also
+tightened to consult the same record, so it can never be more generous than the exec check that gates the stack.
+
+### Asserted, in both directions
+
+Two new test files, 27 tests, no mock of the thing under test - the record is a real file on a temporary
+directory and the store is a real migrated store:
+
+- **ready, exit 0** for a running agent once its loop has turned, including through `runHealthCommand` itself
+  reading its ambient environment - the exact call `nizam-finance-health` makes, which was 1 before this task.
+- **not ready, exit 1** for: a **stopped** agent (and the record file is asserted gone); a **stale** record, with
+  the boundary asserted ready and one millisecond past it not; a record **never written** (silence is not
+  health, with the three store facts asserted passing so the only missing fact is the loop); a record dated in
+  the **future**; and **unconfigured** entries, which answer `probe_invocation_invalid` rather than throwing,
+  because a probe that threw would hand the orchestrator a non-answer at the one moment it needs a verdict.
+- **the record holds no content** - read back as the empty string, and its size asserted zero (R24).
+- **R9 in both directions, either side of a ready answer.** Under `longPoll` the process's own `listeningPorts`
+  is empty AND the injected listener host's bind record is empty; under `webhook` both hold exactly the
+  configured port and nothing else. Readiness adds no second listener because it is a command, not an endpoint.
+- **the containment guard shown refusing the guarded operation**: a record name that escapes the data directory
+  and a directory that is not mounted both make `touch` and `clear` throw, and `ageMs` answer null.
+
+### Gate result
+
+- `npm run typecheck`, `npm run lint`, `npm run test` green throughout.
+- `npm run verify:all -- --all` - **20 of 20 executed checks passed**, run after the commit because AC14 and
+  AC15 require a clean tree.
+- **27 tests added; the AC04 `--min` floor raised 2031 -> 2058.** Up only, and nothing lowered, allowlisted,
+  skipped or exempted.
+- **`ops/GATE_REGISTER.md` was NOT edited**, no gate touched, and no checkbox ticked anywhere except `10.21`'s
+  own line in `tasks.md`. No file under `ops/` changed at all: the defect was in `src/`, and the topology's
+  healthcheck declaration was already correct - what it resolved to was not.
+- **Nothing was run that steering §2 gates.** No image built, no tag resolved, no registry contacted, no stack
+  started, no port published, no outbound network call, and the other repository was not touched.
+- No host, address, port literal, identifier, token or figure was written. The two new file-name tokens are
+  synthetic and derived from the service name.
+
+### Open item this task did not close
+
+The stack still cannot come up, and the remaining blockers are recorded against task 10.20 and the gates: the
+scheduler has no process or image (`<SCHEDULER_IMAGE_REF>` = `OWNED_BUILD_PENDING`, finding **O2**'s other
+half), three of the six image references are external and unbuilt, and no artifact yet states whether phase 1
+is a bare `docker compose up` or an explicit service selection. Recorded here rather than fixed, because each
+belongs to a task or a gate that owns it.

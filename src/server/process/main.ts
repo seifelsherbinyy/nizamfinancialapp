@@ -4,17 +4,21 @@
  * Owning requirements: R29 (the process: refuse to boot incomplete, honour the sentinel in both
  *   forms, bind no public port under `longPoll` and only `FINANCE_CONTAINER_PORT` under `webhook`),
  *   R22 (the readiness command the compose healthcheck invokes), R19 (structured, redacted lines)
- * Depends on: ./financeAgent, ./turnWorker, ../config/environment (the ONE ambient bridge),
- *   ../ops/healthProbe, ../routing/turnDispatch, ../telegram/auth (the header name),
- *   `node:http`, `node:fs`. Nothing else.
+ * Depends on: ./financeAgent, ./turnWorker, ./liveness (the SHARED liveness record and its one
+ *   freshness rule), ../config/environment (the ONE ambient bridge), ../ops/healthProbe,
+ *   ../routing/turnDispatch, ../telegram/auth (the header name), `node:http`, `node:fs`.
+ *   Nothing else.
  *
  * Started with `npm start`. Two modes, selected by the argument vector:
  *
  *  - **default** — boot the agent, run until a termination signal, shut down cleanly, exit 0. A boot
  *    refusal is reported and exits **non-zero**; there is no degraded run.
- *  - **`--health`** — run the readiness probe against the configured store and exit 0 or 1. This is
- *    the shape `ops/docker-compose.yml`'s `<FINANCE_HEALTH_PROBE>` command wraps, and it is a
- *    COMMAND rather than an HTTP endpoint, which is why the healthcheck needs no port either.
+ *  - **`--health`** — answer readiness against the configured store AND the liveness record this
+ *    process writes beside it, then exit 0 or 1. This is the shape `ops/docker-compose.yml`'s
+ *    `<FINANCE_HEALTH_PROBE>` command wraps, and it is a COMMAND rather than an HTTP endpoint, which
+ *    is why the healthcheck needs no port either. See {@link financeReadinessReport} for the defect
+ *    task 10.21 removed here: the command could never report ready, and both `caddy` and `scheduler`
+ *    wait on this service reporting healthy.
  *
  * ## No server framework was added, and here is why
  *
@@ -49,8 +53,8 @@ import { existsSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import nodeProcess from 'node:process';
 
-import { processEnvSource } from '../config/environment';
-import { runProbe } from '../ops/healthProbe';
+import { processEnvSource, type EnvSource } from '../config/environment';
+import { probeExitCode, probeReadiness, reportForRefusedInvocation, type ReadinessReport } from '../ops/healthProbe';
 import { createModelChannel } from '../routing/turnDispatch';
 import { TELEGRAM_SECRET_TOKEN_HEADER } from '../telegram/auth';
 import type { TelegramAcceptDecision, TelegramDelivery } from '../ports/telegram';
@@ -58,6 +62,8 @@ import type { ModelRequest, ModelResult, OpenRouterPort } from '../ports/openrou
 import {
   bootFinanceAgent,
   FINANCE_DATA_DIR_ENTRY,
+  FINANCE_LIVENESS_FILE_NAME,
+  FINANCE_LIVENESS_MAX_AGE_MS,
   FINANCE_STORE_FILE_ENTRY,
   runFinanceAgentProcess,
   type FinanceAgentDependencies,
@@ -66,6 +72,7 @@ import {
   type ProcessHost,
   type RunOutcome,
 } from './financeAgent';
+import { createFileLivenessRecord, livenessIsFresh } from './liveness';
 import { conservativeTurnFacts, createTurnDispatchWorker } from './turnWorker';
 
 /** The flag that selects the readiness answer instead of the agent. */
@@ -218,10 +225,15 @@ export function financeAgentDependenciesFromHost(botId: string): FinanceAgentDep
   const env = processEnvSource();
   const sentinelPath = String(env.KILL_SENTINEL_PATH ?? '');
   const channel = createModelChannel(createUnavailableModelPort());
+  // The record `financeReadinessReport` above reads, written by this process on its own volume. The
+  // factory resolves nothing until it is used, so an incomplete environment still refuses the boot by
+  // naming every unfilled entry at once rather than failing here on one path (R27).
+  const liveness = createFileLivenessRecord(String(env[FINANCE_DATA_DIR_ENTRY] ?? '').trim(), FINANCE_LIVENESS_FILE_NAME);
 
   return {
     env,
     botId,
+    liveness,
     transportClient: {
       // Both members belong to the gated live adapter (G3/G6). They are present so the shape is
       // complete and refuse so nothing pretends a provider answered.
@@ -284,13 +296,63 @@ export function createNodeProcessHost(): ProcessHost {
   };
 }
 
-/** The readiness answer, as a command. `--store <path>` is derived from the two configured entries. */
+/**
+ * The readiness answer, as an exec check computed in process against local files (R22).
+ *
+ * ## The defect this replaced, because it is worth naming
+ *
+ * Until task 10.21 this function called `runProbe(['--store', …])` with **no probe environment**. In
+ * `service` mode `queueWorkerAlive` is then absent, `probeReadiness` correctly answers
+ * `queue_worker_not_reporting` — silence is not health — and the command therefore **always exited
+ * 1**, for every store, on every host. `ops/docker-compose.yml` gives both `caddy` and `scheduler` a
+ * `depends_on: finance-agent: condition: service_healthy`, so that one line held the whole phase-1
+ * stack at unhealthy for ever, and it carried no test, which is how it survived task 10.7 and 10.8.
+ *
+ * ## What replaced it, and why it is the same mechanism as the bus's
+ *
+ * Three of §7.3's four facts come from the store: it opens through the one connection factory, the
+ * pragmas it read back are the ones the factory requires, and the version it records is this build's
+ * last migration. The fourth is the loop, and it is where an exec check needs help — this command is
+ * a DIFFERENT PROCESS from the agent, so it can see no worker, no queue lane and no in-memory
+ * counter. What the two share is the volume, so the agent records that its loop turned and this
+ * command reads how old that record is (`./liveness.ts`, shared with the signal bus rather than
+ * duplicated for it). An absent record and a stale one both read as not ready, and shutdown removes
+ * the record so a stopped agent answers not-ready at once rather than after the window.
+ *
+ * An unconfigured environment is a not-ready ANSWER rather than a crash: the entries this reads are
+ * the ones `requireServiceEnvironment` refuses the boot over, and a probe that threw would hand the
+ * orchestrator a non-answer at the one moment it needs a verdict.
+ *
+ * `env` and `nowMs` are injectable so this is testable without a wall clock or an ambient
+ * environment; both default to the real ones, and the default `env` is the loader's ONE bridge.
+ */
+export function financeReadinessReport(
+  options: { readonly env?: EnvSource; readonly nowMs?: () => number } = {},
+): ReadinessReport {
+  const env = options.env ?? processEnvSource();
+  const nowMs = options.nowMs ?? ((): number => Date.now());
+  const dataDir = String(env[FINANCE_DATA_DIR_ENTRY] ?? '').trim();
+  const fileName = String(env[FINANCE_STORE_FILE_ENTRY] ?? '').trim();
+  if (dataDir === '' || fileName === '') return reportForRefusedInvocation('store_value_empty');
+
+  let ageMs: number | null;
+  try {
+    ageMs = createFileLivenessRecord(dataDir, FINANCE_LIVENESS_FILE_NAME, nowMs).ageMs();
+  } catch {
+    // The containment guard refused: the directory is not there, or not ours. That is a not-ready
+    // answer about this service, not an exception for the orchestrator to interpret.
+    return reportForRefusedInvocation('store_value_empty');
+  }
+
+  return probeReadiness(
+    { mode: 'service', storePath: `${dataDir}/${fileName}` },
+    { queueWorkerAlive: () => livenessIsFresh(ageMs, FINANCE_LIVENESS_MAX_AGE_MS) },
+  );
+}
+
+/** 0 ready, 1 not ready. What the orchestrator's exec check reads. */
 export function runHealthCommand(): 0 | 1 {
-  const env = processEnvSource();
-  const dataDir = String(env[FINANCE_DATA_DIR_ENTRY] ?? '');
-  const fileName = String(env[FINANCE_STORE_FILE_ENTRY] ?? '');
-  const { exitCode } = runProbe(['--store', `${dataDir}/${fileName}`]);
-  return exitCode;
+  return probeExitCode(financeReadinessReport());
 }
 
 /**

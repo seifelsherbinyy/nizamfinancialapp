@@ -386,3 +386,24 @@ emits no log line, because `redactedLogger.ts` binds a line to a spend identity 
 own append-only audit mirror is the stronger record. **No contract file was edited.** No image was built, no tag
 resolved, no registry contacted, no stack started, no port published and no outbound call made;
 `ops/GATE_REGISTER.md` was not edited and no box was ticked anywhere but `10.19`'s own line.
+
+**The finance agent's readiness command can now report ready, and the liveness rule lives in one place,
+2026-08-10 (task 10.21).** Contract 12 §7.3 requires ACTUAL readiness and forbids a success returned merely
+because a process is running; `main.ts`'s `runHealthCommand` obeyed the letter of that and failed its purpose,
+because it called `runProbe` with **no probe environment**, leaving `queueWorkerAlive` absent and therefore
+answering `queue_worker_not_reporting` on every invocation. The command **always exited 1**, it had no test, and
+`ops/docker-compose.yml` gives both `caddy` and `scheduler` a `depends_on` on this service reporting healthy - so
+one line held the whole phase-1 stack at unhealthy for ever. The fix is task 10.19's mechanism, **shared rather
+than copied**: `src/server/process/liveness.ts` now holds the record shape, the one freshness rule and the
+file-backed factory, `busServer.ts` keeps `BusHeartbeat`/`heartbeatIsFresh` as its own names over that rule, and
+the bus's tests passed unmodified. Each service supplies only its own file name and its own staleness window, and
+the rule takes the window as a required argument so nobody inherits one silently; the finance window is wider
+because this agent's iteration performs a long-poll read before it drains, which is a fact about the loop rather
+than a preference. The agent writes the record at boot, at the top of every iteration and inside every drain, and
+**clears it on shutdown**, so a stopped agent answers not-ready at once. Every ambiguity stays closed: absent,
+stale, and a record dated in the **future** all read as not ready, and an unconfigured store answers not-ready
+rather than throwing. **R9 remained asserted in both directions either side of a ready answer** - the process's
+own listener set and the injected host's bind record are both empty under `longPoll` - because readiness is a
+command and not an endpoint. **No contract file was edited, and nothing under `ops/` changed**: the topology's
+healthcheck declaration was already correct; what it resolved to was not. `ops/GATE_REGISTER.md` was not edited
+and no box was ticked anywhere but `10.21`'s own line.

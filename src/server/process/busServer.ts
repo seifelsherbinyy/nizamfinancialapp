@@ -116,6 +116,7 @@ import {
   type SignalStoreContext,
   type SignalStoreOpenConfig,
 } from '../signals';
+import { LIVENESS_TOUCH_INTERVAL_MS, livenessIsFresh, type LivenessRecord } from './liveness';
 
 // ---------------------------------------------------------------------------------------------
 // Identity, and the three entries this service declares
@@ -153,8 +154,8 @@ export const BUS_EXPECTED_SCHEMA_VERSION: number =
  */
 export const BUS_HEARTBEAT_FILE_NAME = 'bus-listener-heartbeat';
 
-/** How often the liveness loop records itself. */
-export const BUS_HEARTBEAT_INTERVAL_MS = 5_000;
+/** How often the liveness loop records itself. The shared interval; not a bus-specific one. */
+export const BUS_HEARTBEAT_INTERVAL_MS = LIVENESS_TOUCH_INTERVAL_MS;
 
 /**
  * How stale a record may be before readiness reports the listener down. Strictly greater than the
@@ -303,19 +304,22 @@ export interface BusListenerHost {
  * the process boundary, and the only thing the health command and the server share is the volume.
  * A file's age carries no value at all, which is why the record's content is empty and its age is
  * the whole of the signal (R24, §7.3's last bullet).
+ *
+ * **This is the shared {@link LivenessRecord}, under the bus's own name.** Task 10.21 needed the
+ * identical fact for the finance agent, so the rule moved to `./liveness.ts` and is imported here
+ * rather than restated: two copies of a liveness rule would be two places for the fail-closed
+ * direction to go generous. What stays the bus's own is its file name and its window, below.
  */
-export interface BusHeartbeat {
-  /** Record that the listener is alive right now. */
-  readonly touch: () => void;
-  /** Remove the record, so a stopped bus reports not-ready at once rather than after the window. */
-  readonly clear: () => void;
-  /** Milliseconds since the record was last written, or `null` when there is no record. */
-  readonly ageMs: () => number | null;
-}
+export type BusHeartbeat = LivenessRecord;
 
-/** Fresh enough to mean the listener is up. Absent reads as down: silence is not health (§7.3). */
+/**
+ * Fresh enough to mean the listener is up. Absent reads as down: silence is not health (§7.3).
+ *
+ * The RULE is {@link livenessIsFresh} and is shared; this is the bus's window applied to it, so a
+ * bus-side call site does not have to remember which window it is under.
+ */
 export function heartbeatIsFresh(ageMs: number | null, maxAgeMs: number = BUS_HEARTBEAT_MAX_AGE_MS): boolean {
-  return ageMs !== null && Number.isFinite(ageMs) && ageMs >= 0 && ageMs <= maxAgeMs;
+  return livenessIsFresh(ageMs, maxAgeMs);
 }
 
 // ---------------------------------------------------------------------------------------------

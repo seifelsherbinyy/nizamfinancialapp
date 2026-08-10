@@ -4,8 +4,9 @@
  * Owning requirements: R34 (the process, its image and its internal-only binding), R9 (bound on the
  *   internal network only, never a published port), R22 (the readiness command the compose
  *   healthcheck resolves to), R27 (a boot refusal naming every incomplete entry at once)
- * Depends on: ./busServer, ../config/environment (the ONE ambient bridge), ../db/paths (the ONE
- *   containment guard), `node:http`, `node:fs`, `node:crypto`, `node:process`. Nothing else.
+ * Depends on: ./busServer, ./liveness (the SHARED liveness record and its one freshness rule),
+ *   ../config/environment (the ONE ambient bridge), `node:http`, `node:crypto`, `node:process`.
+ *   Nothing else.
  *
  * Started by the image's entry point. Two modes, selected by the argument vector, exactly as
  * `main.ts` does for the finance agent:
@@ -55,13 +56,12 @@
  */
 import { Buffer } from 'node:buffer';
 import { randomUUID } from 'node:crypto';
-import { rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import nodeProcess from 'node:process';
 
 import { processEnvSource } from '../config/environment';
-import { resolveStorePath } from '../db/paths';
 import { probeExitCode, probeReadiness, reportForRefusedInvocation, type ReadinessReport } from '../ops/healthProbe';
+import { createFileLivenessRecord } from './liveness';
 import { NARROW_TIERS_READABLE_BY_BOTH, WIDENED_KINDS } from '../signals';
 import {
   bootBusServer,
@@ -169,20 +169,14 @@ export function createNodeHttpBusListenerHost(): BusListenerHost {
  * A negative age — the record dated in the future — reads as NOT fresh. That is the fail-closed
  * direction: a clock that moved backwards is a fact nobody can interpret, and interpreting it
  * generously would be a bus reported ready on the strength of a record it cannot date.
+ *
+ * The mechanism is {@link createFileLivenessRecord}, shared with the finance agent as of task 10.21;
+ * what this function supplies is the bus's own file NAME. It is a named function rather than a bare
+ * call so the bus tier has one spelling of "the bus's record", and so `busDependenciesFromHost` and
+ * `busReadinessReport` — two processes — cannot end up naming two different files.
  */
 export function createFileHeartbeat(dataDir: string, nowMs: () => number = () => Date.now()): BusHeartbeat {
-  const path = resolveStorePath(dataDir, BUS_HEARTBEAT_FILE_NAME);
-  return {
-    touch: () => writeFileSync(path, ''),
-    clear: () => rmSync(path, { force: true }),
-    ageMs: () => {
-      try {
-        return nowMs() - statSync(path).mtimeMs;
-      } catch {
-        return null;
-      }
-    },
-  };
+  return createFileLivenessRecord(dataDir, BUS_HEARTBEAT_FILE_NAME, nowMs);
 }
 
 // ---------------------------------------------------------------------------------------------
