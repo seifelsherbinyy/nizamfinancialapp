@@ -116,6 +116,13 @@ import {
   type SignalStoreContext,
   type SignalStoreOpenConfig,
 } from '../signals';
+import {
+  classifyInternalEndpoint,
+  INTERNAL_ENDPOINT_REFUSALS,
+  RESERVED_ENDPOINT_HOSTS,
+  type InternalEndpoint,
+  type InternalEndpointRefusal,
+} from './internalEndpoint';
 import { LIVENESS_TOUCH_INTERVAL_MS, livenessIsFresh, type LivenessRecord } from './liveness';
 
 // ---------------------------------------------------------------------------------------------
@@ -171,38 +178,26 @@ export const BUS_MAX_BODY_BYTES = 65_536;
 // The internal endpoint (R9, the process's own half)
 // ---------------------------------------------------------------------------------------------
 
-/** Why an endpoint was refused. A refusal names the RULE, never the configured value. */
-export const BUS_ENDPOINT_REFUSALS = [
-  'endpoint_empty',
-  'endpoint_carries_a_scheme',
-  'endpoint_carries_a_path',
-  'endpoint_host_absent',
-  'endpoint_host_not_an_internal_name',
-  'endpoint_host_reserved',
-  'endpoint_port_absent',
-  'endpoint_port_not_in_range',
-] as const;
-export type BusEndpointRefusal = (typeof BUS_ENDPOINT_REFUSALS)[number];
+/**
+ * Why an endpoint was refused. A refusal names the RULE, never the configured value.
+ *
+ * **The rule is shared** as of task 10.20, which needed the identical one for the scheduler's two
+ * tick endpoints: it lives in `./internalEndpoint.ts` and these are the bus's own names over it. Each
+ * refused shape is a way a service ends up reachable from the host or unreachable by the containers
+ * meant to reach it, so a second copy would eventually differ in the dangerous direction.
+ */
+export const BUS_ENDPOINT_REFUSALS = INTERNAL_ENDPOINT_REFUSALS;
+export type BusEndpointRefusal = InternalEndpointRefusal;
 
 /** `BUS_INTERNAL_ENDPOINT`, parsed. The host is how the agents address the bus; the port is bound. */
-export interface BusInternalEndpoint {
-  /** A single internal name — the service name the container network resolves. Never an address. */
-  readonly host: string;
-  readonly port: number;
-}
-
-/** One internal name: a DNS label. An address literal has dots, so it is not one of these. */
-const INTERNAL_NAME = /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/;
+export type BusInternalEndpoint = InternalEndpoint;
 
 /**
  * Names that resolve to the container itself. Refused, because the two agents are the bus's only
  * clients and each of them dialling one of these would reach ITSELF — a bus nobody can talk to,
  * reported healthy, which is the failure this whole file exists to make impossible.
  */
-export const BUS_RESERVED_ENDPOINT_HOSTS: readonly string[] = ['localhost'];
-
-/** Highest port number. Not a deployment particular: the protocol's own bound. */
-const MAX_PORT = 65_535;
+export const BUS_RESERVED_ENDPOINT_HOSTS: readonly string[] = RESERVED_ENDPOINT_HOSTS;
 
 /**
  * Parse `BUS_INTERNAL_ENDPOINT` into an internal name and a port, or refuse it.
@@ -224,33 +219,16 @@ const MAX_PORT = 65_535;
  * only alternative would be listening somewhere nobody said.
  */
 export function parseInternalEndpoint(raw: string): BusInternalEndpoint {
-  const value = raw.trim();
-  const refuse = (refusal: BusEndpointRefusal): never => {
+  const outcome = classifyInternalEndpoint(raw);
+  if (!outcome.ok) {
     throw new BusProcessError(
       'BUS_ENDPOINT_UNUSABLE',
-      `NIZAM signal bus: ${BUS_INTERNAL_ENDPOINT_ENTRY} is not an internal endpoint this process can bind [${refusal}]. The accepted shape is an internal service name and a port; a scheme, a path, an address literal, a wildcard, a reserved name and an out-of-range port are each refused rather than coerced, because each is a way the bus ends up reachable where R9 forbids it or unreachable by its only two clients.`,
+      `NIZAM signal bus: ${BUS_INTERNAL_ENDPOINT_ENTRY} is not an internal endpoint this process can bind [${outcome.refusal}]. The accepted shape is an internal service name and a port; a scheme, a path, an address literal, a wildcard, a reserved name and an out-of-range port are each refused rather than coerced, because each is a way the bus ends up reachable where R9 forbids it or unreachable by its only two clients.`,
       BUS_INTERNAL_ENDPOINT_ENTRY,
-      refusal,
+      outcome.refusal,
     );
-  };
-
-  if (value.length === 0) refuse('endpoint_empty');
-  if (value.includes('://')) refuse('endpoint_carries_a_scheme');
-  if (value.includes('/')) refuse('endpoint_carries_a_path');
-
-  const separator = value.lastIndexOf(':');
-  if (separator < 0) refuse('endpoint_port_absent');
-  const host = value.slice(0, separator);
-  const port = value.slice(separator + 1);
-
-  if (host.length === 0) refuse('endpoint_host_absent');
-  if (!INTERNAL_NAME.test(host)) refuse('endpoint_host_not_an_internal_name');
-  if (BUS_RESERVED_ENDPOINT_HOSTS.includes(host.toLowerCase())) refuse('endpoint_host_reserved');
-  if (!/^[0-9]+$/.test(port)) refuse('endpoint_port_absent');
-
-  const parsed = Number.parseInt(port, 10);
-  if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > MAX_PORT) refuse('endpoint_port_not_in_range');
-  return { host, port: parsed };
+  }
+  return outcome.endpoint;
 }
 
 // ---------------------------------------------------------------------------------------------

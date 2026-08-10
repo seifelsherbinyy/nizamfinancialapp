@@ -407,3 +407,28 @@ own listener set and the injected host's bind record are both empty under `longP
 command and not an endpoint. **No contract file was edited, and nothing under `ops/` changed**: the topology's
 healthcheck declaration was already correct; what it resolved to was not. `ops/GATE_REGISTER.md` was not edited
 and no box was ticked anywhere but `10.21`'s own line.
+
+**The scheduler has a process and an image, O2 is fully closed, and R34 is met for both services it named,
+2026-08-10 (task 10.20).** Contract 12 §2.1 gives the topology six services and tick delivery belongs to this
+repository; no process performed it, which is finding **O2**'s other half and why `ops/IMAGE_BUILD.md` carried
+`<SCHEDULER_IMAGE_REF>` in the third state R28 did not anticipate. `src/server/process/scheduler.ts` is that
+process: one boot refusal naming every incomplete entry at once (**R27**), the halt gate **reused whole** in both
+forms with the sentinel re-read per tick and an unexaminable switch treated as engaged (**R29**), both tick
+endpoints parsed by the bus's own rule - which moved to `internalEndpoint.ts` and is now shared, with all eight
+declared refusals exercised and each shown stopping the boot - and a bounded doubling backoff so a failed tick is
+abandoned for that tick only rather than becoming a crash loop. **R9 is asserted in both directions**: an
+always-empty `listeningPorts` with no writer, an injected host whose bind record stays empty, and a real host whose
+`listen` half **refuses**. **The one place the bus's shape did not transfer is readiness**, because this service
+mounts no store: §3.2.2 permits it a read-only cross-store view and it declines, so three of §7.3's four facts are
+meaningless for it rather than unavailable. `healthProbe.ts` therefore gained a third **mode** - `storeless`, in
+which the three store checks are `not_applicable` and the loop check stays applicable, with **no command-line
+route to it** so a service that has a store cannot skip its own checks - and the liveness record lives in the
+platform's temporary directory, which works because an exec healthcheck runs in the service's own container. Its
+staleness window is derived from the configured cadence rather than fixed, since the period is the operator's
+choice. `ops/images/scheduler/Dockerfile` packages it and the record row moved to **`BUILT_HERE`** with a build
+invocation naming recipe and reference on one statement; `<BACKUP_IMAGE_REF>` is now the only row still pending,
+blocked on a missing uploader rather than a missing process. `SCHEDULER_TICK_INTERVAL` is read in **whole
+seconds**, a decision recorded because no artifact declared the unit, and stated on the entry's own line in
+`ops/env/scheduler.env.example`. **No contract file was edited.** No image was built, no tag resolved, no registry
+contacted, no stack started, no port published, no tick delivered and no outbound call made;
+`ops/GATE_REGISTER.md` was not edited and no box was ticked anywhere but `10.20`'s own line.

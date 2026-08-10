@@ -108,7 +108,10 @@ interface NegativeCase {
 /** The recipe row this repository owns, used as the anchor for the row-shape cases. */
 const OWNED_ROW = '| `<FINANCE_IMAGE_REF>` | `BUILT_HERE` | `ops/images/finance-agent/Dockerfile` | - |';
 const EXTERNAL_ROW = '| `<LIFE_IMAGE_REF>` | `EXTERNAL` | - | - |';
-const PENDING_ROW = '| `<SCHEDULER_IMAGE_REF>` | `OWNED_BUILD_PENDING` | - | finding `O2` |';
+// The scheduler row held this anchor until task 10.20 moved it to `BUILT_HERE`. The backup image is
+// the one reference still in the third state, and its blocker is a missing uploader rather than a
+// missing process, so it is where the pending-row cases anchor now.
+const PENDING_ROW = '| `<BACKUP_IMAGE_REF>` | `OWNED_BUILD_PENDING` | - | `task 10.9` |';
 
 function withRecord(apply: (t: string) => string): (input: ImageOwnershipInput) => ImageOwnershipInput {
   return (input) => ({ ...input, record: apply(input.record ?? '') });
@@ -187,7 +190,7 @@ const NEGATIVE_CASES: readonly NegativeCase[] = [
   {
     code: 'ROW_NAMES_NO_BLOCKER',
     why: 'a pending build with no owner is a hope, and this state is only stronger than silence while it carries one',
-    apply: withRecord(swap('| `OWNED_BUILD_PENDING` | - | finding `O2` |', '| `OWNED_BUILD_PENDING` | - | - |')),
+    apply: withRecord(swap('| `OWNED_BUILD_PENDING` | - | `task 10.9` |', '| `OWNED_BUILD_PENDING` | - | - |')),
   },
   {
     code: 'ROW_NAMES_BLOCKER_IT_MAY_NOT',
@@ -273,16 +276,18 @@ describe('the ownership record accounts for every image the topology names (R28,
     // modifying; the proxy is an upstream release; and the remaining two are owned here in library
     // form with no process to package, which is the state R28 did not anticipate.
     //
-    // The bus moved from that third state to `BUILT_HERE` in task 10.19, which is what closing
-    // finding O2 for one service looks like from the record's side: the row named its blocker, the
-    // blocker was the missing process, and writing the process moved exactly one row.
+    // The bus moved from that third state to `BUILT_HERE` in task 10.19 and the scheduler in task
+    // 10.20, which is what closing finding O2 looks like from the record's side: each row named its
+    // blocker, the blocker was the missing process, and writing the process moved exactly one row.
+    // The backup image is the one that remains, and its blocker is a missing uploader rather than a
+    // missing process, which is why writing two processes did not move it.
     const rows = parseOwnershipRecord(RECORD);
     const byState = new Map<string, string[]>();
     for (const row of rows) byState.set(row.state, [...(byState.get(row.state) ?? []), row.reference]);
 
-    expect(byState.get('BUILT_HERE')).toEqual(['<FINANCE_IMAGE_REF>', '<BUS_IMAGE_REF>']);
+    expect(byState.get('BUILT_HERE')).toEqual(['<FINANCE_IMAGE_REF>', '<BUS_IMAGE_REF>', '<SCHEDULER_IMAGE_REF>']);
     expect(byState.get('EXTERNAL')).toEqual(['<LIFE_IMAGE_REF>', '<PROXY_IMAGE_REF>']);
-    expect(byState.get('OWNED_BUILD_PENDING')).toEqual(['<SCHEDULER_IMAGE_REF>', '<BACKUP_IMAGE_REF>']);
+    expect(byState.get('OWNED_BUILD_PENDING')).toEqual(['<BACKUP_IMAGE_REF>']);
     for (const row of rows) expect(row.reference).toMatch(IMAGE_REFERENCE_SHAPE);
     for (const row of rows) expect(OWNERSHIP_STATES).toContain(row.state as (typeof OWNERSHIP_STATES)[number]);
   });

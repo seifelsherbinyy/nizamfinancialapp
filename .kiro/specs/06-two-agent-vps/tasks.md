@@ -351,12 +351,59 @@
       unchanged; the bus does not repeat the defect. Also recorded: the bus authenticates nothing by design
       (§2.2.6), its busy timeout is a constant rather than a fourth entry, and it emits no log line because
       `redactedLogger` binds a line to a spend identity it does not have. 49 tests; floor 1982 -> 2031.
-- [ ] 10.20 **The scheduler process and its image** (finding **O2**, and **R34**). Same shape and the
+- [x] 10.20 **The scheduler process and its image** (finding **O2**, and **R34**). Same shape and the
       same reason: `<SCHEDULER_IMAGE_REF>` is `OWNED_BUILD_PENDING` because tick delivery is owned
       here and no process performs it. It mounts no store and holds no credential, so it is the
       smallest of the six. It must honour the kill sentinel in both forms (**R29**), dial
       `LIFE_TICK_ENDPOINT` and `FINANCE_TICK_ENDPOINT` on the internal network only, and bind no
       public port. Then a Dockerfile, and move its record row to `BUILT_HERE`.
+      `src/server/process/scheduler.ts` is the process, in 10.19's shape: `requireServiceEnvironment`
+      over `SERVICE_ENTRY_NAMES.scheduler` is the ONE boot refusal and names every finding at once
+      (**R27**); the halt gate is **reused whole** (**R29**) with the sentinel re-read **per tick** and
+      `NIZAM_KILL_ALL` read once at boot, an unrecognised coarse value and an **unexaminable** switch
+      both treated as engaged; and both tick endpoints go through the bus's rule, which moved to
+      `internalEndpoint.ts` and is now **shared** - all eight declared refusals exercised, each shown
+      stopping the boot with nothing dialled. **The halt is consulted, not asserted:** an agent calls
+      `assertPermitted` because it has a caller to refuse, and this service has none, so it reads
+      `engagedForm()` and delivers nothing - `HALTED_ACTIVITIES` stayed exactly as R29 wrote it rather
+      than growing a fourth entry with no caller to inform. **R9 asserted in both directions:**
+      `listeningPorts` is a `const` with no writer, the injected host's bind record is empty after a
+      tick, a readiness answer and a shutdown, and the real host's `listen` half **refuses** so an edit
+      that added an accept surface fails loudly instead of publishing a port. A failed tick retries
+      with a bounded doubling backoff and is then **abandoned for that tick only**; one unreachable
+      agent does not cost the other its tick, a client that raises does not propagate, and the wrapper
+      still exits 0 after a tick in which nothing was delivered - `restart: unless-stopped` means a
+      process that exited on a failed dial would be restarted into the same failure.
+      **The one place the bus's shape did not transfer, as the header says: readiness.** This service
+      mounts no store, so three of §7.3's four facts are meaningless for it rather than merely
+      unavailable. Two things were added and neither is a weakening. (1) `healthProbe.ts` gained a
+      third **mode**, `storeless`, in which the three store checks are `not_applicable` and
+      `queue_worker_alive` stays **applicable** - so a scheduler is ready only when its own loop
+      reports itself, which is the one check it cannot decline. A third mode rather than a second probe
+      module because a hand-built report claiming `store_opens: pass` for a service with no store would
+      be a lie in the artifact the orchestrator acts on. **There is no command-line flag for it**, and
+      a test shows every argv route refused, so a service that HAS a store cannot buy the leniency.
+      (2) The liveness record has nowhere on a volume to live, so it lives in the platform's temporary
+      directory - an exec healthcheck runs in the service's **own container**, which is why the bus's
+      record crosses a process boundary at all. Consequences, both correct: it does not survive a
+      restart, so a restarted container reports not-ready until its new loop records itself; and no
+      path here names it, so it is not a deployment particular. The staleness window is **derived from
+      the configured cadence** (three periods, with a floor) rather than fixed, because the period is
+      the operator's choice and a fixed window would fail a slow cadence or tolerate a wedged fast one.
+      A halted scheduler still records liveness and still reads **ready**, because it is running and
+      correctly delivering nothing - reporting it unhealthy would have the orchestrator restart a
+      service doing exactly what the operator asked. `ops/images/scheduler/Dockerfile` packages it with
+      the same properties the audit holds the other two owned recipes to, and it is the smallest of the
+      six: no store directory, no volume, no credential, no `EXPOSE`, no `HEALTHCHECK`, no `ENV`.
+      `<SCHEDULER_IMAGE_REF>` moved to **`BUILT_HERE`** with its recipe path, no blocker, and a build
+      invocation naming recipe and tag on one statement; `<BACKUP_IMAGE_REF>` is now the only
+      `OWNED_BUILD_PENDING` row, and its blocker is a missing uploader rather than a missing process.
+      **One unit decision recorded rather than guessed:** no artifact declared
+      `SCHEDULER_TICK_INTERVAL`'s unit, so it is read as **whole seconds** - the convention here is that
+      an entry ending `_MS` is milliseconds, and reading a sensible cadence as milliseconds would be a
+      tick storm against both agents. `ops/env/scheduler.env.example` now states the unit on the
+      entry's own `what:` line, and its header's stale "four entries" was corrected to five.
+      28 tests; floor 2058 -> 2086.
 - [x] 10.21 **The finance-agent readiness command can never report ready** (found by task 10.19, and
       **R22**). `main.ts`'s `runHealthCommand` calls `runProbe(['--store', ...])` with **no probe
       environment**, so `queueWorkerAlive` is absent and `probeReadiness` correctly answers

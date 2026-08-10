@@ -97,7 +97,25 @@ export const PROBE_THROWAWAY_FLAG = '--throwaway';
 
 export const PROBE_FLAGS: readonly string[] = [PROBE_STORE_FLAG, PROBE_THROWAWAY_FLAG];
 
-export const PROBE_MODES = ['service', 'throwaway'] as const;
+/**
+ * The three modes a readiness answer can be computed in.
+ *
+ * `storeless` was added by task 10.20 for the ONE service in the topology that mounts no store: the
+ * scheduler. Contract 12 §3.2.2 permits it a read-only cross-store view and it takes none, because a
+ * tick is a signal to the agent that owns a store rather than a query against one — so three of
+ * §7.3's four facts are not merely unavailable to it, they are meaningless for it.
+ *
+ * It is a third MODE rather than a second probe module because the alternative was worse in both
+ * available directions: a hand-built report claiming `store_opens: pass` for a service with no store
+ * would be a lie in the one artifact the orchestrator acts on, and a parallel readiness vocabulary
+ * would give the deployment two `isReady` rules and two exit-code mappings to keep in agreement.
+ *
+ * **It cannot be selected from a command line.** {@link parseProbeInvocation} produces only `service`
+ * and `throwaway` — there is no flag for this mode and no parse path to it — so a service that HAS a
+ * store cannot skip its store checks by asking for leniency in an invocation. Only a module that
+ * constructs the invocation directly can choose it, and exactly one does.
+ */
+export const PROBE_MODES = ['service', 'throwaway', 'storeless'] as const;
 export type ProbeMode = (typeof PROBE_MODES)[number];
 
 /** Why an invocation was refused. A refusal names the FLAG, never the value behind it. */
@@ -111,14 +129,27 @@ export const PROBE_INVOCATION_REFUSALS = [
 ] as const;
 export type ProbeInvocationRefusal = (typeof PROBE_INVOCATION_REFUSALS)[number];
 
-export interface ProbeInvocation {
-  readonly mode: ProbeMode;
-  /** The store path exactly as given. Held here and never placed on a report. */
-  readonly storePath: string;
-}
+/**
+ * What to probe.
+ *
+ * A union rather than one shape with an optional path, so a `storeless` probe has **no field a store
+ * path could occupy** and a store-backed probe cannot omit one. The alternative — an optional
+ * `storePath` — would make "which store" a thing a caller could forget rather than a thing the type
+ * demands, on the one module whose whole purpose is to inspect the right store.
+ */
+export type ProbeInvocation =
+  | {
+      readonly mode: 'service' | 'throwaway';
+      /** The store path exactly as given. Held here and never placed on a report. */
+      readonly storePath: string;
+    }
+  | { readonly mode: 'storeless' };
+
+/** The variants that name a store. The parser produces only these, which is a type-level claim. */
+export type StoreBackedProbeInvocation = Extract<ProbeInvocation, { readonly storePath: string }>;
 
 export type ProbeInvocationOutcome =
-  | { readonly parsed: true; readonly invocation: ProbeInvocation }
+  | { readonly parsed: true; readonly invocation: StoreBackedProbeInvocation }
   | { readonly parsed: false; readonly refusal: ProbeInvocationRefusal; readonly at: string };
 
 /**
@@ -128,6 +159,10 @@ export type ProbeInvocationOutcome =
  * `--store`, and a `--store` whose value is absent or blank are all refusals. None of them is
  * absorbed into a default, because the only default available would be "some other store", and
  * inspecting the wrong store is the failure mode this whole module exists to prevent.
+ *
+ * It produces only `service` and `throwaway`. There is deliberately **no flag for `storeless`**: a
+ * service that has a store must not be able to ask, from a command line, to have its store checks
+ * treated as inapplicable.
  */
 export function parseProbeInvocation(argv: readonly string[]): ProbeInvocationOutcome {
   let storePath: string | null = null;
@@ -234,6 +269,10 @@ export const EXPECTED_SCHEMA_VERSION: number = MIGRATIONS[MIGRATIONS.length - 1]
 const INAPPLICABLE_BY_MODE: Readonly<Record<ProbeMode, readonly ReadinessCheck[]>> = {
   service: [],
   throwaway: ['queue_worker_alive'],
+  // The scheduler mounts no store, so the three store facts are meaningless for it rather than
+  // merely unavailable — and `queue_worker_alive` stays APPLICABLE, so a storeless service is ready
+  // only when its own loop reports itself. That is deliberately the one check it cannot decline.
+  storeless: ['store_opens', 'pragmas_in_force', 'schema_version_expected'],
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -360,6 +399,20 @@ export function probeReadiness(invocation: ProbeInvocation, environment: ProbeEn
 
   let schemaVersion: number | null = null;
   let handle: StoreHandle | null = null;
+
+  // A storeless service has nothing to open, so there is no store path here to get wrong. Its one
+  // applicable fact is whether its own loop reports itself, and silence is still a failure.
+  if (invocation.mode === 'storeless') {
+    let alive = false;
+    try {
+      alive = environment.queueWorkerAlive?.() === true;
+    } catch {
+      alive = false;
+    }
+    if (alive) record('queue_worker_alive', 'pass', null);
+    else record('queue_worker_alive', 'fail', 'queue_worker_not_reporting');
+    return finish(found, invocation.mode, null);
+  }
 
   try {
     // The path is split rather than resolved here: `resolveStorePath` inside the factory is the one

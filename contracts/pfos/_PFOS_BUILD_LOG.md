@@ -4981,3 +4981,136 @@ scheduler has no process or image (`<SCHEDULER_IMAGE_REF>` = `OWNED_BUILD_PENDIN
 half), three of the six image references are external and unbuilt, and no artifact yet states whether phase 1
 is a bare `docker compose up` or an explicit service selection. Recorded here rather than fixed, because each
 belongs to a task or a gate that owns it.
+
+---
+
+## Task 10.20 - the scheduler process and its image, and the one place readiness has no store to stand on (2026-08-10)
+
+**Spec:** `.kiro/specs/06-two-agent-vps/` task 10.20. **Contract:** PFOS 12 §2.1 (six services), §3.2.2 (the
+scheduler is permitted a read-only cross-store view and takes NONE), §7.3 (readiness), §8.2 (it is one of the four
+services that honour the halt). **Owning requirements:** R34, R29, R9, R27, R22, R28, R24. **Closes:** the other
+half of finding **O2**.
+
+### Work
+
+`src/server/process/scheduler.ts` is the process tick delivery never had, in the shape task 10.19 established and
+task 10.7 before it. It is deliberately the smallest of the three, because of what it does not hold: no store, no
+volume, no bot token, no model key, no storage credential, no weekly cap and no bus endpoint.
+
+- **It refuses to boot on an incomplete environment (R27).** `requireServiceEnvironment` over
+  `SERVICE_ENTRY_NAMES.scheduler` is the ONE refusal, called first and wrapped in nothing, and it names every
+  finding in a single message - asserted with three simultaneously broken entries, and again with an entry still
+  holding its own placeholder. A booted-but-unconfigured clock would deliver ticks nowhere while reporting itself
+  healthy, and both agents would go un-ticked with nothing anywhere saying so.
+- **It honours the halt in both forms (R29), and the gate is REUSED rather than re-read.** The file sentinel is
+  consulted **per tick**, because a halt that needs a restart is not a halt; `NIZAM_KILL_ALL` is read once at
+  boot, because that is the only moment its value can have changed. An unrecognised coarse value is treated as
+  engaged, a blank one is refused a layer earlier by the completeness pass, and a sentinel that **cannot be
+  examined** is treated as present - all three already true of `haltGate.ts` and none restated here. Flipping the
+  sentinel between two ticks changes behaviour with no restart, in both directions, which is the only way "per
+  tick" is observable rather than asserted.
+- **The halt is consulted, not asserted, and `HALTED_ACTIVITIES` did not grow.** An agent calls
+  `assertPermitted`, which raises, because an agent has a caller to refuse. This service has none: a halted tick
+  is not a refused request, it is a tick that does not happen. So it reads `engagedForm()` and delivers nothing,
+  and R29's list of three activities stayed verbatim rather than acquiring a fourth entry with no caller to inform.
+- **Both tick endpoints go through the bus's rule, which is now SHARED.** `internalEndpoint.ts` holds the
+  classification once - `<name>:<port>` and nothing else, with a scheme, a path, an address literal, a wildcard, a
+  reserved name and an out-of-range port each refused rather than coerced - and `busServer.ts` keeps
+  `BUS_ENDPOINT_REFUSALS`, `BusInternalEndpoint`, `BUS_RESERVED_ENDPOINT_HOSTS` and `parseInternalEndpoint` as its
+  own names over it. All eight declared refusals are exercised against a tick endpoint, each shown stopping the
+  boot with **nothing dialled**, and each refusal message is asserted **not** to contain the value that offended
+  it (R24). The bus's own suite passed unmodified, which is what makes "shared, not rewritten" mechanical.
+- **It binds no public port, asserted in both directions (R9, delta D6).** `listeningPorts` is a `const` with no
+  writer anywhere in the module; the injected host's bind record is empty after a tick, a readiness answer and a
+  shutdown; and the real host's `listen` half **refuses**, so an edit that tried to give this service an accept
+  surface fails loudly instead of publishing a port. The topology gives it no `ports:` key either.
+- **A failed tick does not kill the clock.** Each target is delivered independently with a bounded doubling
+  backoff and is then abandoned **for that tick only**. One unreachable agent does not cost the other its tick, a
+  client that raises does not propagate, and the process wrapper still exits 0 after a tick in which nothing was
+  delivered. `restart: unless-stopped` means a process that exited on a failed dial would be restarted into the
+  same failure - a crash loop that also loses the other agent's ticks.
+
+### The one place the bus's shape does not transfer: readiness without a store
+
+The bus's readiness answer rests on three store facts plus a liveness record beside the store. This service mounts
+**no store at all** - §3.2.2 permits it a read-only cross-store view and it declines, because a tick is a signal
+to the agent that owns a store rather than a query against one - so `ops/docker-compose.yml` gives it no store
+volume and the three store facts are not merely unavailable to it, they are **meaningless** for it. Two things
+were needed and neither is a weakening:
+
+1. **A third probe mode.** `healthProbe.ts` now declares `storeless`, in which the three store checks are
+   `not_applicable` and `queue_worker_alive` stays **applicable** - so this service is ready only when its own
+   loop reports itself, which is the one check it cannot decline. A third mode rather than a second probe module
+   because both alternatives were worse: a hand-built report claiming `store_opens: pass` for a service with no
+   store would be a lie in the one artifact the orchestrator acts on, and a parallel readiness vocabulary would
+   give the deployment two `isReady` rules and two exit-code mappings to keep in agreement. **There is no
+   command-line flag for the mode**, and `ProbeInvocation` became a union so a storeless probe has no field a
+   store path could occupy while a store-backed one cannot omit it - the parser's return type narrows to the
+   store-backed variants, which makes "no argv route to leniency" a type-level claim as well as a tested one.
+2. **Somewhere for the liveness record.** There is no volume, so it lives in the platform's temporary directory,
+   read from `node:os` in `schedulerMain.ts` rather than written as a path anywhere. That works for the same
+   reason the bus's does: an exec healthcheck runs inside the service's **own container**, so the container is
+   what the two processes share. Two consequences, both correct rather than tolerated - the record does not
+   survive a container restart, so a restarted container reports not-ready until its new loop has recorded itself,
+   which is what should happen because the old loop's evidence says nothing about the new one; and no path in this
+   repository names it, so nothing about it is a deployment particular (R24).
+
+The staleness window is **derived from the configured cadence** - three periods, with a floor - rather than fixed,
+because the loop's period is the operator's choice and a fixed window would either fail a correctly configured
+slow cadence or tolerate a wedged fast one. A **halted** scheduler still records liveness and still reads ready,
+because it is running and correctly delivering nothing: reporting it unhealthy would have the orchestrator restart
+a service that is doing exactly what the operator asked.
+
+### The image, and the record
+
+`ops/images/scheduler/Dockerfile` packages it with the four properties the audit already holds the other two owned
+recipes to: base pinned to the `.nvmrc` major in both stages, an unprivileged final `USER`, no `ENV`/`ARG` value
+of any kind, and the healthcheck command installed inside it (`nizam-scheduler-health` with no arguments, plus
+`nizam-health-probe` so one spelling of the restore drill's command is installed everywhere). It is the smallest
+of the six and says why for each absence: no store directory and no `install -d`, because there is neither a
+volume nor a store; no `EXPOSE`, because this service is a client with no accept surface; no `HEALTHCHECK`,
+because the topology declares one per service with its own interval and retries.
+
+`ops/IMAGE_BUILD.md`'s row moved from `OWNED_BUILD_PENDING` to **`BUILT_HERE`** with its recipe path, no blocker,
+and a build invocation naming the recipe and the reference on one statement - which is the property, one value
+resolved once. `<BACKUP_IMAGE_REF>` is now the only row in the third state, and its blocker is a missing uploader
+rather than a missing process, which is why writing two processes did not move it. `imageOwnership.ts` needed no
+change; its test's state groupings and two negative-test anchors moved, which is that audit working as intended.
+
+### One unit decision, recorded rather than guessed
+
+No artifact declared `SCHEDULER_TICK_INTERVAL`'s unit: the fill-in sheet says "your choice of tick cadence" and
+the value ledger says "operator choice of cadence". It is read as **whole seconds**. The convention this
+repository already follows is that an entry whose name ends `_MS` is milliseconds - `STORE_BUSY_TIMEOUT_MS`, every
+`*_TIMEOUT_MS` - so an entry that does not say so is not, and reading a sensible-looking value as milliseconds
+would silently turn a cadence into a tick storm against both agents. `ops/env/scheduler.env.example` now states
+the unit on the entry's own `what:` line so the operator is told rather than left to match a comment in code, and
+its header's stale claim that "this file is four entries long" was corrected to five.
+
+### Gate result
+
+- `npm run typecheck`, `npm run lint`, `npm run test` green throughout.
+- `npm run verify:all -- --all` - **20 of 20 executed checks passed**, run after the commit because AC14 and AC15
+  require a clean tree.
+- **28 tests added; the AC04 `--min` floor raised 2058 -> 2086.** Up only, and nothing lowered, allowlisted,
+  skipped or exempted.
+- AC18's declared dotted-token list gained three file names (`scheduler.ts`, `schedulerMain.ts`,
+  `schedulerStart.ts`). No host, address, port literal, identifier, token or figure was added anywhere; the two
+  endpoint values in the test file are synthetic service names.
+- **`ops/GATE_REGISTER.md` was NOT edited.** No gate renumbered, removed, softened or reopened, and **no checkbox
+  ticked** anywhere except `10.20`'s own line in `tasks.md`.
+- **Nothing was run that steering §2 gates.** No image built, no tag resolved, no registry contacted, no stack
+  started, no port published, no tick delivered, no outbound network call, and the other repository was not
+  touched. The dialling adapter is written and exercised only through an injected recorder that reaches nothing.
+
+### What still stops `docker compose up`
+
+Recorded here because it is the question this pair of tasks was aimed at, and it is now shorter than it was.
+Three of the six image references remain unbuildable from this repository - `<LIFE_IMAGE_REF>` is the other
+repository's, `<PROXY_IMAGE_REF>` is an upstream release, and `<BACKUP_IMAGE_REF>` waits on the uploader that
+gate G4/G5 work implies (task 10.9) - and every gate G1 through G8 except the closed G7 is still open, so no
+value exists to resolve any reference to. Beyond that, **no artifact yet states whether phase 1 is a bare
+`docker compose up` or an explicit service selection**, which task 10.19 flagged and this task did not close:
+under option (b) the life agent is idle, and the topology gives `scheduler` a `depends_on` on
+`life-agent: service_healthy`, so a bare `up` would wait on a service phase 1 does not intend to run. That is a
+topology question with an owner, not a defect in either process written here.
