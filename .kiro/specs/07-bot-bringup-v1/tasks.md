@@ -14,9 +14,9 @@
 - [ ] 0.1 Commit the untracked ladder directory so the harness is green again. It currently fails two
       named checks, both from one uncommitted entry, and the build loop's own stop rule forbids
       stopping on a red harness. Confirm with a full run, not a single check.
-- [ ] 0.2 Record **F18** on the register as an open finding with its measured blast radius (606
+- [ ] 0.2 Record **F20** on the register as an open finding with its measured blast radius (606
       extensionless relative specifiers across 142 files under `src/server`) and the v1.0 decision
-      **D-F18-SCOPE**: bypassed by a resolve hook for a non-container deployment, not fixed. Name the
+      **D-F20-SCOPE**: bypassed by a resolve hook for a non-container deployment, not fixed. Name the
       three images that cannot start until it is fixed properly.
 - [ ] 0.3 Correct the two stale claims in the spec 06 final report rather than leaving them to be
       re-read as current: the harness figure and the "every increment pushed" line. Keep them as
@@ -24,7 +24,7 @@
 
 ## Wave 1 - the owner's rulings
 
-- [ ] 1.1 Put **D-LIFE-RUNTIME**, **D-F18-SCOPE** and **D-BENCH** to the owner as three questions with
+- [ ] 1.1 Put **D-LIFE-RUNTIME**, **D-F20-SCOPE** and **D-BENCH** to the owner as three questions with
       a recommendation each, in one pass. Proceed on the recommendation while waiting. Record each
       ruling with its date where the other decisions are recorded.
 - [ ] 1.2 If D-LIFE-RUNTIME resolves to option A, amend the steering file that assigns the life agent
@@ -33,12 +33,15 @@
 
 ## Wave 2 - agent identity
 
-- [ ] 2.1 Parameterise the assembly by agent identity (**S7**). Resolve the per-agent entry names
+- [ ] 2.1 Parameterise the assembly by agent identity (**S7**). Groundwork for v1.1, and it does not
+      serve the second bot: phase 1 runs one agent (D-LIFE-RUNTIME). It is done now because doing it
+      later means unpicking a hard-coded identity out of a running system. Resolve the per-agent entry names
       through the existing helper rather than a second mapping, so the two cannot drift. Refuse an
       identity outside the enumerated set instead of defaulting it, and negative-test that refusal.
-- [ ] 2.2 Prove isolation for the pair, not just for one: two processes started together must each
-      open only their own store, hold only their own key, and consume only their own periodic
-      allowance. Assert a process **cannot** open the other's store, in both directions.
+- [ ] 2.2 Prove isolation as a property, not as a deployment: a process started under either identity
+      resolves only that identity's entries, opens only that identity's store, and consumes only that
+      identity's allowance. Assert a process **cannot** open the other's store, in both directions.
+      This is asserted in test, since only one identity is served in phase 1.
 
 ## Wave 3 - the network seams
 
@@ -92,7 +95,7 @@
       two model keys into the per-agent configuration files at mode-restricted, root-owned paths.
       Verify by count, never by printing a value.
 - [ ] 6.3 Author the service-manager units, one per agent identity, running under the resolve hook per
-      D-F18-SCOPE. No published port. Restart on failure. Environment loaded from the per-agent file
+      D-F20-SCOPE. No published port. Restart on failure. Environment loaded from the per-agent file
       only. Include the halt-all entry so a halt survives a restart.
 - [ ] 6.4 Install and start both agents on the host. Observe **V1**, **V2**, **V4** and **V7** there,
       not on the developer machine. A rung observed only locally is recorded as observed locally.
@@ -101,12 +104,12 @@
 
 - [ ] 7.1 Optional and cheap: start the webapp mode on loopback and reach it over the administrative
       tunnel. Confirm it publishes no host port and that the bind cannot be widened by configuration.
-- [ ] 7.2 Write `LIVE_PROGRESS.md` for this spec: one row per condition V1 to V8, per ladder rung, per
+- [ ] 7.2 Write `LIVE_PROGRESS.md` for this spec: one row per condition V1 to V8 including V1b, per ladder rung, per
       seam S1 to S7, and per gate this spec needs. `State` is exactly one of `OBSERVED`,
       `BLOCKED - awaiting human`, `BLOCKED - awaiting build`, `NOT STARTED`. Evidence is mandatory for
       `OBSERVED`: a row with no evidence is `NOT STARTED` no matter how finished the code looks.
       Close with three lines: what is live, the single next blocking action and whose it is, and the
-      count of section 1's eight conditions observed, as a count out of eight.
+      count of section 1's nine conditions observed, as a count out of nine.
 - [ ] 7.3 Ratchet the test floor to the count this spec's tests actually produce. Up only.
 - [ ] 7.4 Full harness run, green, tree committed. Do not stop on a red harness and do not stop with an
       unwritten progress record.
