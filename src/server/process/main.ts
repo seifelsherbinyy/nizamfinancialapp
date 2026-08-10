@@ -58,10 +58,17 @@ import { processEnvSource, type EnvSource } from '../config/environment.ts';
 import { probeExitCode, probeReadiness, reportForRefusedInvocation, type ReadinessReport } from '../ops/healthProbe.ts';
 import { createModelChannel } from '../routing/turnDispatch.ts';
 import { TELEGRAM_SECRET_TOKEN_HEADER } from '../telegram/auth.ts';
+import {
+  createProviderTransportClient,
+  gatedProviderRequest,
+  readUpdateKeyFields,
+} from '../telegram/providerRequest.ts';
+import { createRedactedLogger } from '../ops/redactedLogger.ts';
 import type { TelegramAcceptDecision, TelegramDelivery } from '../ports/telegram.ts';
 import type { ModelRequest, ModelResult, OpenRouterPort } from '../ports/openrouter.ts';
 import {
   bootFinanceAgent,
+  FINANCE_AGENT,
   FINANCE_DATA_DIR_ENTRY,
   FINANCE_LIVENESS_FILE_NAME,
   FINANCE_LIVENESS_MAX_AGE_MS,
@@ -137,13 +144,14 @@ export function readDeliveryIdentifiers(rawBody: string): { readonly updateId: n
   } catch {
     return null;
   }
-  if (typeof parsed !== 'object' || parsed === null) return null;
-  const body = parsed as { update_id?: unknown; message?: { from?: { id?: unknown } } };
-  const updateId = body.update_id;
-  if (!Number.isSafeInteger(updateId)) return null;
-  const senderId = body.message?.from?.id;
-  if (typeof senderId !== 'number' && typeof senderId !== 'string') return null;
-  return { updateId: updateId as number, senderId: String(senderId) };
+  // ONE implementation of which fields are the dedup key and which the allowlist reads, shared with
+  // the long-poll path (`readUpdateKeyFields`). What differs is the POLICY on an absent sender, and
+  // it differs because the consequence differs: here the provider is retrying and ignoring the
+  // delivery loses nothing, while on the poll path the offset is the acknowledgement and dropping an
+  // update would wedge the poller on it. See that function's note.
+  const keys = readUpdateKeyFields(parsed);
+  if (keys === null || keys.senderId === null) return null;
+  return { updateId: keys.updateId, senderId: keys.senderId };
 }
 
 /** Read a bounded request body. A body over the bound is refused rather than buffered. */
@@ -250,25 +258,30 @@ export function financeAgentDependenciesFromHost(botId: string): FinanceAgentDep
   // factory resolves nothing until it is used, so an incomplete environment still refuses the boot by
   // naming every unfilled entry at once rather than failing here on one path (R27).
   const liveness = createFileLivenessRecord(String(env[FINANCE_DATA_DIR_ENTRY] ?? '').trim(), FINANCE_LIVENESS_FILE_NAME);
+  // One sink for both the agent's own lines and the provider module's, so there is exactly one place
+  // in this process that writes a line and `redactedLogger` is the only thing that builds one.
+  const logSink = (line: string): void => {
+    // `redactedLogger` has already built and audited the line; this writes it and adds nothing.
+    nodeProcess.stdout.write(`${line}\n`);
+  };
 
   return {
     env,
     botId,
     liveness,
-    transportClient: {
-      // Both members belong to the gated live adapter (G3/G6). They are present so the shape is
-      // complete and refuse so nothing pretends a provider answered.
-      fetchUpdates: async () => {
-        throw Object.assign(new Error('NIZAM finance agent: no live provider client is wired; gates G3 and G6 supply it'), {
-          code: 'TELEGRAM_SEND_REFUSED',
-        });
-      },
-      sendMessage: async () => {
-        throw Object.assign(new Error('NIZAM finance agent: no live provider client is wired; gates G3 and G6 supply it'), {
-          code: 'TELEGRAM_SEND_REFUSED',
-        });
-      },
-    },
+    // Task B4 (seams S1/S2): the real provider module, in place of the two throwing stubs. It
+    // resolves this agent's credential through the loader's own rules over the environment the ONE
+    // ambient bridge produced, composes the request, holds the read bound, and fails closed on a
+    // non-success answer. **The socket is still gated**: `gatedProviderRequest` holds no network
+    // primitive and refuses, so nothing here pretends a provider answered, and G3/G6 supply one
+    // function rather than a module.
+    transportClient: createProviderTransportClient({
+      agent: FINANCE_AGENT,
+      env,
+      request: gatedProviderRequest(),
+      now: wallClock,
+      log: createRedactedLogger(FINANCE_AGENT, logSink, wallClock),
+    }),
     worker: createTurnDispatchWorker({
       dispatch: {
         channel,
@@ -289,10 +302,7 @@ export function financeAgentDependenciesFromHost(botId: string): FinanceAgentDep
     listenerHost: createNodeHttpListenerHost(wallClock, botId),
     // Per call, and never cached: the sentinel is the form an operator can flip without a restart.
     sentinelExists: () => sentinelPath.length > 0 && existsSync(sentinelPath),
-    logSink: (line: string) => {
-      // `redactedLogger` has already built and audited the line; this writes it and adds nothing.
-      nodeProcess.stdout.write(`${line}\n`);
-    },
+    logSink,
     now: wallClock,
     newId: newReference,
     sleep: (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)),

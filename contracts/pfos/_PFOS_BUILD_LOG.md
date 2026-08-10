@@ -5571,3 +5571,76 @@ The three closing lines are the last three lines of the file and nothing follows
 single next blocking action and whose it is — **ours, F20** — and the count, **1 of 7**.
 
 No test added — the deliverable is a record. Floor stays **2126**.
+
+### Spec 07 Phase 2 task B4 — the messaging provider module, and the socket that stayed a parameter (2026-08-11)
+
+`src/server/telegram/providerRequest.ts`, wired at `src/server/process/main.ts` in place of the two
+throwing stubs that stood at seams **S1** and **S2**. `liveTransport.ts` had already built the live half
+of the transport — the offset durability ordering, the bounded send retry, the accept path — and declared
+its whole outside world as one injected interface it deliberately did not implement. This is that
+implementation, and it is the artifact spec 06 withheld.
+
+**What the two seams now do.** A long-poll read composes the provider's own parameters from the request
+the transport handed it — the offset, the timeout, the batch bound — and **passes all three through
+unchanged**: no margin on the timeout, no cap on the limit, no offset arithmetic, because `POLL_POLICY`
+and R26.1 already own those. A send composes the reply and returns a receipt whose instant comes from the
+injected clock rather than from a provider field. Both go through one function whose refusal ordering is
+the point: the credential must be configured, the base address must be transport-secured, the body must be
+inside the read bound **before** it is parsed, the provider's rate limit is raised as a typed refusal, any
+other non-success status is refused, and only then is the envelope read.
+
+**No network call is made, and that is structural rather than promised.** The socket is a parameter, the
+same shape `liveModelCaller.ts` takes on the model side: no `fetch`, no `node:http`, no `node:https`, no
+client library, so importing the module grants no ability to reach anything. What `main.ts` wires is
+`gatedProviderRequest()`, which holds no network primitive and refuses while naming the two gates that
+supply one. The seam therefore still refuses today — but it refuses *from the real module*, having already
+resolved the credential, composed the request and applied the bound, so G3 and G6 supply **one function**
+rather than a module. Steering §2's ban on an outbound call from a server process is untouched.
+
+**The credential cannot be printed.** It is resolved into an opaque holder whose `toString` and `toJSON`
+are the redaction marker, so interpolation, `String()`, `JSON.stringify` and every structured logger reach
+the marker. `revealProviderCredential` is the single named way to the characters and **this module never
+calls it** — the capability does, at the one call site a human will write. The credential also never
+travels *inside* the request object: that shape has no header field and no credential field, so a request
+may be recorded whole, and a test asserts the recorded request holds no token and the argument beside it
+prints as the marker.
+
+**One chokepoint, not two.** `processEnvSource` remains the only expression in `src/` that reads the
+ambient environment, and the tree scan that enforces that still finds exactly one hit. The module takes an
+injected `EnvSource` and asks the loader's **own exported rules** — `describeConfiguredPresence` for "is
+this entry configured", `parseApiBase` for the base address — so nothing about entry usability is restated
+here and nothing here can soften it. An unfilled template placeholder is refused as unconfigured because
+that is the loader's rule, not a second copy of it.
+
+**One implementation of the update-key rule, two policies over it.** `readUpdateKeyFields` reads the two
+fields that matter — the update identifier, which is half the dedup key, and the sender, which the
+allowlist reads — and `main.ts`'s `readDeliveryIdentifiers` now delegates to it. The policies differ
+because the consequences differ: on the webhook path an update with no readable sender is ignored and the
+provider retries, while on the long-poll path the offset **is** the acknowledgement, so dropping such an
+update would park the offset on it for ever. It is therefore represented with the *empty* sender rather
+than an invented one — no allowlist holds the empty sender, so the existing guard refuses it, the offset
+advances, and the poller cannot wedge. An update whose *identifier* is unreadable refuses the whole batch,
+because a partially read batch would move the offset past work nobody stored.
+
+**No credential, body, sender or base address reaches a log line.** One line per request, built through
+`redactedLogger` and through nothing else, carrying an operation, a verdict, a latency and a refusal code —
+`enum` and `duration_ms` fields only, and that logger's field types cannot hold prose at all. Two events
+were **added to the closed set** rather than reached through a wider one, so what this tier writes down is
+still reviewable in a single read. A latency the capability did not report as an integer is omitted rather
+than rounded, because a refused log line must never fail a request that worked.
+
+**Tests: 28, all over a local fake responder, no network.** A normal update, an empty update set, a
+non-success status, a rate-limit answer with a retry hint (and one preferring the response's interval over
+the body's, and one with no interval at all, which must never read as "retry immediately"), a malformed
+body, and a body over the read bound proved to refuse **before** the parse by using a body that would
+otherwise have succeeded. Plus: the bound is measured in bytes rather than code units; the credential is
+absent, and separately still a placeholder; the base address is not transport-secured; the wired capability
+refuses; a receipt is not invented; and one test asserts that across a read, a send and a refusal no line
+carries the token, the message text, the sender, the chat reference or the base address, and that every
+line is the structured record with only declared feature names.
+
+**No guard was weakened, no floor lowered, no `eslint-disable` added, and no gate performed or claimed.**
+
+Floor ratcheted **2126 → 2193**, which also closes finding **F25**: spec 08's `tasks.md` recorded a
+ratchet to 2146 that was never applied to `scripts/verify/all.mjs`, and the true count had since reached
+2165, leaving the monotonic guard 39 cases slack. The floor now equals the measured count.

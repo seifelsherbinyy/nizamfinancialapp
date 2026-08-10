@@ -150,6 +150,12 @@ export const LOG_EVENTS = [
   // §5 transport
   'update_accepted',
   'update_duplicate_ignored',
+  // §5 transport — the outbound provider request (spec 07 task B4, seams S1/S2). Two events rather
+  // than one so a refusal is findable without reading a verdict field, and both are added to the
+  // CLOSED set rather than reached through a wider one: what this tier writes down stays reviewable
+  // in a single read of this list.
+  'provider_request_completed',
+  'provider_request_refused',
   // §8 the kill switch
   'halt_observed',
   // §7.1/§7.2 operations

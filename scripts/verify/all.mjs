@@ -20,7 +20,7 @@ const CHECKS = [
   { id: "AC18", label: "no deployment particular in ops or any fixture", cmd: [node, ["scripts/verify/no-deployment-particular.mjs"]] },
   { id: "AC02", label: "typescript reports zero errors", cmd: ["npm", ["run", "typecheck"]] },
   { id: "AC03", label: "linter is clean at zero warnings", cmd: ["npm", ["run", "lint"]] },
-  { id: "AC04", label: "test suite passes and meets its size floor", cmd: [node, ["scripts/verify/testcount.mjs", "--min", "2126"]] },
+  { id: "AC04", label: "test suite passes and meets its size floor", cmd: [node, ["scripts/verify/testcount.mjs", "--min", "2193"]] },
   { id: "AC13", label: "verification ledger is intact and covering", cmd: [node, ["scripts/loop/verify-ledger.mjs"]] },
   { id: "LOOP", label: "loop refusal paths hold", cmd: [node, ["--test", "scripts/loop/ledger.test.mjs"]] },
   { id: "AC05", label: "production build emits a static application", cmd: ["npm", ["run", "build"]] },

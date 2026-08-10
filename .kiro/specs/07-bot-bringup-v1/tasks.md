@@ -61,7 +61,16 @@
 
 ## Wave 1 - bot B reaches a model (this repository, no gate, no owner)
 
-- [ ] B4 **The messaging provider module** (**S1**, **S2**). One module, the only place in this tree that
+- [x] B4 **The messaging provider module** (**S1**, **S2**). **Done 2026-08-11.**
+      `src/server/telegram/providerRequest.ts` is the one module, wired at `main.ts` in place of both
+      throwing stubs. It resolves the credential through the loader's own exported rules over the
+      environment the single ambient bridge produced, composes the long-poll read with the offset
+      semantics the transport already expects, composes the send, holds a read bound measured in bytes,
+      fails closed on a non-success status, and raises the provider's rate limit as the typed refusal
+      the **existing** `SEND_RETRY_POLICY` already waits on — no second retry loop. **The socket is
+      still gated:** the request capability is a parameter and `gatedProviderRequest()` is what the
+      process wires, so no outbound call is made from a server process (steering §2, G3/G6). 28 tests
+      over a local fake responder; floor ratcheted 2126 → 2193 (which also closes finding **F25**). One module, the only place in this tree that
       performs an outbound messaging request: a long-poll fetch against `MSG_API_BASE` with the offset
       semantics the existing transport already expects, and a send. Wire it in place of the two throwing
       stubs at `main.ts:263` and `main.ts:268`. **The transport above it is already built and already in

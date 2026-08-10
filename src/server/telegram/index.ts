@@ -129,3 +129,27 @@ export {
   type TelegramTransportClient,
   type TelegramUpdateBatch,
 } from './liveTransport.ts';
+// Spec 07 task B4 (seams S1/S2) — the ONE outbound messaging request. The socket is a parameter, so
+// importing this grants no ability to reach anything; `gatedProviderRequest` is what the process
+// wires until G3 and G6 are done. There is deliberately no exported request function that dials.
+export {
+  createProviderTransportClient,
+  gatedProviderRequest,
+  MAX_PROVIDER_RESPONSE_BYTES,
+  performProviderRequest,
+  providerCredential,
+  PROVIDER_OPERATIONS,
+  PROVIDER_REDACTION_MARKER,
+  PROVIDER_REFUSAL_REASONS,
+  ProviderRequestError,
+  readUpdateKeyFields,
+  revealProviderCredential,
+  utf8ByteLength,
+  type ProviderCredential,
+  type ProviderHttpRequest,
+  type ProviderHttpResponse,
+  type ProviderOperation,
+  type ProviderRefusalReason,
+  type ProviderRequestContext,
+  type ProviderRequestFn,
+} from './providerRequest.ts';
