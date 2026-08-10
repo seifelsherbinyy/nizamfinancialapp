@@ -450,3 +450,28 @@ in `PHASE_ONE_SERVICES`, and read back out of the document by `phaseOneServicesN
 drift. `OWNER_GATE_ACTIONS.md` step 4 was wrong as written and names the three services now. **No contract file
 was edited**, no image built, no stack started, no port published, `ops/GATE_REGISTER.md` untouched and no box
 ticked but `10.22`'s own.
+
+**The application is reachable by the owner alone, over the tunnel they already hold, 2026-08-10 (task
+10.18, R33).** The static build had nowhere to be read from on the host. It is now served by a **mode** of
+the finance agent's own process (`--serve-app`), not a seventh service - and that is not a saving, it is the
+only thing that works: a container's loopback is not the host's loopback, so a compose service would have
+had to **publish a port** to be reachable from the tunnel at all, which phase 1 forbids, and the built
+bundle is deliberately kept out of the image. So `ops/docker-compose.yml`, the six environment templates,
+`SERVICE_ENTRY_NAMES`, the value ledger and the fill-in sheet are all **unchanged**. **Loopback is
+structural, not configured**: there is no entry and no flag through which a bind address can be expressed,
+the process passes a constant, and the listener host applies `requireLoopbackBind` to whatever it is handed
+- so a caller inside the tree cannot widen it either. Nine refusals are shown stopping the bind, including
+an **empty** host, because the platform reads an absent host as *every interface*, and a **name**, because
+resolution is configuration this process does not own. **No authentication was added, and that is the
+stronger posture** - the argument §2.2.6 makes for the bus: a password protects a port that stays reachable
+while it is attacked, and it is a secret with a lifecycle on a public repository. Serving is reads only -
+two methods, the body drained and never read, no store import at all - and every path goes through the ONE
+containment guard, so an escape answers with the same status as an absent file and confirms nothing.
+Readiness is the `storeless` mode over the **shared** liveness record and additionally requires a bound
+port. **No sentinel entry was invented**: §8.2 names four services and this is none of them, §8.1's three
+halted activities are absent here, and §8's own rule that a halt never disables a deterministic view means
+refusing a read-only view under a halt would make the halt harmful. `ops/APP_ACCESS.md` records the
+decision, the three rejected alternatives, the threat model **including what it does not defend against**,
+and what phase 2 changes - which is nothing, unless the owner decides it explicitly and it is recorded
+first. **No contract file was edited**, no port bound, no stack started, `ops/GATE_REGISTER.md` untouched
+and no box ticked but `10.18`'s own.

@@ -498,7 +498,7 @@
       that would need a figure to cross is recorded as **refused by construction** with the reason,
       not deferred. This task authors the split; it does **not** implement the life side, which is
       option (a) work in the other repository.
-- [ ] 10.18 **Owner-only web access to the app on the host** (owner request, and **R33**). The static
+- [x] 10.18 **Owner-only web access to the app on the host** (owner request, and **R33**). The static
       SPA already builds (AC05/AC05b/AC06). Serve it on the host reachable by the owner and **nobody
       else**, and record the access-control decision with its threat model. Phase 1 has no domain, no
       certificate and no proxy, so the recommended resolution is **bind to loopback only and reach it
@@ -509,6 +509,30 @@
       the app publicly reachable without an explicit owner decision, and never add a default that
       opens it. The app is local-first over the owner's own storage, so this task adds a static file
       server, not an API.
+      **Taken as recommended, and it is a MODE rather than a seventh service.** `--serve-app` on the
+      finance agent's own entrypoint, so `ops/docker-compose.yml` is **unchanged**: no service, no
+      `ports:` key, no seventh environment template, no row in `SERVICE_ENTRY_NAMES`, no row in the
+      value ledger or the fill-in sheet, no image. The decisive argument is not the saving - **a compose
+      service could not have worked**: a container's loopback is not the host's loopback, so it would
+      have had to publish a port to be reachable from the tunnel at all, and the built bundle is
+      deliberately kept out of the image by the root ignore file. **Loopback is structural, not
+      configured**: there is no environment entry and no flag for the bind address, the process passes a
+      constant, and the listener host applies `requireLoopbackBind` to whatever it is handed - so a
+      caller inside the tree cannot widen it either. Nine bind refusals, each shown throwing and each
+      shown naming the rule rather than the value: an empty host (the platform's spelling of *every
+      interface*), the wildcard in both protocols and its shell spelling, a scheme, a path, an address of
+      the host, a name that merely resolves to loopback, and an address carrying a port. Serving is
+      reads only - two methods, the body drained and never read, no store import at all - and every path
+      resolves through the ONE containment guard, so a traversal, an absolute override and a symlink out
+      of the root fail the same single test and answer with the **same status as an absent file**, which
+      is what stops the answer confirming what exists outside the root. Readiness is the `storeless`
+      mode over the shared liveness record, and it needs a bound port as well as a fresh record.
+      **No sentinel entry was invented**: §8.2 names four services and this is none of them, §8.1's three
+      halted activities are all absent here, and §8's own rule that a halt never disables a
+      deterministic view means refusing a read-only view under a halt would make the halt harmful.
+      `ops/APP_ACCESS.md` records the decision, the three rejected alternatives with the reason each
+      fails in phase 1, the threat model including **what it does not defend against**, and what phase 2
+      changes. 32 tests; floor 2093 -> 2125.
 - [ ] 10.15 Cross-repo (**§7, owner blocker**): the life agent is Python and lives in the other
       repository, which `.kiro/steering/two-agent-vps.md` §6 forbids this session from modifying. The
       three change specifications in `ops/nizamcore-patches/` are written and unapplied. Recommended

@@ -49,8 +49,9 @@
  */
 import { Buffer } from 'node:buffer';
 import { randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { tmpdir } from 'node:os';
 import nodeProcess from 'node:process';
 
 import { processEnvSource, type EnvSource } from '../config/environment';
@@ -73,10 +74,30 @@ import {
   type RunOutcome,
 } from './financeAgent';
 import { createFileLivenessRecord, livenessIsFresh } from './liveness';
+import {
+  APP_LIVENESS_FILE_NAME,
+  APP_LIVENESS_MAX_AGE_MS,
+  appReadiness,
+  bootAppServer,
+  LOOPBACK_BIND_ADDRESS,
+  parseAppInvocation,
+  requireLoopbackBind,
+  SERVE_APP_FLAG,
+  type AppListenerHandle,
+  type AppListenerHost,
+  type AppRequest,
+  type AppResponse,
+  type AppServerProcess,
+} from './appServer';
 import { conservativeTurnFacts, createTurnDispatchWorker } from './turnWorker';
 
 /** The flag that selects the readiness answer instead of the agent. */
 export const HEALTH_FLAG = '--health';
+
+/** The directory the app-server mode records its liveness in. Supplied by the platform (task 10.18). */
+export function appRecordDirectory(): string {
+  return tmpdir();
+}
 
 /** The signals a clean shutdown is asked for with. */
 export const TERMINATION_SIGNALS = ['SIGTERM', 'SIGINT'] as const;
@@ -379,11 +400,122 @@ export function readBotIdentity(argv: readonly string[]): string {
   return '';
 }
 
+// ---------------------------------------------------------------------------------------------
+// The owner-only application server (task 10.18, R33)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The listener host for the app-server mode, on the platform's own server.
+ *
+ * **This is the only place in the repository that names a bind address, and it names the loopback
+ * one through a guard that refuses everything else.** `requireLoopbackBind` is called on the constant
+ * rather than the constant being passed straight to `listen`, which looks redundant and is not: it
+ * makes the refusal a property of the bind path itself, so an edit that replaced the constant with a
+ * configured value would be refused at the bind rather than quietly widening the server (R33, R9).
+ *
+ * The request body is **discarded, never read**: `incoming.resume()` drains it so a client cannot
+ * wedge the socket, and no code path collects it. There is nothing here for a write to arrive in.
+ */
+export function createNodeHttpAppListenerHost(): AppListenerHost {
+  return {
+    listen(port: number, accept: (request: AppRequest) => AppResponse): Promise<AppListenerHandle> {
+      const address = requireLoopbackBind(LOOPBACK_BIND_ADDRESS);
+      const server = createServer((incoming: IncomingMessage, outgoing: ServerResponse) => {
+        incoming.resume();
+        const answer: AppResponse = accept({ method: incoming.method ?? '', path: incoming.url ?? '' });
+        outgoing.statusCode = answer.status;
+        outgoing.setHeader('content-type', answer.contentType);
+        outgoing.end(Buffer.from(answer.body));
+      });
+
+      return new Promise<AppListenerHandle>((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(port, address, () => {
+          resolve({
+            port,
+            close: () =>
+              new Promise<void>((done) => {
+                server.close(() => done());
+              }),
+          });
+        });
+      });
+    },
+  };
+}
+
+/** Read one asset off disk, or `null` when there is nothing there. The path is already contained. */
+export function readAssetFromDisk(absolutePath: string): Uint8Array | null {
+  try {
+    return readFileSync(absolutePath);
+  } catch {
+    return null;
+  }
+}
+
+/** The readiness answer for the app-server mode: `storeless`, over the shared liveness record. */
+export function appReadinessReport(nowMs: () => number = () => Date.now()): ReadinessReport {
+  let ageMs: number | null;
+  try {
+    ageMs = createFileLivenessRecord(appRecordDirectory(), APP_LIVENESS_FILE_NAME, nowMs).ageMs();
+  } catch {
+    ageMs = null;
+  }
+  // `listening` is asserted by the record's own existence here, because this command is a DIFFERENT
+  // process and can see no socket - the same reason the other three services answer this way. A
+  // shutdown clears the record, so a stopped server answers not-ready at once (R22).
+  return appReadiness(ageMs, ageMs !== null && livenessIsFresh(ageMs, APP_LIVENESS_MAX_AGE_MS));
+}
+
+/**
+ * Serve the built application to the owner, over the tunnel they already hold.
+ *
+ * Boot refusals - an absent or out-of-range port, an empty root, a root the containment guard will
+ * not accept - are reported and become exit code 1. There is no degraded run and no fallback
+ * directory: a server that chose its own root would be serving something nobody published.
+ */
+export async function serveAppMain(argv: readonly string[], host = createNodeProcessHost()): Promise<RunOutcome> {
+  if (argv.includes(HEALTH_FLAG)) {
+    return { exitCode: probeExitCode(appReadinessReport()), iterations: 0, shutdown: null };
+  }
+
+  let server: AppServerProcess;
+  try {
+    server = await bootAppServer({
+      invocation: parseAppInvocation(argv),
+      listenerHost: createNodeHttpAppListenerHost(),
+      readAsset: readAssetFromDisk,
+      liveness: createFileLivenessRecord(appRecordDirectory(), APP_LIVENESS_FILE_NAME),
+      sleep: (ms: number) => new Promise<void>((done) => setTimeout(done, ms)),
+    });
+  } catch (cause) {
+    host.reportBootRefusal(cause instanceof Error ? cause.message : String(cause));
+    return { exitCode: 1, iterations: 0, shutdown: null };
+  }
+
+  host.onTerminationSignal(() => {
+    server.requestShutdown();
+  });
+  const ticks = await server.runUntilShutdown();
+  await server.shutdown();
+  // `shutdown` is deliberately reported as `null`: the field's type is the finance agent's own
+  // shutdown report, and this mode's report is a different fact. The exit code is what `start.ts`
+  // reads, and it is the whole of what a caller acts on.
+  return { exitCode: 0, iterations: ticks, shutdown: null };
+}
+
 /**
  * The whole entrypoint. Returns the outcome rather than exiting, so the exit is one statement in
  * `start.ts` and nothing above it can end the process early.
+ *
+ * Three modes now. The app-server mode is checked FIRST, because it shares the `--health` flag and
+ * must answer for itself rather than for the agent: a readiness answer about the wrong service is
+ * worse than none.
  */
 export async function main(argv: readonly string[]): Promise<RunOutcome> {
+  if (argv.includes(SERVE_APP_FLAG)) {
+    return serveAppMain(argv);
+  }
   if (argv.includes(HEALTH_FLAG)) {
     return { exitCode: runHealthCommand(), iterations: 0, shutdown: null };
   }

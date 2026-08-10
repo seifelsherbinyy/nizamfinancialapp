@@ -5182,3 +5182,111 @@ agent that is not ready.
   ticked anywhere except `10.22`'s own line in `tasks.md`.
 - **Nothing steering §2 gates was run.** No image built, no stack started, no port published, no outbound call,
   and the other repository was not touched.
+
+## Task 10.18 - owner-only web access, where reachability is the control and loopback is not a setting (2026-08-10)
+
+**Owning requirement: R33 (new).** Spec `.kiro/specs/06-two-agent-vps/`, task 10.18. Owner request.
+
+### The decision, and it is a mode rather than a seventh service
+
+`--serve-app` on the finance agent's own entrypoint. **`ops/docker-compose.yml` is unchanged**: no service,
+no `ports:` key, no seventh environment template, no row in `SERVICE_ENTRY_NAMES`, no row in
+`DEPLOYMENT_VALUE_LEDGER.md` or `OWNER_FILL_IN_SHEET.md`, no image row, no healthcheck.
+
+The saving is real - a seventh service is six edits, not one - but it is not the argument. **A compose
+service could not have done the job at all**, for three reasons recorded in `ops/APP_ACCESS.md`:
+
+1. **A container's loopback is not the host's loopback.** The operator's tunnel terminates on the host's
+   loopback interface. A container binding its own loopback is unreachable from that tunnel, and the only
+   bridge is a `ports:` key - the one thing phase 1 forbids and the reason `caddy` is profile-gated. A
+   published port would have made loopback-only depend on the operator spelling the address half of a port
+   mapping correctly every time, rather than on the process refusing anything else.
+2. **The built bundle is deliberately not in the image.** The root ignore file keeps it out of the build
+   context on purpose, so an in-container app service would need a new image or a new bind mount.
+3. **On demand beats always on.** The mode exists only while the operator's own session runs it.
+
+### How loopback-only is made structural rather than careful
+
+- **There is no way to express a bind.** No environment entry (the six templates and `SERVICE_ENTRY_NAMES`
+  are untouched, and `environmentServices.test.ts` would fail in both directions if one had been added) and
+  **no flag** in the invocation grammar - a test feeds an invocation a bind-shaped token and observes the
+  parsed result hold only a port and a root.
+- **The process passes a constant, and the bind path refuses anything else.** `requireLoopbackBind` is
+  applied to that constant by the real listener host, which looks redundant and is not: it makes the
+  refusal a property of the bind path, so an edit that replaced the constant with a configured value would
+  be refused at the bind instead of quietly widening the server.
+- **Nine refusals, each shown throwing, each naming the rule rather than the value.** An **empty** host is
+  among them, because the platform reads an absent host as *every interface* - the widest bind there is,
+  wearing the appearance of "unset". A **name** is refused even when it usually resolves to loopback,
+  because resolution goes through configuration this process does not own: a bind address must be a fact,
+  not a lookup.
+- **R9 is asserted in both directions**: the process's own `listeningPorts` holds exactly one entry, the
+  injected host's bind record holds the same one, and both are empty again after shutdown.
+
+### No authentication, and that is the stronger posture
+
+The same argument contract 12 §2.2.6 makes for the bus. A password protects a **reachable** port - the
+attacker still connects, still fingerprints, still attempts, and still reaches whatever is in front of the
+check. It is also a secret with a lifecycle, on a public repository whose whole posture is that no
+particular exists in it to leak; adding one would add the first. And the owner has already proven who they
+are to the host, with a key, before a request can exist. Nothing to rotate, nothing to store, nothing to
+put in the fill-in sheet.
+
+### Reads only, and nothing escapes the root
+
+Two methods, and the request body is **drained and never read**, so there is nothing for a write to arrive
+in. The module imports no connection factory, no repository and no migration series, so there is no code
+path from a request to a store - it could not grow one without a visible new import. Every request path
+resolves through `resolveStorePath`, the ONE containment guard, reused rather than copied for the reason
+`liveness.ts` gives about itself: a second containment implementation is a second place for the fail-closed
+direction to go generous, and generous here means handing out a file nobody published. A traversal, an
+absolute override, a symlink out of the root and a root that is not there all fail the same single test,
+and an escape answers with the **same status as an absent file** - so the answer confirms nothing about
+what exists outside the root. An encoded traversal is not decoded, so it names a file that is not there.
+
+### Readiness, and the halt
+
+Readiness is the `storeless` probe mode task 10.20 added, over the **shared** liveness record - no third
+copy of either. The three store facts are `not_applicable` because this mode opens no store; the loop check
+stays applicable and additionally requires a bound port, so a process whose loop turns while nothing is
+listening cannot report ready. Absent, stale, future-dated and not-listening are each shown not ready.
+
+**No sentinel entry was invented.** Contract 12 §8.2 names the two agents, the scheduler and the backup
+service; §8.1 lists a model call, a model-path store write and a bus publish. This mode performs none of
+the three and holds none of the ports that could. The stronger reason is direction: §8's own rule is that a
+halt **never** disables a deterministic view, and a halted deployment is exactly when the owner most needs
+to read their own figures - so refusing a read-only static view under a halt would make the halt harmful.
+`HALTED_ACTIVITIES` and `SERVICE_ENTRY_NAMES` are unchanged, following tasks 10.19 and 10.20.
+
+### The rejected alternatives, recorded rather than dismissed
+
+- **A public port plus basic authentication** - needs the published port phase 1 refuses, and phase 1 has
+  no domain and no certificate, so the honest version of this option is a password in cleartext over the
+  public internet.
+- **An identity-aware proxy** - the eventual right answer, and it presupposes a domain (**G2**, blocked on
+  a zone that does not exist), a certificate, a running proxy (phase 2, profile-gated) and a third party
+  with a view of when the owner reads their own finances.
+- **A private overlay network** - sound and redundant: it re-creates "only the owner's machine can reach
+  it" with a second network, a second key distribution, a coordination service and a new daemon whose own
+  reachability then needs reasoning about, when the existing tunnel already gives exactly that property.
+
+The threat model in `ops/APP_ACCESS.md` includes **what this does not defend against**: anyone who can open
+an authenticated session on the host can read the application, because that is the control being used. That
+is the exposure the host already carries for the stores, the environment files and the sentinel, so it adds
+no new trust - and it is why the tunnel is treated as the security boundary rather than as a convenience.
+
+### Gate result
+
+- `npm run typecheck`, `npm run lint`, `npm run test` green.
+- `npm run verify:all -- --all` - **20 of 20 executed checks passed**, run after the commit because AC14
+  and AC15 require a clean tree.
+- **32 tests added; the AC04 `--min` floor raised 2093 -> 2125.** Up only.
+- AC18's declared dotted-token list gained one file name (`appServer.ts`), which the new document names.
+  No domain, host address, port literal, path on the host, credential or figure was added anywhere - the
+  port and the served root are named by the operator in their own session, and the loopback literal
+  identifies no deployment.
+- **`ops/GATE_REGISTER.md` was NOT edited**, no gate touched, and no checkbox ticked anywhere except
+  `10.18`'s own line in `tasks.md`.
+- **Nothing steering §2 gates was run.** No listener was bound - every test drives an injected host that
+  binds nothing - no image built, no stack started, no port published, no outbound call, and the other
+  repository was not touched.

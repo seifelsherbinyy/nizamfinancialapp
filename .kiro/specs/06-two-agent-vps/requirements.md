@@ -178,6 +178,44 @@ plus the text artifacts and the gate register needed to hand the remainder to a 
   held as data that a check compares with that record, so neither can move alone; AND every name a
   `depends_on` entry declares SHALL be a service the same file declares, under a condition drawn from a
   declared set.
+- **R33** WHERE the built application is served on the host, THEN it SHALL be reachable by the owner alone
+  over an **already-authenticated** channel; the process SHALL bind the loopback interface and SHALL
+  **refuse** any other bind address - a wildcard, an empty host, an address of the host, a scheme, a path, or
+  a name that merely resolves to loopback - rather than accepting one, AND the bind address SHALL NOT be
+  expressible as a configuration entry or an invocation flag; no service SHALL gain a published host port
+  for it; it SHALL serve the built static output only, with **no** route that reads a store, **no** write
+  route of any kind, and **no** path that escapes the served root; readiness SHALL be answered as an exec
+  check computed in process against a local record (**R22**); AND **no default SHALL make it publicly
+  reachable** - a public binding SHALL require an explicit owner decision recorded before it is taken.
+
+> **Finding note - R33 chooses reachability over a credential, and says why.** The obvious reading of
+> "owner-only" is a password, and a password would be **weaker** here. It protects a port that stays
+> reachable for the whole time it is being attacked; it is a secret with a lifecycle, on a public
+> repository whose entire posture is that no particular exists in it to leak; and the owner has already
+> proven who they are to the host, with a key, before a request can exist. A second factor weaker than the
+> first is a place to be wrong rather than a layer of defence. This is the same argument contract 12
+> §2.2.6 makes for the bus - "an authenticated-but-reachable bus is a weaker guarantee" - applied to the
+> one other thing on the host a human reads.
+>
+> **The bind is therefore the whole of the control, so R33 forbids configuring it.** Not "requires it to be
+> set to loopback": an entry an operator can set is an entry an operator can set to a wildcard, and the
+> failure would be silent and total. There is no entry, no flag, and a refusal on the bind path itself, so
+> a caller inside the tree cannot widen it either.
+>
+> **It is a mode, not a seventh service**, and that is recorded in `ops/APP_ACCESS.md` with the reason a
+> service could not have worked: a container's loopback is not the host's loopback, so a compose service
+> would have had to publish a port to be reachable from the tunnel at all - the one thing phase 1 forbids
+> - and the built bundle is deliberately kept out of the image by the root ignore file. So R33 obliges no
+> change to `ops/docker-compose.yml`, no seventh environment template, no row in `SERVICE_ENTRY_NAMES`,
+> and no row in the value ledger or the fill-in sheet.
+>
+> **What it does NOT do is extend the halt.** Contract 12 §8.2 names the two agents, the scheduler and the
+> backup service, and §8.1 lists what a halt stops: a model call, a store write on the model path, a bus
+> publish. This mode performs none of the three and holds none of the ports that could. §8's own rule is
+> that a halt never disables a deterministic view, and a halted deployment is exactly when the owner most
+> needs to read their own figures - so refusing to serve a read-only static view under a halt would make
+> the halt harmful. `HALTED_ACTIVITIES` and `SERVICE_ENTRY_NAMES` are unchanged, following the precedent
+> tasks 10.19 and 10.20 set for the bus and the scheduler.
 
 > **Finding note - R35 records an owner ruling, and generalizes it.** The ruling (2026-08-10) is narrow:
 > relax the **scheduler's** dependency on the life agent so the scheduler runs in phase 1. The reasoning is

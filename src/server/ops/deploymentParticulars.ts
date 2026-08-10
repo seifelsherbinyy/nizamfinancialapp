@@ -134,6 +134,7 @@ export const DECLARED_DOTTED_TOKENS: readonly string[] = [
   'envTemplates.ts',
   'healthProbe.ts',
   'imageOwnership.ts',
+  'appServer.ts',
   'main.ts',
   'migrations.ts',
   'modelPolicy.ts',
