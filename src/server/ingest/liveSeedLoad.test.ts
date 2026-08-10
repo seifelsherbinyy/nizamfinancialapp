@@ -27,6 +27,7 @@
  */
 import { describe, it, expect, afterAll } from 'vitest';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseCsv, parseLedgerCsvStrict } from '@/features/import/ledgerImport';
@@ -52,6 +53,14 @@ import {
   type ReconciliationReport,
   type ThirdOpinion,
 } from './reconcile.ts';
+import { createDocumentIndexRepository } from '../db/repositories/documentIndexRepository.ts';
+import {
+  RECOVERY_HORIZONS,
+  RECOVERY_PLAN_SET,
+  indexKnowledgeDocuments,
+  orderedSetStatus,
+  readOrderedSetForUse,
+} from './knowledgeIndex.ts';
 
 const LEDGER_DIR = 'data/ledgers';
 const ARTIFACT_DIR = 'outputs/ingest';
@@ -456,5 +465,157 @@ describe.skipIf(!cachePresent)('the gate, shown failing before it is trusted', (
     const masterText = readFileSync(masterPath as string, 'utf8');
     const header = parseCsv(masterText)[0] ?? [];
     expect(header).toHaveLength(LEDGER_COLUMNS.length);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
+// Wave A4 — the knowledge tier, indexed into the SAME store the ledger went into.
+//
+// It lives in this file rather than its own because there is ONE store, and two test files opening one
+// SQLite file in parallel workers is a lock contention bug waiting for a slow machine. Within a file the
+// blocks run in sequence and share the handle `performRun()` already opened, so the store this indexes
+// into is the store that holds the ledger — which is also what makes the K7 scan below meaningful.
+// ---------------------------------------------------------------------------------------------------
+
+const KNOWLEDGE_ARTIFACT = join(ARTIFACT_DIR, 'A4_KNOWLEDGE_INDEX.json');
+
+const knowledgeEvidence: Record<string, unknown> = {
+  spec: '08-knowledge-ingestion',
+  wave: 'A4',
+  generated_at: new Date().toISOString(),
+};
+
+afterAll(() => {
+  mkdirSync(ARTIFACT_DIR, { recursive: true });
+  writeFileSync(KNOWLEDGE_ARTIFACT, `${JSON.stringify(knowledgeEvidence, null, 2)}\n`);
+});
+
+/**
+ * The tier-2 documents that are actually ON DISK, found by walking the repository's own tracked
+ * knowledge directories.
+ *
+ * What is NOT here matters as much as what is. Wave A0's fetch materialised TIER 1 by rule, so the
+ * owner's five-horizon recovery plan and the two debt-loop analyses — which live only in the drive tree —
+ * are absent from this machine. They are reported as BLOCKED rather than substituted, invented, or
+ * represented by a placeholder row that would later read as though the document had been indexed.
+ */
+function collectKnowledgeDocuments(): { reference: string; contentHash: string; byteCount: number }[] {
+  const roots: { dir: string; pattern: RegExp; recurse: boolean }[] = [
+    { dir: 'contracts/pfos', pattern: /\.md$/i, recurse: false },
+    { dir: 'docs/architecture', pattern: /\.md$/i, recurse: false },
+    { dir: 'docs/adr', pattern: /\.md$/i, recurse: false },
+    { dir: 'docs/research', pattern: /\.md$/i, recurse: false },
+    { dir: 'docs', pattern: /^[A-Z0-9_]+\.md$/, recurse: false },
+  ];
+  const out: { reference: string; contentHash: string; byteCount: number }[] = [];
+  const seen = new Set<string>();
+  for (const root of roots) {
+    if (!existsSync(root.dir)) continue;
+    for (const name of readdirSync(root.dir)) {
+      if (!root.pattern.test(name)) continue;
+      const path = `${root.dir}/${name}`;
+      if (seen.has(path)) continue;
+      let bytes: Buffer;
+      try {
+        bytes = readFileSync(path);
+      } catch {
+        continue;
+      }
+      seen.add(path);
+      out.push({
+        reference: path,
+        contentHash: createHash('sha256').update(bytes).digest('hex'),
+        byteCount: bytes.byteLength,
+      });
+    }
+  }
+  return out;
+}
+
+describe.skipIf(!cachePresent)('A4 — the knowledge tier, indexed', () => {
+  it('A4.1 / K5 — indexes each accepted document once, and a re-index is a no-op', () => {
+    const live = performRun();
+    const documents = collectKnowledgeDocuments();
+    knowledgeEvidence.documents_found = documents.length;
+
+    const first = indexKnowledgeDocuments(live.ctx, documents);
+    const second = indexKnowledgeDocuments(live.ctx, documents);
+    knowledgeEvidence.index_first = first;
+    knowledgeEvidence.index_second = second;
+
+    expect(first.indexed).toBeGreaterThan(0);
+    expect(second.indexed, 'a re-index of the same bytes created a second row').toBe(0);
+    expect(second.alreadyIndexed).toBe(first.indexed + first.alreadyIndexed);
+
+    const repo = createDocumentIndexRepository(live.ctx);
+    knowledgeEvidence.rows_in_index = repo.count();
+    expect(repo.count()).toBe(first.indexed);
+    // Every row carries a distinct content hash, which the DDL enforces and this counts.
+    const distinct = live.ctx.handle.db
+      .prepare('SELECT COUNT(DISTINCT content_hash) AS n FROM document_index')
+      .get() as { n: number };
+    expect(Number(distinct.n)).toBe(repo.count());
+  });
+
+  it('A4.3 — the contract set and the architecture documents are in the index, by class', () => {
+    const live = performRun();
+    const repo = createDocumentIndexRepository(live.ctx);
+    const byClass = {
+      agent_contract: repo.listClass('agent_contract').length,
+      architecture: repo.listClass('architecture').length,
+      financial_research: repo.listClass('financial_research').length,
+      recovery_plan: repo.listClass('recovery_plan').length,
+    };
+    knowledgeEvidence.by_class = byClass;
+    expect(byClass.agent_contract, 'the agent contract set is not in the index').toBeGreaterThan(0);
+    expect(byClass.architecture, 'no architecture document is in the index').toBeGreaterThan(0);
+    expect(byClass.financial_research, 'the financial research corpus is not in the index').toBeGreaterThan(0);
+    // Every indexed document has a processing state, and none is left without one.
+    const stateless = live.ctx.handle.db
+      .prepare(`SELECT COUNT(*) AS n FROM document_index WHERE processing_state IS NULL OR processing_state = ''`)
+      .get() as { n: number };
+    expect(Number(stateless.n)).toBe(0);
+  });
+
+  it('A4.2 — the recovery plan set is reported BLOCKED rather than partially served', () => {
+    const live = performRun();
+    const status = orderedSetStatus(live.ctx, RECOVERY_PLAN_SET, RECOVERY_HORIZONS.length);
+    knowledgeEvidence.recovery_plan_set = status;
+    knowledgeEvidence.recovery_plan_blocked_reason =
+      'The five recovery-plan horizons live only in the owner\u2019s drive tree. Wave A0 materialised tier 1 by ' +
+      'rule, so tier-2 knowledge documents that have no repository-local rendering are not on this machine. ' +
+      'They are BLOCKED on the same drive access task B13 needs, and nothing stands in for them: an invented ' +
+      'or placeholder row would later read as though the document had been indexed.';
+
+    // Absent, not partial, and the mechanism refuses to serve it either way.
+    expect(status.presentSize).toBe(0);
+    expect(status.complete).toBe(false);
+    expect(status.ordinalsMissing).toEqual([1, 2, 3, 4, 5]);
+    expect(() => readOrderedSetForUse(live.ctx, RECOVERY_PLAN_SET, RECOVERY_HORIZONS.length)).toThrow(
+      /refuses to be read for use/,
+    );
+  });
+
+  it('reports every document no rule claimed, so nothing was filed under a default class', () => {
+    const live = performRun();
+    const report = indexKnowledgeDocuments(live.ctx, collectKnowledgeDocuments());
+    knowledgeEvidence.unclassified = report.unclassified;
+    knowledgeEvidence.refused = report.refused;
+    // The collection is drawn from directories the rules claim, so nothing should be unclassified. If a
+    // later directory is added to the walk without a rule, this fails rather than filing it silently.
+    expect(report.unclassified, 'a collected document matched no classification rule').toEqual([]);
+    expect(report.refused).toEqual([]);
+  });
+
+  it('keeps no document body in the index — it is a pointer table', () => {
+    const live = performRun();
+    const columns = live.ctx.handle.db.prepare('SELECT name FROM pragma_table_info(?)').all('document_index') as {
+      name: string;
+    }[];
+    const names = columns.map((c) => c.name);
+    knowledgeEvidence.index_columns = names;
+    for (const forbidden of ['body', 'content', 'text', 'extract', 'narrative']) {
+      expect(names, `document_index carries a "${forbidden}" column`).not.toContain(forbidden);
+    }
   });
 });
