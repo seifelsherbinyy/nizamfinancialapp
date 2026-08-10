@@ -517,3 +517,20 @@ classification is not a member of the `tier` enum. The three `ops/nizamcore-patc
 **change specifications and not applicable diffs**, and the read-only clone at an ignored path is recorded
 as permitted with modify and push owner-gated — nothing was cloned, fetched or read. **No contract file
 was edited**, `ops/GATE_REGISTER.md` untouched, no gate ticked, no test added; floor stays 2126.
+
+**R32 is authored and the full NIZAM scope now exists as a split rather than as an intention, 2026-08-10
+(task 10.17).** `ops/AGENT_CAPABILITY_SPLIT.md` is **one table, 37 rows** — 21 finance, 11 life, 5 the
+deployment's — each with the owning bot, its state, the governing contract, where it lives, its signal and
+its band. The finance rows were read out of `src/features/**` and `src/server/**`, which is why there are
+21 and not the 7 named in the task. **Twelve rows are `REFUSED BY CONSTRUCTION` with a reason each, and
+every one is a figure, a date, an identifier or a narrative** — the four schema rules applied capability
+by capability instead of asserted once, and the four richest things the finance agent computes
+(safe-to-spend, forecast, net worth, the decision registry) are among them, because the life agent does
+not need any of them. **Only four kinds cross, two each way**, and the document says that ratio is the
+design. Two columns are deliberately unflattering: every life row reads `OTHER REPO` or `NOT BUILT` in a
+column rather than a caveat, so nothing reads as existing; and rows 22-27 record their governing contract
+as a **gap**, because no NIZAM contract governs journaling, therapy or the wearable connector, and the
+rule is to author the contract before the area rather than invent policy this repository does not own.
+Every cross-agent kind is `producer_only` today, so the signal column says what a kind is *for* and not
+that it is readable. **No contract file was edited**, `ops/GATE_REGISTER.md` untouched, no gate ticked, no
+test added; floor stays 2126.

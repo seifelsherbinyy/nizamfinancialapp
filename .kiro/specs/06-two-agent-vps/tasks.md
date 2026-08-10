@@ -561,7 +561,7 @@
       is a file this document actually names, and the document names its own path once for the same reason.
       Feature modules are cited by directory rather than by file, which is both accurate and avoids
       declaring a token per engine. No test added - the deliverable is a document; floor stays 2126.
-- [ ] 10.17 **Full-scope split, recorded for the life side** (owner clarification, and **R32**). The
+- [x] 10.17 **Full-scope split, recorded for the life side** (owner clarification, and **R32**). The
       owner states the same treatment is owed to the life/therapy agent ("myNIZAM") so the full NIZAM
       scope exists with features split across the two bots **by functionality**. Author
       `ops/AGENT_CAPABILITY_SPLIT.md`: one table, every capability, which bot owns it, and which
@@ -571,6 +571,34 @@
       that would need a figure to cross is recorded as **refused by construction** with the reason,
       not deferred. This task authors the split; it does **not** implement the life side, which is
       option (a) work in the other repository.
+      **Done 2026-08-10.** `ops/AGENT_CAPABILITY_SPLIT.md`, and **R32** is authored in `requirements.md`
+      with its finding note. **One table, 37 rows** - 21 finance, 11 life, 5 belonging to the deployment
+      rather than to either agent - each carrying the owning bot, its **State**, the governing contract,
+      the directory it lives in, its signal and its band. The finance rows were read out of
+      `src/features/**` and `src/server/**` rather than guessed, which is why the list is 21 and not the
+      7 the task text names: budgeting, transactions, obligations, safe-to-spend, forecast, net worth and
+      decisions are there, and so are import, reconciliation, accounts, reports, the owner-only view, turn
+      routing, the per-agent bound, the transport, the store and the halt.
+      **Twelve rows are `REFUSED BY CONSTRUCTION`, each with its reason, and every one is a figure, a
+      date, an identifier or a narrative** - the same four rules firing twelve times out of 37, which is
+      what steering §4.3's *by construction rather than by filtering* looks like when it is applied
+      capability by capability instead of asserted once. The uncomfortable half is stated rather than
+      buried: **the four richest things the finance agent computes are among the refused** - safe-to-spend,
+      the forecast, net worth and the decision registry - and the reason is that the life agent does not
+      need any of them; it needs to know whether money is a source of pressure today, which is one of
+      three levels. Only **four** kinds cross, two each way, and the document says that ratio is the
+      design and that a proposal to raise it argues against this table.
+      **Two honest columns rather than one flattering one.** Every life row is `OTHER REPO` or
+      `NOT BUILT`, in a column rather than in a caveat a reader could skip, so no row can be mistaken for
+      something that exists. And rows 22-27 record their governing contract as **gap**: there is no NIZAM
+      contract for journaling, therapy or the wearable connector, and the current-state steering file's
+      rule is to author the contract before building the area and never invent policy a contract would
+      govern - so this document decides nothing about what a therapy turn may say and carries only what
+      the boundary needs. Also recorded: **every kind is `producer_only` today**, so the `Signal` column
+      says what a kind is *for* and not that it is readable yet.
+      R24 held under AC18 (which scans this file): no host, address, token, identifier or figure, the
+      contract files cited without their extensions so no dotted token was added, and one citation
+      reworded rather than declared. No test added - the deliverable is a document; floor stays 2126.
 - [x] 10.18 **Owner-only web access to the app on the host** (owner request, and **R33**). The static
       SPA already builds (AC05/AC05b/AC06). Serve it on the host reachable by the owner and **nobody
       else**, and record the access-control decision with its threat model. Phase 1 has no domain, no

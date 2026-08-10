@@ -5467,3 +5467,53 @@ names, and the document names its own path once for the same reason. Feature and
 smaller.
 
 No test added — the deliverable is a document. Floor stays **2126**.
+
+### Phase 10 task 10.17 — the full-scope capability split, and R32 (2026-08-10)
+
+`ops/AGENT_CAPABILITY_SPLIT.md`. **R32** authored in `.kiro/specs/06-two-agent-vps/requirements.md` with
+its finding note. The owner's clarification is the reason it exists: the life/therapy agent is owed the
+same treatment as the finance agent, so that the **full NIZAM scope** exists with its features split
+across the two bots **by functionality**.
+
+**One table, 37 rows.** Twenty-one finance, eleven life, five belonging to the deployment rather than to
+either agent. Each row carries the owning bot, its **State**, the governing contract, the directory it
+lives in, its signal, and its band. The finance rows were read out of `src/features/**` and
+`src/server/**` rather than guessed, which is why there are twenty-one and not the seven the task text
+names: budgeting, transactions, obligations, safe-to-spend, forecast, net worth and decisions are all
+there, and so are import, reconciliation, accounts, reports, the owner-only view, turn classification and
+routing, the per-agent bound, the transport, the store and the halt.
+
+**Twelve rows are `REFUSED BY CONSTRUCTION`, each with its reason, and every one of them is a figure, a
+date, an identifier or a narrative.** That is the same four schema rules appearing thirty-seven times and
+firing twelve of them, which is what steering §4.3's *by construction rather than by filtering* looks
+like when it is applied capability by capability instead of asserted once. The document states the
+uncomfortable half rather than burying it: **the four richest things the finance agent computes are among
+the refused** — safe-to-spend, the cash-flow forecast, net worth and the decision registry — and the
+reason it is not a loss is that the life agent does not need any of them. It needs to know whether money
+is a source of pressure today, which is one of three levels.
+
+**Only four kinds cross, two each way**, out of thirty-seven capabilities. The document says plainly that
+this ratio is the design and that a proposal to widen the channel should have to argue against the table.
+
+**Two honest columns rather than one flattering one.**
+
+- Every life-side row reads `OTHER REPO` or `NOT BUILT`, **in a column** rather than in a caveat a reader
+  could skip, so no row can be mistaken for something that exists today. Authoring the split is not
+  implementing it: that is option **(a)** work in a session opened on the other repository.
+- Rows 22 to 27 record their governing contract as **gap**. There is no NIZAM contract for journaling,
+  reflective retrieval, therapy dialogue or the wearable connector — PFOS 01 to 04, 06 and 09 to 11 are
+  the finance product, and contract 12 governs the deployment and the boundary. The current-state steering
+  file's rule is to author the relevant contract before building its area and never invent policy a
+  contract would govern, so this document decides nothing about what a therapy turn may say and carries
+  only what the boundary needs. Recording the absence is the most this side can honestly do, and it is
+  more than leaving the rows out would have been.
+
+**One clarification that prevents a predictable misreading:** every cross-agent kind is `producer_only`
+today, because the widening list is empty. So the `Signal` column says what a kind is **for**, not that
+it is readable yet — and the reader is pointed at `ops/INTEROP_CONTRACT.md` §5 where that is stated as a
+rule rather than as a state.
+
+R24 held under AC18, which scans this file: no host, address, port, token, identifier or monetary figure;
+the PFOS contracts are cited **without their file extensions** so that no dotted token had to be
+declared, and the one citation that would have needed a declaration was reworded instead. No test added —
+the deliverable is a document. Floor stays **2126**.

@@ -314,6 +314,25 @@ plus the text artifacts and the gate register needed to hand the remainder to a 
   record that a read-only clone or fetch of the other repository is permitted at a path outside this
   repository's tracked tree while a modify or a push remains owner-gated (steering §6 as amended by §2a).
 
+- **R32** WHERE the full NIZAM scope is divided across the two bots, THEN the division SHALL be recorded
+  capability by capability in a single table naming, for each capability, the bot that owns it, the
+  contract that governs it, and whether it needs a cross-agent signal; WHERE a capability needs one, THEN
+  the **band** it carries SHALL be named from the envelope's own vocabulary and no other; AND WHERE a
+  capability would need a **figure**, a date, an identifier or a narrative to cross, THEN it SHALL be
+  recorded as **refused by construction** with the reason, and SHALL NOT be recorded as deferred, because
+  the envelope has no field for one and the refusal is therefore permanent rather than pending; AND WHERE
+  a capability belongs to the other repository, THEN its state SHALL be recorded as such rather than
+  implied to exist, AND the absence of a governing contract for it SHALL be recorded as a gap rather than
+  filled by inventing policy this repository does not own.
+
+> **Finding note - R32 records a split, and authoring it is not implementing it.** The life agent is
+> Python and lives in the other repository, so every life-side row is `OTHER REPO` or `NOT BUILT` and the
+> document says so in a column rather than in a caveat somebody might skip. The reason the split is worth
+> authoring **before** that side exists is that it is the artifact against which a later proposal to widen
+> the channel has to argue: two agents, thirty-seven capabilities, **four** kinds of message between them.
+> R32 also forces the uncomfortable half into the open - twelve of those capabilities are refused by
+> construction, and they include the four most valuable things the finance agent computes.
+
 > **Finding note - R31 is a contract, not a git operation, and that is the owner's own reading.** "Clone
 > and migrate both repositories" was clarified on 2026-08-10 to mean *making the two understand each
 > other* - feeding information and communicating. So nothing in R31 moves code, and nothing in it obliges
