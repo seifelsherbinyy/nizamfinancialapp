@@ -4040,3 +4040,87 @@ The tests drive it with a scripted client over an array. **No outbound call was 
   test values are synthetic and obviously so.
 - **No gate attempted, no checkbox ticked in `ops/GATE_REGISTER.md`**, G7 still CLOSED - WONT-DO, no
   DNS record, no published port, no credential read, and the other repository untouched.
+
+## Task 10.6 - both directions of the mode-aware guard, shown failing (ladder L1) (2026-08-10)
+
+> Owning contract: **PFOS 12** - Two-Agent VPS Deployment & Operations, §5.2 (the token gate and its
+> fail-closed rule), §5.3 (the allowlist, and the audit as a separate path), §5.4 (dedup on the
+> pair). Spec: `.kiro/specs/06-two-agent-vps/` task **10.6**, mandate `KIRO_SHIP_LIVE.prompt.md` §6
+> item 2 and §9 rung **L1**. Requirements: **R26**, **R26.1**, with **R11**, **R12**, **R13**,
+> **R14** held to unchanged. Design: delta **D6**, all four cases.
+
+### What was written
+
+`src/server/telegram/modeAwareGuard.negative.test.ts` - **25 tests**, and the discipline that makes
+them evidence rather than decoration: each one is asserted against the **guarded operation** - the
+accept path and the poll loop, over a real store on disk - and each refusal is checked to have
+written **nothing**. `expectNothingHappened` reads the queue depth in all four states and the dedup
+table for the pair, both from the engine. A decision object of the right shape with a row behind it
+would otherwise be a green test and an open door at the same time.
+
+### The four D6 cases, each in both directions
+
+| Case | The refusing side | The accepting side it differs from by one field |
+|---|---|---|
+| `longPoll` and an unlisted sender | refused, audited at the `allowlist` stage, nothing written | the same delivery from the allowlisted owner is enqueued |
+| `longPoll` and **no header at all** | the same delivery is still refused under `webhook` | **accepted**, with `secretTokenHeader` asserted `null` first |
+| `longPoll` and an empty allowlist | the owner, an outsider and an empty identifier are all refused | one field of policy different - a populated list - and the owner is enqueued |
+| `webhook` and an unusable expected token | five shapes times three header states, all refused at the `configuration` stage | a usable token with a header that echoes it is enqueued |
+
+The fence is deliberately wider than the mandate's four shapes: `absent`, `null`, `empty`,
+`over-length` and `out-of-charset`, because the policy type admits `null` and a shape the type admits
+must be refused rather than assumed unreachable. It also covers absent, empty and wrong **headers**
+under a usable token, the unlisted sender carrying the correct token, and one case per `webhook`
+stage in turn - so a mode axis that had quietly dropped a gate from `webhook` would show up as a
+granted decision rather than as a changed audit line.
+
+Dedup is asserted in **both** modes, including R14's per-bot collision: the same update identifier
+from a second bot is a legitimate second update and both are enqueued. The crash before the enqueue
+commits is asserted **against the offset** and nowhere near a sleep: the offset does not move, the
+provider serves the update again, the second attempt enqueues, the depth is one, and a third poll is
+served nothing because the offset now acknowledges it.
+
+### Shown failing, which is the whole of rung L1
+
+A test only ever observed passing is not evidence, so both forbidden shapes were introduced and the
+suite was watched to refuse them:
+
+- **The naive reuse** - `longPoll` applying all three gates, which is the trap R26's note describes -
+  fails **10 of the 25**, including the acceptance of the owner with no header, the stage of the
+  unlisted-sender refusal, both dedup cases and the offset case.
+- **The relaxation D1 rejected** - an absent or empty expected token meaning "skip the check" - fails
+  **4** fence tests: the `absent`, `null` and `empty` rows, and the all-three-gates-consulted case.
+  It changes nothing about `longPoll`, which is exactly why the fence has to exist: without it that
+  mutation opens `webhook` and every other test in the tree stays green.
+
+Both mutations were reverted, and `git diff` was read back to confirm the guard is byte-identical to
+what commit 1 recorded.
+
+### Rung L1
+
+```
+npx vitest run src/server/telegram/modeAwareGuard.negative.test.ts src/server/telegram/auth.test.ts \
+  src/server/telegram/auth.constantTime.test.ts src/server/telegram/negativeGuards.test.ts \
+  src/server/telegram/acceptHandler.test.ts
+```
+
+```
+ Test Files  5 passed (5)
+      Tests  117 passed (117)
+```
+
+**L1 is OBSERVED.** It needs no gate: every guard in it is exercised behind the injected boundary,
+with no network, no credential and no host.
+
+### Gate result
+
+- `npm run verify:all -- --all` - **20 of 20 executed checks passed**, run after the commit because
+  AC14 and AC15 require a clean tree.
+- Tests **1847 -> 1872** passing, and the AC04 `--min` floor ratcheted **1847 -> 1872**. Up only.
+  Nothing lowered, allowlisted, skipped or exempted.
+- **No production code changed in this commit.** The tests are the deliverable, and they pass against
+  the guard exactly as commit 1 left it - which is the only way the fence means anything.
+- **R24 holds.** Every token, sender and bot identifier is synthetic and obviously so; no secret value
+  was invented, not even a plausible placeholder of the right width.
+- **No gate attempted, no checkbox ticked in `ops/GATE_REGISTER.md`**, G7 still CLOSED - WONT-DO, no
+  outbound call, and the other repository untouched.

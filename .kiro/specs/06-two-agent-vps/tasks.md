@@ -190,11 +190,27 @@
       **audit** path - the separate path §5.3 already requires - for the one bit it needs, whether a
       refusal was the `enqueue` stage. Finding **F17**: a refusal must still advance the offset, or
       any unlisted sender wedges the poller forever.
-- [ ] 10.6 Negative tests for both directions of the mode-aware guard (ladder **L1**): `longPoll`
+- [x] 10.6 Negative tests for both directions of the mode-aware guard (ladder **L1**): `longPoll`
       refuses an unlisted sender and accepts the owner with no secret-token header; an empty
       allowlist still refuses everyone; `webhook` still refuses absent, empty, over-length and
       out-of-charset tokens; the same update twice produces one effect in both modes.
       **Do not relax the webhook path to let one code path serve both.**
+      `src/server/telegram/modeAwareGuard.negative.test.ts`, **25 tests**, every one asserted against
+      the **guarded operation** over a real store rather than against a returned value: each refusal
+      is checked to have written **nothing** - no dedup claim, no queue row in any state - because a
+      correctly shaped decision with a row behind it would be a pass and a breach at once. Both
+      directions: `longPoll` refuses an unlisted sender, an empty allowlist, and an empty sender
+      identifier, and **accepts the owner with no header at all** - the case the unchanged guard
+      broke; the same delivery is still refused under `webhook`, which is what proves the acceptance
+      came from the mode axis and not from a relaxation. The fence covers **five** unusable
+      expected-token shapes (absent, `null`, empty, over-length, out-of-charset) times three header
+      states, plus absent/empty/wrong headers under a usable token, plus the unlisted sender, plus a
+      case that reaches each of the three `webhook` stages in turn so no gate can become unreachable.
+      Dedup asserted in **both** modes including the per-bot collision (R14); the crash before the
+      enqueue commits asserted **against the offset** and shown re-delivering and enqueuing exactly
+      once. **Shown failing, twice:** making `longPoll` apply all three gates (the naive reuse) fails
+      **10** of the 25; making an absent or empty expected token mean "skip the check" (the
+      relaxation D1 rejected) fails **4** fence tests. Both mutations reverted.
 - [ ] 10.7 Build the finance-agent entrypoint (§6.3, R29). `src/server/telegram/index.ts` is a
       barrel, not a main: add a process that wires `acceptHandler` + `workerRunner` +
       `routing/turnDispatch`, refuses to boot on an incomplete environment, and honours the sentinel.

@@ -227,3 +227,15 @@ requirement range moved** - R26 and R26.1 were already in contract 12's `R6-R30`
 findings are recorded in the build log with their reasons: **F16**, the accept decision has no reason field by
 design, so the durability answer is read from the **audit** path §5.3 already requires rather than by adding one;
 and **F17**, a *refused* update must still advance the offset, or any unlisted sender wedges the poller forever.
+
+**Ladder rung L1 is OBSERVED, 2026-08-10 (task 10.6).** Contract 12 §5.2's "the refusal reveals nothing about
+which check failed" rule, §5.3's allowlist-before-parsing rule and §5.4's dedup-on-the-pair rule are now
+asserted **in both transport modes** by `src/server/telegram/modeAwareGuard.negative.test.ts` (25 tests), and
+every case is asserted against the **guarded operation** over a real store rather than against a returned
+value - each refusal is checked to have written no dedup claim and no queue row. The `webhook` rows are the
+**regression fence** for **R11**: five unusable expected-token shapes times three header states, plus a case
+reaching each of the three gates in turn. Both forbidden shapes were introduced and shown to fail the suite -
+the naive reuse that applies all three gates under `longPoll` (10 of 25 fail) and the "absent means skip"
+relaxation **D1** rejected (4 fence tests fail) - then reverted. **No contract file was edited, no owning
+requirement range moved, and no production code changed in that increment**: the tests pass against the guard
+exactly as task 10.5 left it, which is the only condition under which a fence means anything.
