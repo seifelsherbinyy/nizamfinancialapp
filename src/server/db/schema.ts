@@ -550,6 +550,67 @@ export const TELEMETRY_FORBIDDEN_COLUMNS = [
   'transcript',
 ] as const;
 
+/**
+ * Spec 08 wave A2 — the provenance columns §3.2 promises and the DDL did not carry. Phase 2.2.
+ *
+ * The spec's own table map says `transactions` carries "its own confidence score, confidence reason,
+ * extraction method and duplicate key". Migration 002 declared the duplicate key and none of the other
+ * three, so a load that satisfied K4 was not expressible: there was nowhere for a source reference or
+ * an extraction method to land, and a row with unknown provenance could only be stored as though it
+ * had none. These columns are what make K4 a property of the store rather than of a report about it.
+ *
+ * Four of them exist because of what the LIVE artifact turned out to hold, and each is worth stating:
+ *
+ *  - `extraction_method` accepts `unknown` as a FOURTH value. Without it, an unrecognised upstream
+ *    extractor has no honest home, and finding F23 is the shared importer picking `manual` for that
+ *    case — a machine-extracted row claiming a human entered it, which K4 forbids in as many words.
+ *  - `extraction_method_raw` and `transaction_type_raw` keep the upstream token VERBATIM. The
+ *    canonical export's nine transaction-type tokens and its one extractor token are none of them in
+ *    this repository's vocabulary, so a translation is unavoidable; keeping the source token beside the
+ *    translated one is what makes the translation auditable rather than lossy.
+ *  - `confidence_bps` and `confidence_band` are SEPARATE columns because the source turned out to hold
+ *    an ordinal word where the schema document promised a 0..1 score. Rendering a band as a score
+ *    invents precision nobody measured, and reading the word with a numeric coercion — which is what
+ *    the lenient path does — yields zero on every row. A band is stored as a band.
+ *
+ * Confidence is basis points rather than a real, for the reason §4.4 gives about rates: this tier holds
+ * no floating-point quantity that later multiplies or filters money. `transaction_links` already
+ * expresses a confidence this way, so the vocabulary is not new.
+ *
+ * `statements.close_exception_reason` is the other half of A2.5: a period whose totals do not satisfy
+ * the balance equation is closed as an accepted exception AND a reason, never silently balanced. The
+ * column holds a reason CODE — no amount, because a residual is a monetary value and this is a text
+ * column outside the §4.2 guard.
+ *
+ * `document_index.set_name` and `set_ordinal` are A4.2: the owner's recovery plan is one ordered set
+ * across five horizons, and ordering is meaning there rather than presentation — an agent that applied
+ * the year-long monitoring horizon as though it were the immediate triage would be giving advice the
+ * owner never agreed to. The unique index makes two documents claiming the same position impossible.
+ *
+ * A NEW migration rather than an edit, because an applied migration is frozen (§5.1). The `ADD COLUMN`
+ * statements cannot be defensive — SQLite has no `IF NOT EXISTS` form for them — and what makes the run
+ * once-only is the recorded version (§5.2.2), not the DDL's own re-runnability.
+ */
+const MIGRATION_008: readonly string[] = [
+  `ALTER TABLE transactions ADD COLUMN source_file TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE transactions ADD COLUMN source_page_or_sheet TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE transactions ADD COLUMN extraction_method TEXT NOT NULL DEFAULT 'unknown'
+     CHECK (extraction_method IN ('parser', 'ocr', 'manual', 'unknown'))`,
+  `ALTER TABLE transactions ADD COLUMN extraction_method_raw TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE transactions ADD COLUMN transaction_type_raw TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE transactions ADD COLUMN confidence_bps INTEGER
+     CHECK (confidence_bps IS NULL OR confidence_bps BETWEEN 0 AND 10000)`,
+  `ALTER TABLE transactions ADD COLUMN confidence_band TEXT
+     CHECK (confidence_band IS NULL OR confidence_band IN ('high', 'medium', 'low'))`,
+  `ALTER TABLE transactions ADD COLUMN confidence_reason TEXT NOT NULL DEFAULT ''`,
+  `CREATE INDEX IF NOT EXISTS transactions_extraction_method ON transactions(extraction_method)`,
+  `ALTER TABLE statements ADD COLUMN close_exception_reason TEXT`,
+  `ALTER TABLE document_index ADD COLUMN set_name TEXT`,
+  `ALTER TABLE document_index ADD COLUMN set_ordinal INTEGER
+     CHECK (set_ordinal IS NULL OR set_ordinal >= 1)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS document_index_set_position ON document_index(set_name, set_ordinal)`,
+];
+
 /** The DDL of each migration, keyed by version. Consumed only by `migrations.ts`. */
 export const SCHEMA_STATEMENTS: Readonly<Record<number, readonly string[]>> = {
   1: MIGRATION_001,
@@ -559,4 +620,5 @@ export const SCHEMA_STATEMENTS: Readonly<Record<number, readonly string[]>> = {
   5: MIGRATION_005,
   6: MIGRATION_006,
   7: MIGRATION_007,
+  8: MIGRATION_008,
 } as const;

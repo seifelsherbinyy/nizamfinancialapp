@@ -69,6 +69,9 @@ export const MIGRATIONS: readonly Migration[] = [
   // model identity, the per-request privacy assertion, and append-only triggers on the telemetry
   // table (contract 06 §3.3/§6.2, contract 12 §6.4, R19). 003 declared the table and is frozen.
   { version: 7, name: 'model_telemetry_cost_and_append_only', statements: SCHEMA_STATEMENTS[7] ?? [] },
+  // Spec 08 wave A2/A4 — the provenance columns K4 needs, the statement exception reason A2.5 needs,
+  // and the ordered-set position A4.2 needs. 002 and 003 declared those tables and are frozen (§5.1).
+  { version: 8, name: 'ingestion_provenance_and_document_sets', statements: SCHEMA_STATEMENTS[8] ?? [] },
 ];
 
 /** Stable hash of a migration's identity and its statements. */

@@ -28,7 +28,12 @@ export type ServerDbErrorCode =
   | 'RATE_COLUMN_UNKNOWN'
   | 'REPOSITORY_ROW_NOT_FOUND'
   | 'REPOSITORY_ROW_ALREADY_SUPERSEDED'
-  | 'REPOSITORY_DERIVED_STATE_NOT_ASSIGNABLE';
+  | 'REPOSITORY_DERIVED_STATE_NOT_ASSIGNABLE'
+  // Spec 08 wave A2/A4 — the ingestion boundary's own refusals (Phase 2.2).
+  | 'INGEST_STATEMENT_EXCEPTION_WITHOUT_REASON'
+  | 'INGEST_DOCUMENT_SET_POSITION_INCOMPLETE'
+  | 'INGEST_DOCUMENT_SET_POSITION_TAKEN'
+  | 'INGEST_ACCOUNT_UNRESOLVED';
 
 /** Base class for every typed failure of the server data tier. */
 export class ServerDbError extends Error {
@@ -218,5 +223,33 @@ export class RepositoryStateError extends ServerDbError {
     super(code, message);
     this.table = detail.table;
     this.rowId = detail.rowId;
+  }
+}
+
+/**
+ * A refusal at the INGESTION boundary — spec 08 wave A2/A4 (Phase 2.2).
+ *
+ * Kept separate from `RepositoryStateError` because these are not states of a row that already exists;
+ * they are the boundary declining to write one. Each carries the subject it refused so the operator
+ * learns which document or which period is at fault, and never a monetary value: a balance-equation
+ * residual is a real amount, so it belongs in the gitignored reconciliation artifact and not in an
+ * error message that a log line could carry.
+ */
+export class IngestionRefusalError extends ServerDbError {
+  readonly subject: string;
+
+  constructor(
+    code: Extract<
+      ServerDbErrorCode,
+      | 'INGEST_STATEMENT_EXCEPTION_WITHOUT_REASON'
+      | 'INGEST_DOCUMENT_SET_POSITION_INCOMPLETE'
+      | 'INGEST_DOCUMENT_SET_POSITION_TAKEN'
+      | 'INGEST_ACCOUNT_UNRESOLVED'
+    >,
+    message: string,
+    detail: { subject: string },
+  ) {
+    super(code, message);
+    this.subject = detail.subject;
   }
 }

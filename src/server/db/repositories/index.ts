@@ -20,6 +20,34 @@ export {
   type DecisionSupersedeResult,
 } from './decisionsRepository.ts';
 export {
+  createDocumentIndexRepository,
+  DOCUMENT_PROCESSING_STATES,
+  type DocumentIndexEntry,
+  type DocumentIndexRepository,
+  type DocumentIndexResult,
+  type DocumentIndexRow,
+  type DocumentProcessingState,
+} from './documentIndexRepository.ts';
+export {
+  balanceEquationResidual,
+  createStatementsRepository,
+  STATEMENT_CLOSE_STATES,
+  type StatementCloseState,
+  type StatementCloseVerdict,
+  type StatementRecord,
+  type StatementRow,
+  type StatementsRepository,
+} from './statementsRepository.ts';
+export {
+  createSourceEventsRepository,
+  PARSE_STATES,
+  type ParseState,
+  type SourceEventAppend,
+  type SourceEventAppendResult,
+  type SourceEventRow,
+  type SourceEventsRepository,
+} from './sourceEventsRepository.ts';
+export {
   createFxRatesRepository,
   toFxRate,
   type FxRateListFilter,
@@ -70,6 +98,7 @@ export {
   type TransactionLinkInsert,
   type TransactionLinkRow,
   type TransactionLinkType,
+  type TransactionProvenance,
   type TransactionRow,
   type TransactionStatus,
   type VerificationLevel,

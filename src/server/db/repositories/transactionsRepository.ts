@@ -24,11 +24,13 @@
  */
 import { assertMonetaryCoverage, assertMoneyField } from '../moneyBoundary.ts';
 import { RepositoryStateError } from '../errors.ts';
+import type { ConfidenceBand, IngestExtractionMethod } from '../../../lib/ledger/ledger.types.ts';
 import {
   DEFAULT_CURRENCY,
   type LedgerTransactionType,
   type LinkResolution,
   type TransactionInsert,
+  type TransactionProvenance,
   type TransactionLinkInsert,
   type TransactionLinkRow,
   type TransactionLinkType,
@@ -75,8 +77,42 @@ export interface TransactionsRepository {
   resolveLink(linkId: string, resolution: LinkResolution): TransactionLinkRow;
 }
 
+/**
+ * Absent provenance is UNKNOWN provenance — spec 08 task A2.4 (K4, finding F23).
+ *
+ * A write path that does not state where a row came from gets `unknown` and empty references, never a
+ * plausible-looking default. That keeps K4 checkable by query rather than by trusting the loader: a row
+ * claiming `manual` was entered by a human, and nothing else may say so.
+ */
+const UNKNOWN_PROVENANCE: TransactionProvenance = {
+  sourceFile: '',
+  sourcePageOrSheet: '',
+  extractionMethod: 'unknown',
+  extractionMethodRaw: '',
+  transactionTypeRaw: '',
+  confidenceBps: null,
+  confidenceBand: null,
+  confidenceReason: '',
+};
+
+function mapProvenance(raw: Record<string, unknown>): TransactionProvenance {
+  const bps = raw['confidence_bps'];
+  const band = toNullableText(raw['confidence_band']);
+  return {
+    sourceFile: String(raw['source_file'] ?? ''),
+    sourcePageOrSheet: String(raw['source_page_or_sheet'] ?? ''),
+    extractionMethod: String(raw['extraction_method'] ?? 'unknown') as IngestExtractionMethod,
+    extractionMethodRaw: String(raw['extraction_method_raw'] ?? ''),
+    transactionTypeRaw: String(raw['transaction_type_raw'] ?? ''),
+    confidenceBps: bps === null || bps === undefined ? null : Number(bps),
+    confidenceBand: band === null ? null : (band as ConfidenceBand),
+    confidenceReason: String(raw['confidence_reason'] ?? ''),
+  };
+}
+
 function mapRow(raw: Record<string, unknown>): TransactionRow {
   return {
+    provenance: mapProvenance(raw),
     id: String(raw['id']),
     accountId: String(raw['account_id']),
     sourceEventId: toNullableText(raw['source_event_id']),
@@ -165,14 +201,18 @@ export function createTransactionsRepository(ctx: RepositoryContext): Transactio
     const inflow = assertMoneyField(TABLE, 'inflow', input.inflow);
     const at = ctx.now();
 
+    const provenance = input.provenance ?? UNKNOWN_PROVENANCE;
+
     // Nothing above threw, so a statement may now be prepared.
     db.prepare(
       `INSERT INTO ${TABLE}
          (id, account_id, source_event_id, transaction_date, posting_date, payee, merchant, memo,
           category_id, transaction_type, amount, outflow, inflow, currency, status,
           verification_level, supersedes_transaction_id, audit_version, duplicate_key,
+          source_file, source_page_or_sheet, extraction_method, extraction_method_raw,
+          transaction_type_raw, confidence_bps, confidence_band, confidence_reason,
           created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       input.id,
       input.accountId,
@@ -193,6 +233,14 @@ export function createTransactionsRepository(ctx: RepositoryContext): Transactio
       lineage.supersedesTransactionId,
       lineage.auditVersion,
       input.duplicateKey ?? null,
+      provenance.sourceFile,
+      provenance.sourcePageOrSheet,
+      provenance.extractionMethod,
+      provenance.extractionMethodRaw,
+      provenance.transactionTypeRaw,
+      provenance.confidenceBps,
+      provenance.confidenceBand,
+      provenance.confidenceReason,
       at,
       at,
     );

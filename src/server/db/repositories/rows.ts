@@ -27,7 +27,11 @@
  * invented an id or read the wall clock would make its own writes untestable.
  */
 import type { Money } from '../../../lib/money/money.ts';
-import type { LedgerTransactionType } from '../../../lib/ledger/ledger.types.ts';
+import type {
+  ConfidenceBand,
+  IngestExtractionMethod,
+  LedgerTransactionType,
+} from '../../../lib/ledger/ledger.types.ts';
 import type { AccountType } from '../../../features/accounts/accounts.types.ts';
 import {
   OBLIGATION_PRIORITIES,
@@ -127,8 +131,31 @@ export interface TransactionRow {
   readonly supersedesTransactionId: string | null;
   readonly auditVersion: number;
   readonly duplicateKey: string | null;
+  /** Provenance, added by migration 008 for spec 08 wave A2 task A2.4 (K4). Never defaulted. */
+  readonly provenance: TransactionProvenance;
   readonly createdAt: string;
   readonly updatedAt: string;
+}
+
+/**
+ * Where a row came from and how much the extraction is trusted — spec 08 task A2.4 (K4).
+ *
+ * `extractionMethod` may be `unknown`, and that is the point: a row whose extractor this repository
+ * has no translation for loads as unknown rather than claiming a human entered it (finding F23).
+ * `confidenceBps` and `confidenceBand` are alternatives, never both derived from one another: a source
+ * that stated an ordinal word gets a band, a source that stated a score gets basis points.
+ */
+export interface TransactionProvenance {
+  readonly sourceFile: string;
+  readonly sourcePageOrSheet: string;
+  readonly extractionMethod: IngestExtractionMethod;
+  /** The upstream extractor token, verbatim, so the translation above can be audited. */
+  readonly extractionMethodRaw: string;
+  /** The upstream transaction-type token, verbatim, for the same reason. */
+  readonly transactionTypeRaw: string;
+  readonly confidenceBps: number | null;
+  readonly confidenceBand: ConfidenceBand | null;
+  readonly confidenceReason: string;
 }
 
 export interface TransactionInsert {
@@ -149,6 +176,14 @@ export interface TransactionInsert {
   readonly status: TransactionStatus;
   readonly verificationLevel: VerificationLevel;
   readonly duplicateKey?: string | null;
+  /**
+   * Optional so every write path that predates spec 08 keeps compiling, and absent means UNKNOWN
+   * rather than absent: the repository stores `unknown` for the method and empty strings for the
+   * references, which is exactly what a row with no provenance is. K4 is then a property a query can
+   * check — count the rows whose method is `unknown` or whose source reference is empty — rather than
+   * something a loader claims about itself.
+   */
+  readonly provenance?: TransactionProvenance;
 }
 
 /** Kinds of relationship between two transactions. Matches the DDL `link_type` CHECK. */

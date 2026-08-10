@@ -18,6 +18,33 @@ export type LedgerTransactionType = (typeof TRANSACTION_TYPES)[number];
 export const EXTRACTION_METHODS = ['parser', 'ocr', 'manual'] as const;
 export type ExtractionMethod = (typeof EXTRACTION_METHODS)[number];
 
+/**
+ * The extraction vocabulary the INGESTION boundary uses — spec 08 wave A2, task A2.4 (K4).
+ *
+ * `EXTRACTION_METHODS` above has no value for "we do not know", so the lenient importer had to pick
+ * one, and it picked `manual` (finding F23). That makes a machine-extracted row claim a human entered
+ * it, which is the opposite of what K4 requires. `unknown` is the missing value, and it is added as a
+ * SEPARATE vocabulary rather than by widening the one above: the browser tier's stored shape validates
+ * against the narrow three, and a row that reached the browser store claiming `unknown` would fail a
+ * schema it has no way to satisfy. The server store's own column accepts all four.
+ */
+export const UNKNOWN_EXTRACTION_METHOD = 'unknown' as const;
+export const INGEST_EXTRACTION_METHODS = [...EXTRACTION_METHODS, UNKNOWN_EXTRACTION_METHOD] as const;
+export type IngestExtractionMethod = (typeof INGEST_EXTRACTION_METHODS)[number];
+
+/**
+ * Confidence as an ORDINAL BAND, which is what the real upstream export actually carries.
+ *
+ * `LedgerRow.confidence_score` is typed as a 0..1 number, and the lenient parser reads the cell with
+ * `Number(...) || 0`. Measured on the live canonical export, every one of its cells holds an ordinal
+ * word instead, so that expression yields 0 on every row and the ledger silently reads as
+ * zero-confidence throughout. A band is not a score and converting one into the other invents
+ * precision that was never measured, so the two are carried in separate fields and neither is derived
+ * from the other.
+ */
+export const CONFIDENCE_BANDS = ['high', 'medium', 'low'] as const;
+export type ConfidenceBand = (typeof CONFIDENCE_BANDS)[number];
+
 export type LedgerDirection = 'in' | 'out';
 
 /**
@@ -50,6 +77,35 @@ export interface LedgerRow {
   /** 23 */ duplicate_key: string;
   /** 24 */ is_duplicate: boolean;
   /** 25 */ memo: string;
+}
+
+/**
+ * One row as the INGESTION boundary reads it — spec 08 wave A2 (tasks A2.3, A2.4).
+ *
+ * The same 25 facts, plus the four things the narrow shape above cannot express without losing
+ * information the owner is entitled to keep:
+ *
+ *  - `amount` is DERIVED here, signed by direction, rather than copied. The live canonical export's
+ *    own `amount` column is an unsigned magnitude on all of its rows, so copying it verbatim posts
+ *    every outflow as an inflow.
+ *  - the upstream vocabulary tokens for type and extraction method are preserved verbatim, so a
+ *    mapping into this repository's vocabulary can be audited against what the source actually said.
+ *  - confidence is a band or a score, never a band silently rendered as a score.
+ */
+export interface IngestLedgerRow extends Omit<LedgerRow, 'amount' | 'extraction_method' | 'confidence_score'> {
+  /** Signed milliunits, derived as `inflow - outflow`. Outflow negative (money-rules §4). */
+  amount: Money;
+  /** The magnitude the source declared, kept so the derivation can be cross-checked. */
+  declared_amount_magnitude: Money;
+  /** The source's own transaction-type token, before this repository's vocabulary is applied. */
+  transaction_type_raw: string;
+  extraction_method: IngestExtractionMethod;
+  /** The source's own extraction token, before this repository's vocabulary is applied. */
+  extraction_method_raw: string;
+  /** Basis points, 0..10000, present only when the source stated a numeric score. */
+  confidence_bps: number | null;
+  /** Present only when the source stated an ordinal band. */
+  confidence_band: ConfidenceBand | null;
 }
 
 /** Column order as they appear in the master ledger CSV. */
