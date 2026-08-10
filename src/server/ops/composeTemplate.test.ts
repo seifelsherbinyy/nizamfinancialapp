@@ -33,14 +33,19 @@ import {
   COMPOSE_FINDING_CODES,
   EXPECTED_PROFILES,
   EXPECTED_SERVICES,
+  FINANCE_SERVICE,
   HOST_BUDGET,
+  LIFE_SERVICE,
   LOG_FOOTPRINT_BUDGET_MIB,
+  PHASE_ONE_SERVICES,
   PHASE_TWO_PROFILE,
   PROXY_SERVICE,
   ROTATING_LOG_DRIVERS,
+  SCHEDULER_SERVICE,
   auditComposeTemplate,
   auditComposeTemplateFile,
   parseComposeSubset,
+  phaseOneServicesNamedIn,
   type ComposeFindingCode,
   type YamlMap,
 } from './composeTemplate';
@@ -214,6 +219,29 @@ const NEGATIVE_CASES: readonly NegativeCase[] = [
     apply: swap(
       '    image: "<BUS_IMAGE_REF>"\n    restart: unless-stopped\n',
       '    image: "<BUS_IMAGE_REF>"\n    restart: unless-stopped\n    profiles:\n      - phase2\n',
+    ),
+  },
+  {
+    code: 'PHASE_ONE_SERVICE_NOT_DECLARED',
+    why: 'a phase-1 service the template does not declare would make the phase-1 dependency rule apply to nothing',
+    apply: swap('\n  scheduler:\n', '\n  timekeeper:\n'),
+  },
+  {
+    code: 'DEPENDS_ON_UNREADABLE',
+    why: 'a depends_on nobody can read is a start order nobody knows, and reading it as "no dependencies" is the generous direction',
+    apply: swap('    depends_on:\n      signalbus:\n        condition: service_healthy\n', '    depends_on: signalbus\n'),
+  },
+  {
+    code: 'DEPENDS_ON_NAMES_UNDECLARED_SERVICE',
+    why: 'a dependency on a service that is not in the template is a start order that can never be satisfied',
+    apply: swap('    depends_on:\n      signalbus:\n        condition: service_healthy\n', '    depends_on:\n      signalqueue:\n        condition: service_healthy\n'),
+  },
+  {
+    code: 'PHASE_ONE_SERVICE_DEPENDS_ON_ABSENT_SERVICE',
+    why: 'task 10.22 - the scheduler waiting on the life agent is a phase-1 start that waits for ever',
+    apply: swap(
+      '    depends_on:\n      finance-agent:\n        condition: service_healthy\n    healthcheck:\n      test:\n        - CMD\n        - "<SCHEDULER_HEALTH_PROBE>"',
+      '    depends_on:\n      life-agent:\n        condition: service_healthy\n      finance-agent:\n        condition: service_healthy\n    healthcheck:\n      test:\n        - CMD\n        - "<SCHEDULER_HEALTH_PROBE>"',
     ),
   },
   {
@@ -412,6 +440,49 @@ describe('the template on disk is the shape contract 12 requires', () => {
     for (const profile of (services[PROXY_SERVICE] as YamlMap).profiles as readonly string[]) {
       expect(EXPECTED_PROFILES).toContain(profile);
     }
+  });
+
+  it('lets no phase-1 service wait on a service phase 1 does not start (task 10.22, R35)', () => {
+    // The owner's ruling of 2026-08-10, asserted rather than described. Before it the scheduler
+    // declared `depends_on: life-agent: condition: service_healthy`, and under option (b) the life
+    // agent stays created and idle - so a bare start waited for ever and naming the scheduler dragged
+    // the life agent in with it. Read off the parse tree, per phase-1 service, so a later edit that
+    // re-adds any such dependency to any phase-1 service is caught rather than only this one.
+    const services = parseComposeSubset(TEMPLATE).services as YamlMap;
+    for (const name of PHASE_ONE_SERVICES) {
+      expect(Object.keys(services), `${name} is declared`).toContain(name);
+      const declared = (services[name] as YamlMap).depends_on;
+      const dependencies = declared === undefined ? [] : Object.keys(declared as YamlMap);
+      for (const dependency of dependencies) {
+        expect(PHASE_ONE_SERVICES, `${name} waits on ${dependency}, which phase 1 does not start`).toContain(dependency);
+      }
+    }
+    // And the specific relaxation, so the case cannot pass by the scheduler having no dependencies at
+    // all: it still waits for the agent it delivers ticks to in phase 1.
+    expect(Object.keys((services[SCHEDULER_SERVICE] as YamlMap).depends_on as YamlMap)).toEqual([FINANCE_SERVICE]);
+    // The proxy KEEPS its life dependency. It is phase 2 and profile-gated, so it costs phase 1
+    // nothing, and removing it would let phase 2 start a proxy in front of an agent that is not up.
+    expect(Object.keys((services[PROXY_SERVICE] as YamlMap).depends_on as YamlMap)).toContain(LIFE_SERVICE);
+  });
+
+  it('records the phase-1 selection in the artifact an operator reads, in agreement with the code (task 10.22)', () => {
+    // Task 10.20 flagged that no file said which services phase 1 starts. It is data in one place and
+    // prose in one place, and this is what keeps them the same: the command in ops/IMAGE_BUILD.md is
+    // read back and its operands compared with PHASE_ONE_SERVICES. Either one moving alone fails here.
+    const record = readFileSync(fileURLToPath(new URL('../../../ops/IMAGE_BUILD.md', import.meta.url)), 'utf8');
+    const documented = phaseOneServicesNamedIn(record);
+    expect(documented, 'ops/IMAGE_BUILD.md states exactly one phase-1 start command').not.toBeNull();
+    expect([...(documented ?? [])].sort()).toEqual([...PHASE_ONE_SERVICES].sort());
+  });
+
+  it('reads no selection out of a document that states two start commands, or none', () => {
+    // The negative half of the reader. A document with two start commands does not state one
+    // selection, and prose outside a fence is discussion rather than an instruction - both answer
+    // null, so the assertion above cannot be satisfied by a document that says nothing.
+    expect(phaseOneServicesNamedIn('nothing here')).toBeNull();
+    expect(phaseOneServicesNamedIn('docker compose up signalbus\n')).toBeNull();
+    expect(phaseOneServicesNamedIn('```\ndocker compose up a\n```\n```\ndocker compose up b\n```\n')).toBeNull();
+    expect(phaseOneServicesNamedIn('```\ndocker compose --file <F> up --detach one two\n```\n')).toEqual(['one', 'two']);
   });
 
   it('publishes exactly one host port, so F12 is closed on TLS-ALPN-01 rather than on a second binding', () => {

@@ -219,6 +219,32 @@ export const PHASE_TWO_PROFILE = 'phase2';
 /** Every profile name the template may use. Enumerated, so a typo is a finding and not a new profile. */
 export const EXPECTED_PROFILES: readonly string[] = [PHASE_TWO_PROFILE];
 
+/**
+ * The services phase 1 actually starts (task 10.22, R35). Owner ruling 2026-08-10.
+ *
+ * This is the ONE place the selection is written as data, and `ops/IMAGE_BUILD.md` states the same
+ * selection as the command an operator runs — {@link phaseOneServicesNamedIn} reads that command back
+ * so the prose and this list cannot drift.
+ *
+ * It cannot be derived from the file, which is exactly why it is declared here. A profile is not the
+ * discriminator: `caddy` carries one because it publishes a port, while `life-agent` and `backup`
+ * carry none and are still not started in phase 1 — the life agent because it belongs to the other
+ * repository and stays idle under the authorised option (b), the backup because its image is
+ * `OWNED_BUILD_PENDING`. So "which services phase 1 runs" is a decision, and a decision that lives
+ * only in a command line nobody wrote down is a decision the next session guesses at.
+ *
+ * What it buys is the rule below: **no service phase 1 runs may declare a start dependency on a
+ * service phase 1 does not run.** Before task 10.22 the scheduler declared
+ * `depends_on: life-agent: condition: service_healthy`, so a bare start waited for ever on a service
+ * that was never coming, and naming the scheduler dragged the life agent in with it. That is a
+ * property of the FILE rather than of any process, so nothing inside a container could have caught
+ * it.
+ */
+export const PHASE_ONE_SERVICES: readonly string[] = [BUS_SERVICE, FINANCE_SERVICE, SCHEDULER_SERVICE];
+
+/** The dependency conditions the template may use. Enumerated for the same reason profiles are. */
+export const EXPECTED_DEPENDS_ON_CONDITIONS: readonly string[] = ['service_healthy', 'service_started', 'service_completed_successfully'];
+
 export const BUS_NETWORK = 'bus-internal';
 
 /** BUS_NETWORK_BINDING item 4: the agents are the bus's only legitimate clients. Nothing else joins. */
@@ -308,6 +334,10 @@ export const COMPOSE_FINDING_CODES = [
   'PUBLISHED_PORT_NOT_PLACEHOLDER',
   'PORT_PUBLISHING_SERVICE_NOT_PROFILE_GATED',
   'PHASE_ONE_SERVICE_IS_PROFILE_GATED',
+  'PHASE_ONE_SERVICE_NOT_DECLARED',
+  'DEPENDS_ON_UNREADABLE',
+  'DEPENDS_ON_NAMES_UNDECLARED_SERVICE',
+  'PHASE_ONE_SERVICE_DEPENDS_ON_ABSENT_SERVICE',
   'PROFILE_LIST_UNREADABLE',
   'PROFILE_NAME_UNEXPECTED',
   'AGENT_NOT_ON_BUS_NETWORK',
@@ -449,6 +479,8 @@ export function auditComposeTemplate(source: string): readonly ComposeFinding[] 
   /** Task 10.8: which services publish a host port, and which are gated behind a profile. */
   const publishesPort = new Set<string>();
   const profilesOf = new Map<string, readonly string[]>();
+  /** Task 10.22: which services each service waits for before it starts. */
+  const dependsOnOf = new Map<string, readonly string[]>();
   let reservedCpus = 0;
   let reservedMemory = 0;
   /** Task 7.5: the bounded total of every declared cap, in MiB (§2.2.9). */
@@ -619,6 +651,40 @@ export function auditComposeTemplate(source: string): readonly ComposeFinding[] 
       }
     }
 
+    // start dependencies: read here, asserted after the loop against the phase-1 set (task 10.22).
+    // Both compose spellings are accepted — a list of names, or a mapping of name to condition —
+    // because which one a template uses says nothing about the property R35 is about. Anything else
+    // is a finding rather than an absence: a `depends_on` nobody can read is a start order nobody
+    // knows, and reading it as "no dependencies" would be the generous direction.
+    if (svc.depends_on === undefined) {
+      dependsOnOf.set(name, []);
+    } else {
+      const asList = asScalarList(svc.depends_on);
+      const asConditions = asMap(svc.depends_on);
+      if (asList !== null) {
+        dependsOnOf.set(name, asList);
+      } else if (asConditions !== null) {
+        const named: string[] = [];
+        for (const dependency of Object.keys(asConditions)) {
+          named.push(dependency);
+          const condition = asScalar(asMap(asConditions[dependency])?.condition);
+          if (condition === null || !EXPECTED_DEPENDS_ON_CONDITIONS.includes(condition)) {
+            note(
+              'DEPENDS_ON_UNREADABLE',
+              `service "${name}" depends on "${dependency}" under condition ${condition ?? '(absent)'}; the template uses [${EXPECTED_DEPENDS_ON_CONDITIONS.join(', ')}] and nothing else, because an unrecognized condition is accepted by the engine as the weakest one it knows`,
+            );
+          }
+        }
+        dependsOnOf.set(name, named);
+      } else {
+        note(
+          'DEPENDS_ON_UNREADABLE',
+          `service "${name}" declares a depends_on that is neither a list of service names nor a mapping of name to condition, so which services must be healthy before it starts is a guess`,
+        );
+        dependsOnOf.set(name, []);
+      }
+    }
+
     // published ports: the proxy only, and every value a placeholder (§2.2.1, R24)
     const ports = asScalarList(svc.ports);
     if (ports !== null) {
@@ -654,6 +720,36 @@ export function auditComposeTemplate(source: string): readonly ComposeFinding[] 
       note(
         'PHASE_ONE_SERVICE_IS_PROFILE_GATED',
         `service "${name}" publishes no host port yet is gated behind profile(s) ${profiles.join(', ')}; phase 1 needs it, so gating it means a bare start brings up a deployment that is missing a service and reports nothing`,
+      );
+    }
+  }
+
+  // --- no service phase 1 runs waits on a service phase 1 does not run (task 10.22, R35) --------
+  // The rule is checked in this direction, and the vacuity guard comes first: if a name in
+  // PHASE_ONE_SERVICES is not a declared service, every assertion below it would pass by applying to
+  // nothing, which is the failure mode this whole module exists to refuse.
+  for (const phaseOne of PHASE_ONE_SERVICES) {
+    if (services[phaseOne] === undefined) {
+      note(
+        'PHASE_ONE_SERVICE_NOT_DECLARED',
+        `phase 1 runs "${phaseOne}" and the template declares no such service, so the phase-1 dependency rule would apply to nothing`,
+      );
+    }
+  }
+  for (const [name, dependencies] of dependsOnOf) {
+    for (const dependency of dependencies) {
+      if (services[dependency] === undefined) {
+        note(
+          'DEPENDS_ON_NAMES_UNDECLARED_SERVICE',
+          `service "${name}" depends on "${dependency}", which this template does not declare; a dependency on a service that is not here is a start order that can never be satisfied`,
+        );
+        continue;
+      }
+      if (!PHASE_ONE_SERVICES.includes(name)) continue;
+      if (PHASE_ONE_SERVICES.includes(dependency)) continue;
+      note(
+        'PHASE_ONE_SERVICE_DEPENDS_ON_ABSENT_SERVICE',
+        `service "${name}" is started by phase 1 and declares a start dependency on "${dependency}", which phase 1 does not start; the dependency therefore never resolves, so a bare start waits for ever and naming "${name}" drags "${dependency}" in with it (R35). A phase-2 service may depend on another phase-2 service; a phase-1 service may not.`,
       );
     }
   }
@@ -810,6 +906,37 @@ export function auditComposeTemplateFile(path: string): readonly ComposeFinding[
     return [{ code: 'TEMPLATE_UNREADABLE', detail: `${path} could not be read: ${e instanceof Error ? e.message : String(e)}` }];
   }
   return auditComposeTemplate(text);
+}
+
+/**
+ * The services a documented start command names, or `null` when the document states no such command.
+ *
+ * Task 10.22 required the phase-1 selection to be recorded in an artifact rather than left to a
+ * command line nobody wrote down, and `ops/IMAGE_BUILD.md` is where an operator meets it. A selection
+ * recorded in prose drifts from {@link PHASE_ONE_SERVICES} the moment either moves, so this reads the
+ * prose back and the test compares the two sets.
+ *
+ * Only FENCED lines are considered, and exactly one may name a start command: prose that mentions
+ * starting the stack is discussion, and a document with two start commands does not state one
+ * selection. Flags and placeholders are dropped, because what is being compared is the service
+ * operands and nothing else.
+ */
+export function phaseOneServicesNamedIn(documentation: string): readonly string[] | null {
+  const named: string[][] = [];
+  let inFence = false;
+  for (const raw of documentation.split(/\r?\n/)) {
+    if (raw.trimStart().startsWith('```')) {
+      inFence = !inFence;
+      continue;
+    }
+    if (!inFence) continue;
+    const tokens = raw.trim().split(/\s+/).filter((t) => t !== '');
+    const verb = tokens.indexOf('up');
+    if (verb < 0 || !tokens.includes('compose')) continue;
+    named.push(tokens.slice(verb + 1).filter((t) => !t.startsWith('-') && !t.startsWith('<')));
+  }
+  if (named.length !== 1) return null;
+  return named[0] ?? null;
 }
 
 /**

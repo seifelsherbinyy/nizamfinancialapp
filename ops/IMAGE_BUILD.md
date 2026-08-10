@@ -169,6 +169,37 @@ unless that profile is named explicitly. `src/server/ops/composeTemplate.ts` ass
 of it - the port-publishing service is profile-gated, and every service phase 1 actually needs is
 **not** - so the property cannot be removed by an edit that looks tidy.
 
+### Which services phase 1 starts, written down (task 10.22)
+
+Three of the six, named explicitly:
+
+```
+docker compose --file <COMPOSE_FILE> up --detach signalbus finance-agent scheduler
+```
+
+Task 10.20 flagged that **no file said this**, which left the selection to whatever the operator
+typed. It is now stated here and held as data in `PHASE_ONE_SERVICES` in
+`src/server/ops/composeTemplate.ts`, and the audit reads this command back and compares the two, so
+neither can move alone.
+
+The three absences each have a reason rather than an omission:
+
+| Service | Why phase 1 does not start it |
+|---|---|
+| `caddy` | Phase 2. It is the only service with a published port and it carries `profiles: [phase2]`, so it does not start unless that profile is named. |
+| `life-agent` | The other repository's, which steering §6 forbids this session from modifying. Under the authorised option **(b)** it stays created, hardened and **idle** while the finance agent ships first. |
+| `backup` | Its image is `OWNED_BUILD_PENDING` on task 10.9: the uploader the fourth step of `ops/backup/backup.sh` calls does not exist yet, and an entrypoint that fails after writing a plaintext snapshot is a new failure mode rather than a partial backup. |
+
+**Naming the services is what makes the selection safe, not what makes it convenient.** A bare start
+would bring up `life-agent` and `backup` as well, and until task 10.22 the `scheduler` additionally
+declared a start dependency on `life-agent`, so a bare start waited for ever on a service phase 1
+does not run - and naming the scheduler dragged the life agent in with it. The owner relaxed that
+dependency on 2026-08-10: a tick to an absent agent is already an abandoned delivery with a bounded
+backoff rather than a crash, so the condition bought a start-up wait and no safety property. The rule
+that replaced it is general and asserted: **no service phase 1 runs declares a start dependency on a
+service phase 1 does not run** (**R35**). `caddy` keeps its own life dependency, because it is phase 2
+and profile-gated anyway, so it costs phase 1 nothing.
+
 ## What this document never contains
 
 No namespace, no image name, no tag, no digest, no registry, no address, no port literal, and no

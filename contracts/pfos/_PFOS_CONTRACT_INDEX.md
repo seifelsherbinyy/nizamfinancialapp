@@ -432,3 +432,21 @@ seconds**, a decision recorded because no artifact declared the unit, and stated
 `ops/env/scheduler.env.example`. **No contract file was edited.** No image was built, no tag resolved, no registry
 contacted, no stack started, no port published, no tick delivered and no outbound call made;
 `ops/GATE_REGISTER.md` was not edited and no box was ticked anywhere but `10.20`'s own line.
+
+**The phase-1 start no longer waits on a service phase 1 does not run, and the selection is written down,
+2026-08-10 (task 10.22, R35).** Owner ruling, recorded rather than proposed. `ops/docker-compose.yml` gave
+`scheduler` a `depends_on: life-agent: condition: service_healthy`, and under the authorised option **(b)** the
+life agent stays created and **idle** - so a bare start waited for ever and naming the scheduler dragged the life
+agent in with it. The owner's reasoning is what makes relaxing it safe rather than convenient: a tick to an absent
+agent is **already** an abandoned delivery with a bounded backoff rather than a crash (task 10.20 built that), so
+the condition bought a start-up wait and no safety property. The `finance-agent` condition stays, so the
+relaxation cannot pass by the scheduler waiting for nothing; `caddy` keeps its own life dependency because it is
+phase 2 and profile-gated and therefore costs phase 1 nothing. **R35 is written over the class, not the
+instance**: no service phase 1 starts may declare a start dependency on a service phase 1 does not start, asserted
+by `src/server/ops/composeTemplate.ts` with a vacuity guard first - a phase-1 name the template does not declare
+is itself a finding, because otherwise the rule would apply to nothing. The selection task 10.20 found written
+**nowhere** is now the command in `ops/IMAGE_BUILD.md` with the reason for each of the three absences, held as data
+in `PHASE_ONE_SERVICES`, and read back out of the document by `phaseOneServicesNamedIn` so prose and code cannot
+drift. `OWNER_GATE_ACTIONS.md` step 4 was wrong as written and names the three services now. **No contract file
+was edited**, no image built, no stack started, no port published, `ops/GATE_REGISTER.md` untouched and no box
+ticked but `10.22`'s own.

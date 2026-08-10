@@ -5114,3 +5114,71 @@ value exists to resolve any reference to. Beyond that, **no artifact yet states 
 under option (b) the life agent is idle, and the topology gives `scheduler` a `depends_on` on
 `life-agent: service_healthy`, so a bare `up` would wait on a service phase 1 does not intend to run. That is a
 topology question with an owner, not a defect in either process written here.
+
+## Task 10.22 - the phase-1 start that would have waited for ever, and the selection nobody had written down (2026-08-10)
+
+**Owning requirement: R35 (new).** Spec `.kiro/specs/06-two-agent-vps/`, task 10.22. Owner ruling dated
+2026-08-10, recorded rather than proposed.
+
+### What was wrong
+
+Task 10.20 found it and could not close it, because it was a topology question with an owner. `ops/docker-compose.yml`
+gave both `caddy` and `scheduler` a `depends_on: life-agent: condition: service_healthy`. Under the authorised
+option **(b)** the life agent stays created, hardened and **idle** - it is the other repository's, and steering §6
+forbids this session from modifying it - so phase 1 does not run it. A start dependency on a service phase 1 does
+not run has two consequences and both are quiet: a bare start waits for ever on a service that is never coming, and
+naming the `scheduler` on the command line **drags the life agent in with it**.
+
+### The ruling, and the reasoning worth keeping
+
+**Relax it.** The owner's reason is what makes the relaxation safe rather than merely convenient: a tick delivered
+to an absent agent is **already** an abandoned delivery with a bounded backoff rather than a crash. Task 10.20
+built that, and `scheduler.test.ts` observes it. So the `service_healthy` condition was buying a start-up wait and
+no safety property - it was protecting against a failure the process already handles better than a dependency can,
+since a dependency is evaluated once at start and the agent can go away afterwards regardless.
+
+`caddy` keeps its life dependency, deliberately. It is phase 2 and profile-gated, so it does not start in phase 1
+at all and its dependency costs phase 1 nothing; removing it would let phase 2 stand a proxy up in front of an
+agent that is not ready.
+
+### What changed
+
+- **`ops/docker-compose.yml`** - the `life-agent` condition is gone from `scheduler`'s `depends_on`. Its
+  `finance-agent` condition **stays**, so the relaxation cannot be satisfied by a scheduler that waits for nothing.
+  The block carries the ruling, its date and its reasoning, because the next reader's first instinct on seeing an
+  asymmetry between `caddy` and `scheduler` will be to make them agree.
+- **`src/server/ops/composeTemplate.ts`** - `PHASE_ONE_SERVICES` is the selection as data, with the reason it
+  cannot be derived from the file: a profile is not the discriminator, since `caddy` carries one because it
+  publishes a port while `life-agent` and `backup` carry none and are still not started. Four new finding codes,
+  each with a negative case that mutates the real template and observes the code fire:
+  `PHASE_ONE_SERVICE_DEPENDS_ON_ABSENT_SERVICE` (the rule, shown firing when the removed condition is put back),
+  `PHASE_ONE_SERVICE_NOT_DECLARED` (the vacuity guard - a phase-1 name the template does not declare would make
+  the rule apply to nothing), `DEPENDS_ON_NAMES_UNDECLARED_SERVICE`, and `DEPENDS_ON_UNREADABLE`. Both compose
+  spellings of `depends_on` are read - a list of names and a mapping of name to condition - and an unrecognised
+  condition is a finding, because the engine accepts one as the weakest condition it knows.
+- **`ops/IMAGE_BUILD.md`** - the selection task 10.20 flagged as written nowhere. The command names the three
+  services, and a table gives the reason for each of the three absences: `caddy` is phase 2 and profile-gated,
+  `life-agent` is idle under option (b), `backup` is `OWNED_BUILD_PENDING` on task 10.9.
+  `phaseOneServicesNamedIn` reads that command back out of the fenced block and the test compares its operands
+  with `PHASE_ONE_SERVICES`, so prose and code cannot drift. Its negative half is asserted too: a document with
+  two start commands, or one outside a fence, reads as **no** selection rather than as a lenient match.
+- **`.kiro/specs/06-two-agent-vps/OWNER_GATE_ACTIONS.md`** step 4 - it said `up --detach` with no operands, which
+  was **wrong**, and it is the file the owner works from. It now names the three services and states what a bare
+  start would have done.
+- **`requirements.md`** - **R35**, written over "a service phase 1 starts" rather than over the scheduler, because
+  the defect is a class: the same edit could be made to the bus or the finance agent by somebody adding a
+  dependency that looks harmless, and it would present identically - a deployment that comes up clean, reports
+  nothing, and waits for a service nobody intends to start.
+
+### Gate result
+
+- `npm run typecheck`, `npm run lint`, `npm run test` green.
+- `npm run verify:all -- --all` - **20 of 20 executed checks passed**, run after the commit because AC14 and AC15
+  require a clean tree.
+- **7 tests added; the AC04 `--min` floor raised 2086 -> 2093.** Up only.
+- No secret, no address, no port literal, no identifier and no figure was added anywhere. AC18's declared
+  dotted-token list is unchanged: every dotted token in the new prose was already declared.
+- **`ops/GATE_REGISTER.md` was NOT edited.** No gate renumbered, removed, softened or reopened, and no checkbox
+  ticked anywhere except `10.22`'s own line in `tasks.md`.
+- **Nothing steering §2 gates was run.** No image built, no stack started, no port published, no outbound call,
+  and the other repository was not touched.

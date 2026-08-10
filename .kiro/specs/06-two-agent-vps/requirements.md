@@ -172,6 +172,35 @@ plus the text artifacts and the gate register needed to hand the remainder to a 
   healthcheck the topology declares for that service, THEN the command it names SHALL exist inside that
   image and SHALL answer readiness **without a listener**, as a check computed in process against local
   state (**R22**).
+- **R35** WHERE `ops/docker-compose.yml` declares a service that phase 1 starts, THEN that service SHALL
+  NOT declare a start dependency on a service that phase 1 does not start; AND the set of services phase 1
+  starts SHALL be **recorded in an artifact an operator reads** rather than left to a command line, AND
+  held as data that a check compares with that record, so neither can move alone; AND every name a
+  `depends_on` entry declares SHALL be a service the same file declares, under a condition drawn from a
+  declared set.
+
+> **Finding note - R35 records an owner ruling, and generalizes it.** The ruling (2026-08-10) is narrow:
+> relax the **scheduler's** dependency on the life agent so the scheduler runs in phase 1. The reasoning is
+> the owner's and is worth keeping, because it is what makes the relaxation safe rather than merely
+> convenient: a tick delivered to an absent agent is **already** an abandoned delivery with a bounded
+> backoff rather than a crash - task 10.20 built that, and `scheduler.test.ts` observes it - so the
+> `service_healthy` condition was buying a start-up wait and no safety property.
+>
+> R35 is written over "a service phase 1 starts" rather than over the scheduler, because the defect was a
+> class and not an instance. The same edit could be made again to the bus or to the finance agent by
+> somebody adding a dependency that looks harmless, and it would present the same way: a deployment that
+> comes up clean, reports nothing, and is waiting for a service nobody intends to start.
+>
+> **`caddy` keeps its life dependency, deliberately.** It is phase 2 and profile-gated, so it does not
+> start in phase 1 at all and its dependency costs phase 1 nothing; removing it would let phase 2 stand a
+> proxy up in front of an agent that is not ready. The rule is therefore about phase-1 services, not about
+> dependencies in general.
+>
+> The recording half is the other thing task 10.20 found: **no file said which services phase 1 starts.**
+> `ops/IMAGE_BUILD.md` now states the command with the three names and the reason for each of the three
+> absences, `PHASE_ONE_SERVICES` holds the same list as data, and the audit reads the command back and
+> compares them. A selection that exists only in prose drifts; a selection that exists only in code is not
+> where the operator looks.
 
 > **Finding note - R34 closes O2, which R28 and R29 together left open.** R28 requires an image for every
 > service this repository owns; R29 requires a process, and names exactly one - the finance agent. The gap

@@ -440,14 +440,27 @@ conclude G7 was lost.
 3. **Substitute the resolved image reference and the six env paths** into your materialized copy of
    `ops/docker-compose.yml`. One value, two consumers - the build above and the `image:` entry - so they
    cannot disagree.
-4. **Start the stack without the phase-2 profile:**
+4. **Start the three services phase 1 runs, by name:**
    ```
-   docker compose --file <COMPOSE_FILE> up --detach
+   docker compose --file <COMPOSE_FILE> up --detach signalbus finance-agent scheduler
    ```
-   **That is the whole of "keep the proxy down".** `caddy` carries `profiles: [phase2]` and is the only
-   service with a `ports:` key, so a bare start binds **no host port at all**. It is a property of the
-   file now, not something to remember. Phase 2 adds `--profile phase2`, deliberately, which is the
-   point at which publishing a port becomes a decision somebody made.
+   **The three names are the instruction, and this line was wrong until task 10.22.** It used to read
+   `up --detach` with no operands, which would additionally have started `life-agent` - idle under
+   option **(b)**, so it would never report healthy - and `backup`, whose image is
+   `OWNED_BUILD_PENDING` on task 10.9. The selection and the reason for each of the three absences are
+   recorded in `ops/IMAGE_BUILD.md`, and `src/server/ops/composeTemplate.ts` reads that command back
+   and compares it with the same list held as code, so the two cannot drift.
+
+   **The proxy stays down because of the file, not because of this line.** `caddy` carries
+   `profiles: [phase2]` and is the only service with a `ports:` key, so it does not start unless the
+   profile is named and **no host port is bound at all**. Phase 2 adds `--profile phase2`,
+   deliberately, which is the point at which publishing a port becomes a decision somebody made.
+
+   **The scheduler no longer waits on the life agent** (owner ruling 2026-08-10, task 10.22, **R35**).
+   It declared `depends_on: life-agent: condition: service_healthy`, so naming it here would have
+   dragged the idle life agent in and then waited for ever on it. A tick to an absent agent is already
+   an abandoned delivery with a bounded backoff rather than a crash, so the condition bought a
+   start-up wait and no safety property.
 
 ### What becomes observable, and what does not
 

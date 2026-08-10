@@ -447,6 +447,31 @@
       and nothing else - readiness adds no second listener because it is a command, not an endpoint.
       The in-process `readiness()` was tightened to consult the same record, so it can never be more
       generous than the exec check that actually gates the stack. 27 tests; floor 2031 -> 2058.
+- [x] 10.22 **Relax the scheduler's dependency on the life agent so it runs in phase 1** (owner
+      decision 2026-08-10, and **R35**). Found by task 10.20: both `caddy` and `scheduler` declare
+      `depends_on: life-agent: condition: service_healthy`, so under the authorised option **(b)** -
+      bot A created, hardened and idle - a bare `docker compose up` waits for ever on a service phase 1
+      does not run, and naming the scheduler drags the life agent in with it. **The owner's ruling:
+      relax the scheduler's life dependency so the scheduler runs in phase 1.** A tick to an absent
+      agent is already an abandoned delivery with a bounded backoff rather than a crash (task 10.20),
+      so the dependency was buying nothing the process does not already handle. Record the phase-1
+      service selection in an artifact rather than leaving it to a command line nobody wrote down, and
+      assert the relaxation in `src/server/ops/composeTemplate.ts` so it cannot silently regress.
+      `caddy` keeps its life dependency, because it is phase-2 and profile-gated anyway.
+      **Done as ruled, and the assertion is the general rule rather than the instance.** The
+      `life-agent` condition is gone from `scheduler`'s `depends_on`; its `finance-agent` condition
+      stays, so the relaxation cannot pass by the scheduler having no dependency at all. `caddy`'s was
+      left alone. The audit gained `PHASE_ONE_SERVICES` as data and four codes with a negative case
+      each: `PHASE_ONE_SERVICE_DEPENDS_ON_ABSENT_SERVICE` (the ruling, shown firing when the removed
+      condition is put back), `PHASE_ONE_SERVICE_NOT_DECLARED` (the vacuity guard - a phase-1 name the
+      template does not declare would make the rule apply to nothing),
+      `DEPENDS_ON_NAMES_UNDECLARED_SERVICE`, and `DEPENDS_ON_UNREADABLE` (both compose spellings are
+      read; an unrecognised condition is a finding, because the engine accepts one as the weakest it
+      knows). The selection task 10.20 found nobody had written down is now in `ops/IMAGE_BUILD.md` as
+      the command with the three names and the reason for each of the three absences, and
+      `phaseOneServicesNamedIn` reads that command back and compares it with the code, so neither can
+      move alone. `OWNER_GATE_ACTIONS.md` step 4 was **wrong** and now names the three services.
+      7 tests; floor 2086 -> 2093.
 - [ ] 10.16 **The cross-repo interop contract** (owner clarification 2026-08-10, and **R31**). The owner
       defines "clone and migrate both repositories" as *making the two understand each other* - feeding
       information and communicating - **not** a code migration and not a repository move. So the
