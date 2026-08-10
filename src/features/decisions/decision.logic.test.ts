@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM · Purchase decision engine tests — one scenario per recommendation state.
  * Owning contract: PFOS contract 03 (Decision Engine) section 4.3 / 4.4.
@@ -9,9 +10,9 @@ import type { Money } from '@/lib/money/money';
 import type { Transaction } from '@/features/transactions/transaction.types';
 import type { Obligation } from '@/features/obligations/obligation.types';
 import type { FinancialPolicy } from '@/features/safeToSpend/policy.types';
-import type { PurchaseRequest } from './decision.types';
-import { toEvidenceRecommendation, RECOMMENDATIONS } from './decision.types';
-import { decidePurchase } from './decision.logic';
+import type { PurchaseRequest } from './decision.types.ts';
+import { toEvidenceRecommendation, RECOMMENDATIONS } from './decision.types.ts';
+import { decidePurchase } from './decision.logic.ts';
 
 const M = 1000;
 let n = 0;

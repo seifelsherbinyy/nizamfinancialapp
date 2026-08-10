@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM · Fixture replay — every refusal fires, and no provider is reachable
  * Implemented by: PFOS Contract 12 / Phase 6.2 (spec 06-two-agent-vps)
@@ -7,9 +8,9 @@
  * NO NETWORK. Every case here replays a recorded exchange or refuses.
  */
 import { describe, it, expect } from 'vitest';
-import { buildEvalSet } from '../../features/benchmark/dataset';
-import { mockCaller } from '../../features/benchmark/runner';
-import type { RecordedModelExchange } from '../mocks/fixtures';
+import { buildEvalSet } from '../../features/benchmark/dataset.ts';
+import { mockCaller } from '../../features/benchmark/runner.ts';
+import type { RecordedModelExchange } from '../mocks/fixtures.ts';
 import {
   BENCHMARK_REPLAY_ERROR_CODES,
   BenchmarkReplayError,
@@ -18,7 +19,7 @@ import {
   fixtureModelCaller,
   replayCoverage,
   resolveRecordings,
-} from './fixtureReplay';
+} from './fixtureReplay.ts';
 
 const MODEL_A = 'xiaomi/mimo-v2.5';
 const MODEL_B = 'z-ai/glm-5.2';

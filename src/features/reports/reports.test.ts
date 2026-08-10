@@ -1,12 +1,13 @@
+// @vitest-environment node
 /**
  * NIZAM · Report calculation tests — spending, net worth, age of money
  * Implemented by: KIRO Contract 5 / Phase 5.1
  */
 import { describe, it, expect } from 'vitest';
-import { spendingByCategory, spendingByGroup, totalSpending, activityMonths } from './spending';
-import { netWorthSeries } from './netWorth';
-import { ageOfMoney } from './ageOfMoney';
-import { fixtureDb, makeTxn } from '../../../tests/helpers/fixtures';
+import { spendingByCategory, spendingByGroup, totalSpending, activityMonths } from './spending.ts';
+import { netWorthSeries } from './netWorth.ts';
+import { ageOfMoney } from './ageOfMoney.ts';
+import { fixtureDb, makeTxn } from '../../../tests/helpers/fixtures.ts';
 
 function reportDb() {
   const db = fixtureDb();

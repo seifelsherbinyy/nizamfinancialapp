@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM · money core tests
  * Implemented by: KIRO Contract 1 / Phase 1.5
@@ -21,7 +22,7 @@ import {
   formatEGP,
   isMoney,
   assertMoney,
-} from './money';
+} from './money.ts';
 
 describe('fromDecimal / toDecimal round-trip', () => {
   it('parses whole pounds', () => {

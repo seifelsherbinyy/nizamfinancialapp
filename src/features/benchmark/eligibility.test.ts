@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM - PFOS benchmark harness (M2): L0/L1/L2 eligibility gate tests.
  * Owning contract: PFOS contract 09 (OpenRouter Phase 1 - Benchmark Calibration).
@@ -11,8 +12,8 @@ import {
   L1_EVIDENCE_COVERAGE,
   L1_SCHEMA_VALIDITY,
   L2_REVIEWER_DISAGREEMENT_BPS,
-} from './eligibility';
-import { type BenchmarkCategory, type CaseScore, type Severity } from './benchmark.types';
+} from './eligibility.ts';
+import { type BenchmarkCategory, type CaseScore, type Severity } from './benchmark.types.ts';
 
 function cs(over: Partial<CaseScore> & { category: BenchmarkCategory; severity: Severity }): CaseScore {
   return {

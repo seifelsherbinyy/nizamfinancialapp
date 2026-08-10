@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM - PFOS benchmark harness (M2): the live adapter is unreachable from a server process.
  * Owning contract: PFOS contract 12 (Two-Agent VPS Deployment & Operations) §6, and steering §2 - "Any

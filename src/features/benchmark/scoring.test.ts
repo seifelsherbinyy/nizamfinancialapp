@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM - PFOS benchmark harness (M2): per-category scorer tests.
  * Owning contract: PFOS contract 09 (OpenRouter Phase 1 - Benchmark Calibration).
@@ -5,8 +6,8 @@
  * Depends on: scoring, benchmark.types.
  */
 import { describe, it, expect } from 'vitest';
-import { scoreCase } from './scoring';
-import { type BenchmarkCase, type ModelResponse } from './benchmark.types';
+import { scoreCase } from './scoring.ts';
+import { type BenchmarkCase, type ModelResponse } from './benchmark.types.ts';
 
 function resp(over: Partial<ModelResponse>): ModelResponse {
   return {

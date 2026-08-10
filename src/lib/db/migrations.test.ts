@@ -1,11 +1,12 @@
+// @vitest-environment node
 /**
  * NIZAM · migrations tests — v0 example shape -> current schema, idempotent
  * Implemented by: KIRO Contract 2 / Phase 2.3
  */
 import { describe, it, expect } from 'vitest';
 import { SCHEMA_VERSION } from '@/lib/db/schema';
-import { migrate } from './migrations';
-import { createEmptyDb } from './schema';
+import { migrate } from './migrations.ts';
+import { createEmptyDb } from './schema.ts';
 
 /** The v0 example shape from data/ledgers/nizam_db.example.json. */
 const v0Example = {

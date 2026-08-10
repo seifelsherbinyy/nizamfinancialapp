@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM · Net-worth engine tests — FX conversion, the views, real value, EGP regression.
  * Owning contract: PFOS contract 01 (Constitution) section 6, contract 03 section 8.
@@ -7,8 +8,8 @@ import { describe, it, expect } from 'vitest';
 import { createEmptyDb, type NizamDb } from '@/lib/db/schema';
 import type { Account } from '@/features/accounts/accounts.types';
 import type { Obligation } from '@/features/obligations/obligation.types';
-import type { Asset, FxRate } from './netWorth.types';
-import { toEgp, fromEgp, convert, netWorth, realValue, realNetWorth } from './netWorth';
+import type { Asset, FxRate } from './netWorth.types.ts';
+import { toEgp, fromEgp, convert, netWorth, realValue, realNetWorth } from './netWorth.ts';
 
 const M = 1000;
 let n = 0;

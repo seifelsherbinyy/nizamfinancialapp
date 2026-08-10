@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM · Obligation protection engine tests — hand-computed fixtures.
  * Owning contract: PFOS contract 03 (Decision Engine) section 3.
@@ -8,7 +9,7 @@ import type { Account } from '@/features/accounts/accounts.types';
 import type { Transaction } from '@/features/transactions/transaction.types';
 import type { FinancialPolicy } from '@/features/safeToSpend/policy.types';
 import { DEFAULT_POLICY } from '@/features/safeToSpend/policy.types';
-import type { Obligation } from './obligation.types';
+import type { Obligation } from './obligation.types.ts';
 import {
   addDays,
   daysBetween,
@@ -22,7 +23,7 @@ import {
   nextStatementDate,
   nextInflowDate,
   buildHorizons,
-} from './obligations.logic';
+} from './obligations.logic.ts';
 
 const M = 1000; // one EGP in milliunits
 

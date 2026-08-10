@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM - PFOS benchmark harness (M2): cost model + pricing snapshot tests.
  * Owning contract: PFOS contract 09 (OpenRouter Phase 1 - Benchmark Calibration).
@@ -10,15 +11,15 @@ import {
   fullWindowCost,
   projectMonthlyCost,
   WEEKLY_HOURS_FULL,
-} from './cost';
+} from './cost.ts';
 import {
   FROZEN_PRICING,
   frozenSnapshot,
   isStale,
   loadPricing,
   priceFor,
-} from './pricing';
-import { type TokenUsage } from './benchmark.types';
+} from './pricing.ts';
+import { type TokenUsage } from './benchmark.types.ts';
 
 const GLM = FROZEN_PRICING['z-ai/glm-5.2']!;
 const MIMO = FROZEN_PRICING['xiaomi/mimo-v2.5']!;

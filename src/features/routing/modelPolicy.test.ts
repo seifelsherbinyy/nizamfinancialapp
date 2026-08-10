@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM - PFOS model-selection + budget policy tests.
  * Owning contract: PFOS contract 10 (OpenRouter Phase 2 - routing) + contract 11 (Phase 3 - budget).
@@ -14,7 +15,7 @@ import {
   MODEL_GLM,
   MODEL_GROK,
   MODEL_KIMI,
-} from './modelPolicy';
+} from './modelPolicy.ts';
 
 describe('budgetPhase (weekly USD 5 cap)', () => {
   it('maps spend fractions to governance phases', () => {

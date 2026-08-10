@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM - Sample-data coverage tests: proves the demo exercises every server-free state.
  * Owning contract: PFOS contract 04 (Interface) - the sample portfolio must cover Stages 1-4.
@@ -9,7 +10,7 @@
  * demonstrably reachable. Deterministic: a fixed nowIso anchors all relative dates.
  */
 import { describe, it, expect } from 'vitest';
-import { buildSampleDb } from './sampleData';
+import { buildSampleDb } from './sampleData.ts';
 import { createEmptyDb, validateDb, type NizamDb } from '@/lib/db/schema';
 import type { Account } from '@/features/accounts/accounts.types';
 import type { Obligation, ObligationPriority } from '@/features/obligations/obligation.types';

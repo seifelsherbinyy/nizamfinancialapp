@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM · Safe-to-spend engine tests — fully hand-computed eight-term waterfall.
  * Owning contract: PFOS contract 03 (Decision Engine) section 2.2 / 2.4 / 2.5.
@@ -8,8 +9,8 @@ import { createEmptyDb, type NizamDb } from '@/lib/db/schema';
 import type { Account } from '@/features/accounts/accounts.types';
 import type { Transaction } from '@/features/transactions/transaction.types';
 import type { Obligation } from '@/features/obligations/obligation.types';
-import type { FinancialPolicy } from './policy.types';
-import { safeToSpendForHorizon, safeToSpendAllHorizons } from './safeToSpend';
+import type { FinancialPolicy } from './policy.types.ts';
+import { safeToSpendForHorizon, safeToSpendAllHorizons } from './safeToSpend.ts';
 
 const M = 1000;
 let n = 0;

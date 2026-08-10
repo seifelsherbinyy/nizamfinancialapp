@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM - PFOS benchmark harness (M2): the pre-flight cost estimate, and the two gates it feeds.
  * Owning contract: PFOS contract 09 (OpenRouter Phase 1 - Benchmark Calibration) + steering §3
@@ -12,9 +13,9 @@
  * NO NETWORK. NO KEY. Everything here is pure arithmetic over the frozen pricing table.
  */
 import { describe, it, expect } from 'vitest';
-import { buildEvalSet } from './dataset';
-import { frozenSnapshot, priceFor } from './pricing';
-import { DEFAULT_ALLOWED, MODEL_GLM, MODEL_GROK, MODEL_KIMI, MODEL_MIMO } from '../routing/modelPolicy';
+import { buildEvalSet } from './dataset.ts';
+import { frozenSnapshot, priceFor } from './pricing.ts';
+import { DEFAULT_ALLOWED, MODEL_GLM, MODEL_GROK, MODEL_KIMI, MODEL_MIMO } from '../routing/modelPolicy.ts';
 import {
   assertLiveRunAffordable,
   assertScopedToDefaultAllowed,
@@ -28,7 +29,7 @@ import {
   PreflightError,
   REQUEST_OVERHEAD_TOKENS,
   usdToMicroUsd,
-} from './preflight';
+} from './preflight.ts';
 
 const CASES = buildEvalSet();
 

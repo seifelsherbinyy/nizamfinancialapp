@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM · Deterministic forecast tests — hand-computed cash-flow paths + scenarios.
  * Owning contract: PFOS contract 03 (Decision Engine) section 6.
@@ -14,7 +15,7 @@ import {
   forecastStartReconciles,
   worstEndingBalance,
   FORECAST_HORIZONS,
-} from './forecast';
+} from './forecast.ts';
 
 const M = 1000;
 let n = 0;

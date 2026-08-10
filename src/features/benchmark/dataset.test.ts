@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM - PFOS benchmark harness (M2): eval-set contract tests.
  * Owning contract: PFOS contract 09 (OpenRouter Phase 1 - Benchmark Calibration).
@@ -5,8 +6,8 @@
  * Depends on: dataset, benchmark.types.
  */
 import { describe, it, expect } from 'vitest';
-import { buildEvalSet, countByCategory, validateEvalSet } from './dataset';
-import { BENCHMARK_MINIMUM_CASES, CATEGORY_MINIMUMS } from './benchmark.types';
+import { buildEvalSet, countByCategory, validateEvalSet } from './dataset.ts';
+import { BENCHMARK_MINIMUM_CASES, CATEGORY_MINIMUMS } from './benchmark.types.ts';
 
 describe('benchmark eval set', () => {
   const cases = buildEvalSet();

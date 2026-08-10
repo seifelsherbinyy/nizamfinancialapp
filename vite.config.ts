@@ -9,11 +9,16 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { fileURLToPath, URL } from 'node:url';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     // Offline PWA: generateSW strategy precaches ONLY local build assets.
-    VitePWA({
+    //
+    // Build-only, and skipped under test. The service worker is generated from the BUILT output and
+    // no test asserts anything about it — AC05b and AC06 check the built application, and they run
+    // the real `npm run build` where this plugin is present. Leaving it in the test pipeline made
+    // every test file pay its transform for an artifact no test reads.
+    ...(mode === 'test' ? [] : [VitePWA({
       strategies: 'generateSW',
       registerType: 'autoUpdate',
       injectRegister: 'script-defer',
@@ -26,7 +31,7 @@ export default defineConfig({
         navigateFallback: 'index.html',
         runtimeCaching: [],
       },
-    }),
+    })]),
   ],
   // Relative base so the static build works on GitHub Pages / any sub-path host.
   base: './',
@@ -46,4 +51,4 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}', 'tests/**/*.test.{ts,tsx}'],
     globals: false,
   },
-});
+}));

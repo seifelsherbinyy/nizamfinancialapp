@@ -1,9 +1,10 @@
+// @vitest-environment node
 /**
  * NIZAM · schema tests
  * Implemented by: KIRO Contract 2 / Phase 2.2
  */
 import { describe, it, expect } from 'vitest';
-import { createEmptyDb, validateDb } from './schema';
+import { createEmptyDb, validateDb } from './schema.ts';
 
 describe('nizam_db schema', () => {
   it('empty db validates', () => {

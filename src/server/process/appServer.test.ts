@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM · The owner-only application server, both halves
  * Implemented by: PFOS Contract 12 / Phase 10.18 (spec 06-two-agent-vps)
@@ -36,9 +37,9 @@ import {
   type AppRequest,
   type AppResponse,
   type AppServerDependencies,
-} from './appServer';
-import { isReady } from '../ops/healthProbe';
-import type { LivenessRecord } from './liveness';
+} from './appServer.ts';
+import { isReady } from '../ops/healthProbe.ts';
+import type { LivenessRecord } from './liveness.ts';
 
 // ---------------------------------------------------------------------------------------------
 // A real directory, because the containment guard resolves against a root that must exist

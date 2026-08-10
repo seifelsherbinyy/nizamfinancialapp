@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM - PFOS benchmark harness (M2): eval-set integrity + sanitization tests.
  * Owning contract: PFOS contract 09 (OpenRouter Phase 1 - Benchmark Calibration).
@@ -8,7 +9,7 @@
  * fragments in the test too, so this file does not itself contain a deployment particular.
  */
 import { describe, it, expect } from 'vitest';
-import { buildEvalSet, egpAmountText } from './dataset';
+import { buildEvalSet, egpAmountText } from './dataset.ts';
 import {
   auditCase,
   auditEvalSet,
@@ -19,8 +20,8 @@ import {
   MAX_DIGIT_RUN,
   MIN_OPAQUE_ID_RUN,
   P0_CATEGORIES,
-} from './datasetIntegrity';
-import { type BenchmarkCase, CATEGORY_TIER, SEVERITIES } from './benchmark.types';
+} from './datasetIntegrity.ts';
+import { type BenchmarkCase, CATEGORY_TIER, SEVERITIES } from './benchmark.types.ts';
 
 const CASES = buildEvalSet();
 

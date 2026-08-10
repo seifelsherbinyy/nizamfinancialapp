@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM · Budget engine tests — YNAB-parity fixtures (hand-computed)
  * Implemented by: KIRO Contract 3 / Phase 3.8
@@ -13,7 +14,7 @@ import {
   nextMonth,
   prevMonth,
   monthsBetween,
-} from './budget.logic';
+} from './budget.logic.ts';
 import { createEmptyDb, type NizamDb } from '@/lib/db/schema';
 import type { Transaction } from '@/features/transactions/transaction.types';
 

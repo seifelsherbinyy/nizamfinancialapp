@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM - PFOS benchmark harness (M2): the live adapter, exercised with NO network and NO key.
  * Owning contract: PFOS contract 09 (OpenRouter Phase 1 - Benchmark Calibration) + steering §3 (the
@@ -15,9 +16,9 @@
  * retrying, and a case with no answer that refuses instead of scoring as correct.
  */
 import { describe, it, expect } from 'vitest';
-import { buildEvalSet } from './dataset';
-import { MODEL_GLM, MODEL_GROK, MODEL_MIMO } from '../routing/modelPolicy';
-import type { BenchmarkCase } from './benchmark.types';
+import { buildEvalSet } from './dataset.ts';
+import { MODEL_GLM, MODEL_GROK, MODEL_MIMO } from '../routing/modelPolicy.ts';
+import type { BenchmarkCase } from './benchmark.types.ts';
 import {
   assertsFabricatedNumber,
   DEVELOPER_MACHINE_INVOCATION,
@@ -43,7 +44,7 @@ import {
   type LiveRunEnvironment,
   type LiveTransport,
   type OpaqueSecret,
-} from './liveModelCaller';
+} from './liveModelCaller.ts';
 
 // ---- fixtures: an environment, a config, and a transport, none of them real -------------------
 

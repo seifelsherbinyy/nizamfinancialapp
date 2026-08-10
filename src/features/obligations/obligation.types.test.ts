@@ -1,17 +1,18 @@
+// @vitest-environment node
 /**
  * NIZAM · Obligation type helpers — reserve, tier, funding order.
  * Owning contract: PFOS contract 01 (Constitution) section 5.2 tiers.
  * Build phase: PFOS Stage 1, phase 1.1 — obligation schema helpers.
  */
 import { describe, it, expect } from 'vitest';
-import type { Obligation } from './obligation.types';
+import type { Obligation } from './obligation.types.ts';
 import {
   reserveFor,
   isProtectedTier,
   fundingSequence,
   OBLIGATION_PRIORITIES,
-} from './obligation.types';
-import { fundingAmount } from './obligations.logic';
+} from './obligation.types.ts';
+import { fundingAmount } from './obligations.logic.ts';
 
 const M = 1000;
 

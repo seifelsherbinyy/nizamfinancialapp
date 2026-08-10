@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM · The live eligibility registry — `provisional: false` has to be earned, not written
  * Implemented by: PFOS Contract 12 / Phase 6.3 (spec 06-two-agent-vps)
@@ -15,8 +16,8 @@
  * network, no key, no provider.
  */
 import { describe, it, expect } from 'vitest';
-import { buildEvalSet } from '../../features/benchmark/dataset';
-import { DEFAULT_ALLOWED, MODEL_GLM, MODEL_MIMO } from '../../features/routing/modelPolicy';
+import { buildEvalSet } from '../../features/benchmark/dataset.ts';
+import { DEFAULT_ALLOWED, MODEL_GLM, MODEL_MIMO } from '../../features/routing/modelPolicy.ts';
 import {
   DEVELOPER_MACHINE_INVOCATION,
   grantDeveloperMachineRun,
@@ -28,18 +29,18 @@ import {
   type LiveModelRun,
   type LiveRunEnvironment,
   type LiveTransport,
-} from '../../features/benchmark/liveModelCaller';
+} from '../../features/benchmark/liveModelCaller.ts';
 import {
   admitEligibilityRegistry,
   parseEligibilityRegistry,
   TIER_REQUIRED_ELIGIBILITY,
-} from '../routing/eligibilityRegistry';
+} from '../routing/eligibilityRegistry.ts';
 import {
   assertWitnessedRuns,
   emitLiveRegistry,
   LIVE_REGISTRY_FILE_NAME,
   LiveRegistryError,
-} from './liveRegistry';
+} from './liveRegistry.ts';
 
 const CASES = buildEvalSet();
 

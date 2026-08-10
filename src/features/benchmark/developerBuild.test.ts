@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM - PFOS benchmark harness (M2): the developer/build axis stays separate and fails closed.
  * Owning contract: PFOS contract 09 (OpenRouter Phase 1 - Benchmark Calibration): "Developer/build
@@ -15,7 +16,7 @@ import {
   developerBuildPasses,
   measuredDeveloperBuild,
   unmeasuredDeveloperBuild,
-} from './developerBuild';
+} from './developerBuild.ts';
 
 const MODEL = 'xiaomi/mimo-v2.5';
 

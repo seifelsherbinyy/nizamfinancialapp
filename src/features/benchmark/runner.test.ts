@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * NIZAM - PFOS benchmark harness (M2): end-to-end runner tests.
  * Owning contract: PFOS contract 09 (OpenRouter Phase 1 - Benchmark Calibration).
@@ -5,8 +6,8 @@
  * Depends on: runner, dataset.
  */
 import { describe, it, expect } from 'vitest';
-import { buildEvalSet } from './dataset';
-import { runBenchmark, mockCaller, configurableCaller, serializeOutputs } from './runner';
+import { buildEvalSet } from './dataset.ts';
+import { runBenchmark, mockCaller, configurableCaller, serializeOutputs } from './runner.ts';
 
 const MODEL = 'z-ai/glm-5.2';
 const evalSet = buildEvalSet();

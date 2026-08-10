@@ -1,11 +1,12 @@
+// @vitest-environment node
 /**
  * NIZAM · Rescue analytics tests — utilization, debt service, runway, control panel
  * Implemented by: KIRO Contract 5 / Phase 5.2
  * Formula sources cited in rescue.ts (docs/research/*).
  */
 import { describe, it, expect } from 'vitest';
-import { cardUtilization, debtServiceRatio, liquidityRunway, controlPanel, ratioBps } from './rescue';
-import { fixtureDb, makeTxn } from '../../../tests/helpers/fixtures';
+import { cardUtilization, debtServiceRatio, liquidityRunway, controlPanel, ratioBps } from './rescue.ts';
+import { fixtureDb, makeTxn } from '../../../tests/helpers/fixtures.ts';
 
 describe('ratioBps', () => {
   it('returns integer basis points and null on empty denominators', () => {

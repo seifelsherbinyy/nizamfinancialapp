@@ -1,9 +1,10 @@
+// @vitest-environment node
 /**
  * NIZAM · ledger import tests — parse, dedup, idempotent re-import
  * Implemented by: KIRO Contract 2 / Phase 2.5
  */
 import { describe, it, expect } from 'vitest';
-import { parseCsv, parseLedgerCsv, importLedger, fallbackDuplicateKey } from './ledgerImport';
+import { parseCsv, parseLedgerCsv, importLedger, fallbackDuplicateKey } from './ledgerImport.ts';
 import { createEmptyDb } from '@/lib/db/schema';
 import { LEDGER_COLUMNS } from '@/lib/ledger/ledger.types';
 
