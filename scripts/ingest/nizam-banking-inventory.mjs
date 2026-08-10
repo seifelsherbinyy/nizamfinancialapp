@@ -40,9 +40,12 @@
  *     node scripts/ingest/nizam-banking-inventory.mjs
  *   ... --out outputs/ingest        (default)
  *   ... --allow-empty-exclusions    (explicit, loud, and recorded in the artifact)
+ *   ... --fetch-tier1 data/ledgers  (materialise tier 1 locally; destination must be gitignored)
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, sep, resolve } from "node:path";
+import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 
 const API = "https://www.googleapis.com/drive/v3";
 const TOKEN_FILE = ".secrets/pfos-ingest.token.json";
@@ -89,6 +92,33 @@ if (EXCLUDE_PREFIXES.length === 0 && !ALLOW_EMPTY) {
 }
 
 const OUT_DIR = opt("out", "outputs/ingest");
+
+/**
+ * Optional tier-1 materialisation. Validated HERE, before the drive is touched: a run that is going to
+ * refuse its destination must refuse before it reads a single financial row, not after.
+ *
+ * A local cache of real account rows may only land on a path git already ignores. That is a guard, not
+ * a convention, because this repository is public.
+ */
+const FETCH_DIR = opt("fetch-tier1", "");
+const ALLOWED_DEST = ["data/ledgers/", "outputs/"];
+let FETCH_DEST = "";
+if (FETCH_DIR) {
+  // Separator normalisation via path.sep, so this source carries no escaped-backslash literals.
+  FETCH_DEST = `${FETCH_DIR.split(sep).join("/").replace(/[/]+$/, "")}/`;
+  // Resolve before comparing. A prefix test on the raw string is defeated by traversal: the literal
+  // "outputs/../src" satisfies startsWith("outputs/") while landing in tracked source. Proven by
+  // negative test, and caught downstream by assertAllIgnored, which is why both layers exist.
+  const resolvedDest = `${resolve(FETCH_DEST).split(sep).join("/").replace(/[/]+$/, "")}/`;
+  const resolvedAllowed = ALLOWED_DEST.map((p) => `${resolve(p).split(sep).join("/").replace(/[/]+$/, "")}/`);
+  if (!resolvedAllowed.some((p) => resolvedDest.startsWith(p))) {
+    refuse(
+      "DEST_NOT_IGNORED",
+      `refusing to write financial rows to "${FETCH_DEST}". Allowed prefixes are ${ALLOWED_DEST.join(", ")}, ` +
+        "which .gitignore already covers. Anything else risks committing account rows to a public repository.",
+    );
+  }
+}
 
 // ---------------------------------------------------------------------------------------------
 // Token: read only, never refreshed here (see header)
@@ -145,13 +175,59 @@ async function listChildren(token, id) {
 
 const FOLDER_MIME = "application/vnd.google-apps.folder";
 
+/**
+ * Read-only byte fetch for one object. Verbatim bytes only: no export conversion, because a converted
+ * document is a derived artifact and tier 1 is evidence. Returns a Buffer.
+ */
+/**
+ * Ask GIT, not a hardcoded prefix list, whether every planned local path is ignored.
+ *
+ * The prefix allowlist above encodes an assumption about .gitignore. This asserts the fact. It matters
+ * because .gitignore rules are narrower than they look and carry negations: `!data/ledgers/*.example.json`
+ * would make a file called `x.example.json` trackable inside an otherwise-ignored directory. Checked
+ * BEFORE any byte is downloaded, so a run that cannot store safely never reads a financial row at all.
+ *
+ * `git check-ignore -v --non-matching` prints one line per path; a path matching no rule is reported
+ * with empty source fields, so any line beginning "::" is a path git would happily commit.
+ */
+function assertAllIgnored(paths) {
+  const r = spawnSync("git", ["check-ignore", "-v", "--non-matching", ...paths], { encoding: "utf8" });
+  if (r.error || typeof r.stdout !== "string") {
+    refuse("IGNORE_UNVERIFIABLE", `could not run git check-ignore (${r.error?.message ?? "no output"}). Refusing rather than assuming these paths are ignored.`);
+  }
+  const lines = r.stdout.split("\n").filter((l) => l.trim().length > 0);
+  if (lines.length !== paths.length) {
+    refuse("IGNORE_UNVERIFIABLE", `asked git about ${paths.length} path(s) but it reported on ${lines.length}. Refusing on an incomplete answer.`);
+  }
+  const trackable = lines.filter((l) => l.startsWith("::")).map((l) => l.split("\t").pop());
+  if (trackable.length > 0) {
+    refuse(
+      "DEST_TRACKABLE",
+      `git would track ${trackable.length} of ${paths.length} planned file(s), including ${trackable[0]}. ` +
+        "This repository is public and these are real account rows. Refusing before download.",
+    );
+  }
+  return lines.length;
+}
+
+async function downloadBytes(token, file) {
+  const u = new URL(`${API}/files/${file.id}`);
+  u.searchParams.set("alt", "media");
+  u.searchParams.set("supportsAllDrives", "true");
+  const r = await fetch(u, { headers: { authorization: `Bearer ${token}` } });
+  if (!r.ok) {
+    refuse("DOWNLOAD_STATUS", `${file.path} answered ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  }
+  return Buffer.from(await r.arrayBuffer());
+}
+
 async function walk(token, id, prefix = "") {
   const found = [];
   for (const e of await listChildren(token, id)) {
     if (e.mimeType === FOLDER_MIME) {
       found.push(...(await walk(token, e.id, `${prefix}${e.name}/`)));
     } else {
-      found.push({ path: `${prefix}${e.name}`, name: e.name, mimeType: e.mimeType, size: Number(e.size ?? 0) });
+      found.push({ id: e.id, path: `${prefix}${e.name}`, name: e.name, mimeType: e.mimeType, size: Number(e.size ?? 0) });
     }
     if (found.length > FOLDER_FILE_LIMIT) refuse("TREE_TOO_LARGE", `more than ${FOLDER_FILE_LIMIT} objects; refusing rather than paging forever.`);
   }
@@ -278,6 +354,67 @@ const lines = [
   "",
 ];
 writeFileSync(join(OUT_DIR, "INVENTORY.md"), `${lines.join("\n")}\n`);
+
+// ---------------------------------------------------------------------------------------------
+// Optional: materialise tier 1 locally, DRIVEN BY THE REGISTER above.
+//
+// The fetch deliberately consumes the classified rows rather than a hand-typed list of names. A
+// hand-typed list would bypass the exclusion rule this script exists to enforce, so the rule and the
+// fetch can never drift apart: if an object is not TIER1 by rule, it cannot be downloaded here.
+// ---------------------------------------------------------------------------------------------
+
+if (FETCH_DIR) {
+  const dest = FETCH_DEST;
+  const tier1 = rows.filter((r) => r.cls === "TIER1");
+  mkdirSync(dest, { recursive: true });
+
+  // Provenance survives in the local name, so a downstream row can always cite where it came from and
+  // two same-named files in different folders can never collide.
+  const localNameOf = (f) => f.path.split(sep).join("/").split("/").join("__");
+
+  // Fail closed BEFORE the first byte: every planned path, plus the manifest, must be ignored by git.
+  const planned = [...tier1.map((f) => join(dest, localNameOf(f))), join(dest, "TIER1_MANIFEST.json")];
+  const verified = assertAllIgnored(planned);
+  console.log(`git confirms all ${verified} planned local path(s) are ignored; proceeding to download`);
+
+  const manifest = [];
+  let fetched = 0;
+  let bytesTotal = 0;
+  for (const f of tier1) {
+    const localName = localNameOf(f);
+    const bytes = await downloadBytes(token, f);
+    // Drive reports a size for binary objects. When it does, a mismatch means a truncated read.
+    if (f.size > 0 && bytes.length !== f.size) {
+      refuse(
+        "SIZE_MISMATCH",
+        `${f.path}: drive reported ${f.size} bytes but ${bytes.length} arrived. A short read is a ` +
+          "corrupt cache, and a corrupt cache that parses is worse than one that fails.",
+      );
+    }
+    writeFileSync(join(dest, localName), bytes);
+    manifest.push({
+      local_name: localName,
+      source_path: f.path,
+      bytes: bytes.length,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+      tier: f.cls,
+      reason: f.reason,
+      fetched_at: new Date().toISOString(),
+    });
+    fetched += 1;
+    bytesTotal += bytes.length;
+  }
+
+  if (fetched !== tier1.length) {
+    refuse("FETCH_INCOMPLETE", `${tier1.length} tier-1 object(s) classified but ${fetched} fetched.`);
+  }
+  writeFileSync(
+    join(dest, "TIER1_MANIFEST.json"),
+    `${JSON.stringify({ spec: "08-knowledge-ingestion", wave: "A0/fetch", generated_at: new Date().toISOString(), count: fetched, bytes_total: bytesTotal, files: manifest }, null, 2)}\n`,
+  );
+  console.log(`fetched ${fetched} tier-1 object(s), ${bytesTotal} byte(s) -> ${dest} (gitignored)`);
+  console.log(`manifest ${join(dest, "TIER1_MANIFEST.json")} carries a sha256 per file`);
+}
 
 console.log(`detected ${detected.length} object(s) in the banking tree`);
 console.log(`  TIER1 transactional : ${counts.TIER1}`);
