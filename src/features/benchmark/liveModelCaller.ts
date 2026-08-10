@@ -77,6 +77,11 @@
  */
 import type { BenchmarkCase, ModelResponse, TokenUsage } from './benchmark.types.ts';
 import { assertScopedToDefaultAllowed } from './preflight.ts';
+import {
+  ProviderReadError,
+  readProviderResponse,
+  type ValidatedProviderResponse,
+} from './providerResponseReader.ts';
 import type { ModelCaller } from './runner.ts';
 
 // ---- the opaque credential holder -------------------------------------------------------------
@@ -522,79 +527,42 @@ export function readLiveResponse(input: {
   response: LiveHttpResponse;
 }): LiveModelExchange {
   const { benchmarkCase, modelIdRequested, response } = input;
-  if (response.status < 200 || response.status >= 300) {
-    throw new LiveRunError(
-      'LIVE_PROVIDER_STATUS_NOT_OK',
-      'the provider did not return a success status, so the run is stopped rather than retried in a loop; a partial live run is not a measurement',
-      { at: 'status', status: String(response.status), caseId: benchmarkCase.id },
-    );
-  }
-  let body: unknown;
+  // The five refusals live in `./providerResponseReader.ts` and are SHARED with the agent's model
+  // port (task B6): one implementation of what a provider answer has to satisfy, not two. What this
+  // function adds is the benchmark-shaped mapping — the case id and the self-reported confidence —
+  // which is the only part that is about grading rather than about the provider.
+  let validated: ValidatedProviderResponse;
   try {
-    body = JSON.parse(response.bodyText);
-  } catch {
-    throw new LiveRunError(
-      'LIVE_PROVIDER_BODY_UNPARSEABLE',
-      'the provider response body is not parseable JSON',
-      { at: 'bodyText', caseId: benchmarkCase.id },
-    );
+    validated = readProviderResponse({
+      subject: { ref: benchmarkCase.id, modelIdRequested },
+      response: { status: response.status, bodyText: response.bodyText, latencyMs: response.latencyMs },
+    });
+  } catch (cause) {
+    if (!(cause instanceof ProviderReadError)) throw cause;
+    // Re-raised as this path's own error type, with the SAME code and the same detail under the key
+    // this path already names it by. The judgement is shared; the error vocabulary a caller
+    // discriminates on is not silently changed underneath it.
+    const { ref, ...rest } = cause.detail;
+    throw new LiveRunError(cause.code, cause.message.replace('NIZAM provider response: ', ''), {
+      ...rest,
+      caseId: ref ?? benchmarkCase.id,
+    });
   }
-  if (!isRecord(body)) {
-    throw new LiveRunError(
-      'LIVE_PROVIDER_BODY_UNPARSEABLE',
-      'the provider response body is not an object',
-      { at: 'bodyText', caseId: benchmarkCase.id },
-    );
-  }
-
-  const usage = body.usage;
-  if (!isRecord(usage)) {
-    throw new LiveRunError(
-      'LIVE_PROVIDER_USAGE_ABSENT',
-      "the provider reported no usage block, and contract 09's source precedence requires the ACTUAL reported cost rather than an estimate",
-      { at: 'usage', caseId: benchmarkCase.id },
-    );
-  }
-  const costMicroUsd = usage.costMicroUsd;
-  if (typeof costMicroUsd !== 'number' || !Number.isSafeInteger(costMicroUsd) || costMicroUsd < 0) {
-    throw new LiveRunError(
-      'LIVE_PROVIDER_USAGE_ABSENT',
-      'the provider reported no non-negative integer micro-USD cost, so no actual cost can be recorded for this case',
-      { at: 'usage.costMicroUsd', caseId: benchmarkCase.id },
-    );
-  }
-
-  const modelIdServed = typeof body.model === 'string' ? body.model : modelIdRequested;
-  if (modelIdServed !== modelIdRequested) {
-    throw new LiveRunError(
-      'LIVE_PROVIDER_SERVED_ANOTHER_MODEL',
-      'the provider served a different model than the one requested, and a registry entry must name the model it actually graded',
-      { at: 'model', modelId: modelIdRequested, caseId: benchmarkCase.id },
-    );
-  }
-
-  const text = typeof body.text === 'string' ? body.text : '';
-  const parsed = isRecord(body.parsed) ? { ...body.parsed } : null;
-  const readTokens = (key: string): number => {
-    const raw = usage[key];
-    return typeof raw === 'number' && Number.isSafeInteger(raw) && raw >= 0 ? raw : 0;
-  };
 
   return Object.freeze({
     caseId: benchmarkCase.id,
-    modelIdRequested,
-    modelIdServed,
-    text,
-    parsed,
-    // Fail-closed: a response that does not state schema validity is not treated as valid.
-    schemaValid: body.schemaValid === true,
-    promptTokens: readTokens('promptTokens'),
-    cachedTokens: readTokens('cachedTokens'),
-    completionTokens: readTokens('completionTokens'),
-    reasoningTokens: readTokens('reasoningTokens'),
-    costMicroUsd,
-    latencyMs: response.latencyMs,
-    confidenceBps: readConfidenceBps(parsed),
+    modelIdRequested: validated.modelIdRequested,
+    modelIdServed: validated.modelIdServed,
+    text: validated.text,
+    parsed: validated.parsed,
+    schemaValid: validated.schemaValid,
+    promptTokens: validated.promptTokens,
+    cachedTokens: validated.cachedTokens,
+    completionTokens: validated.completionTokens,
+    reasoningTokens: validated.reasoningTokens,
+    costMicroUsd: validated.costMicroUsd,
+    latencyMs: validated.latencyMs,
+    confidenceBps: readConfidenceBps(validated.parsed),
   });
 }
 

@@ -12,13 +12,14 @@
  * the whole of that seam: it composes {@link dispatchTurn} and adds nothing to the decision.
  *
  * **The facts reader is injected, and that is the honest boundary.** Turning a raw provider body into
- * {@link TurnFacts} is an extraction step this repository does not have yet — every fact in that type
- * is a deterministic engine's verdict or an enumerated intent, and no module today derives them from
- * a message. So `readTurnFacts` is a required dependency rather than something invented here. A
- * deployment that has no extractor supplies {@link conservativeTurnFacts}, which classifies every
- * turn `T0`: no model is invoked, no grant is minted, and no spend is possible. That is the
- * fail-closed direction — the alternative, guessing a model-bearing intent from an unparsed body,
- * would spend the owner's cap on a guess.
+ * {@link TurnFacts} is an extraction step, and it stayed an injected dependency rather than something
+ * invented here. `./turnIntake.ts` is that step as of task B5 (spec 07, seam S5): it derives the
+ * three facts that are properties of the message and takes the fourteen deterministic-engine verdicts
+ * injected, because the model tier never sources a judgement about the owner's money. A deployment
+ * with no extractor at all still supplies {@link conservativeTurnFacts}, which classifies every turn
+ * `T0`: no model is invoked, no grant is minted, and no spend is possible. That is the fail-closed
+ * direction — the alternative, guessing a model-bearing intent from an unparsed body, would spend the
+ * owner's cap on a guess.
  *
  * **A failure here never becomes a transport failure.** This module throws nothing of its own: a
  * refusal from the model door, from the halt, or from the provider propagates to
@@ -78,6 +79,18 @@ export interface TurnWorkerDependencies<Answer> {
   readonly dispatch: TurnDispatchDependencies<Answer>;
   /** How a queued item becomes classifier facts. Required — see the module note. */
   readonly readTurnFacts: (item: TelegramWorkItem) => TurnFacts;
+  /**
+   * How a queued item becomes the planner for its own turn (task B5, seam S4). Optional, and the
+   * reason it exists at all is a type-level one: {@link TurnFacts} carries "no figure, no free text"
+   * by the classifier's own design, so the owner's words cannot travel to a planner through the
+   * facts. The item can carry them, and the item is only in scope here.
+   *
+   * Supplied, it overrides `dispatch.planModelRequest` **for this item only**. Absent, the
+   * dependencies are used exactly as given. Either way the planner still takes a
+   * {@link ModelInvocationGrant} as its first parameter, so it stays unreachable from a turn
+   * classified `T0` — R16 is a capability and nothing here hands one out.
+   */
+  readonly planTurnRequest?: (item: TelegramWorkItem) => TurnDispatchDependencies<Answer>['planModelRequest'];
   readonly onDispatch?: (observation: TurnDispatchObservation) => void;
 }
 
@@ -92,7 +105,13 @@ export function createTurnDispatchWorker<Answer>(deps: TurnWorkerDependencies<An
   return {
     async process(item: TelegramWorkItem): Promise<TelegramWorkOutcome> {
       const facts = deps.readTurnFacts(item);
-      const outcome: TurnOutcome<Answer> = await dispatchTurn(deps.dispatch, facts, item.queuedRef);
+      // One item, one planner. The channel and the deterministic executor are carried through
+      // unchanged; only the planner is bound to this turn, and only when one was supplied.
+      const dispatch: TurnDispatchDependencies<Answer> =
+        deps.planTurnRequest === undefined
+          ? deps.dispatch
+          : { ...deps.dispatch, planModelRequest: deps.planTurnRequest(item) };
+      const outcome: TurnOutcome<Answer> = await dispatchTurn(dispatch, facts, item.queuedRef);
       deps.onDispatch?.({
         queuedRef: item.queuedRef,
         route: outcome.route,

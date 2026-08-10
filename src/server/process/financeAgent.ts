@@ -227,7 +227,15 @@ export interface FinanceAgentDependencies {
   /** The consent bus. Absent means this process cannot publish at all. */
   readonly publish?: (draft: SignalDraft) => Promise<StoredSignalReceipt>;
   readonly offsets?: TelegramOffsetStore;
-  /** Overridden only by a test that needs the probe to read a store it controls. */
+  /**
+   * How the store is opened. Absent means {@link openFinanceStore}, which is what the boot uses.
+   *
+   * Overridden by a test that needs the probe to read a store it controls, and — since task B6 — by
+   * `process/main.ts`, which wraps the SAME factory in order to bind the model telemetry sink at the
+   * moment the handle exists. The port is assembled from the host before the boot opens the store, so
+   * that is the only point where the handle and the sink are both in scope. The wrapper adds nothing
+   * to the open itself: the containment guard and the pragmas are still the factory's.
+   */
   readonly openStore?: (config: StoreOpenConfig) => { readonly handle: StoreHandle };
   readonly probeEnvironment?: ProbeEnvironment;
   /**

@@ -5748,3 +5748,132 @@ request function that dials; keeping it out of the barrel keeps that statement t
 import site visible.
 
 Floor ratcheted **2193 → 2223**, the measured count.
+
+## Spec 07 Phase 2 wave 1, batch B5 + B6 + B7 (and B2 skipped with its cost shown) — 2026-08-11
+
+**One batch, because all four wire into the same file.** `src/server/process/main.ts` holds seams S3-S7;
+doing them separately would have meant three passes over the same assembly with three chances to disagree
+with each other. Nothing below performs a gate, invents a secret, weakens a guard, lowers a floor, or makes
+a network call.
+
+### B5 — real turn facts and the request planner (S5, S4)
+
+`src/server/process/turnIntake.ts`. Before this, `readTurnFacts` returned `conservativeTurnFacts()`, so
+**every turn classified `T0`, no grant was ever minted, and no model was reachable at all**. This module is
+the extraction step, and the partition it draws is the load-bearing part: **three** facts are properties of
+the message — the intent, whether a triggered turn is missing its subject, whether the request must enforce
+structured output — and the **fourteen** others are deterministic engines' verdicts about the owner's money,
+which arrive injected as the named `NO_ENGINE_VERDICTS`. Deriving `newDebt: true` from the word "loan" would
+have been this tier inventing a financial judgement, and inventing it as the trigger for the tier that
+carries independent review; §6's standing invariant forbids exactly that. So a turn now reaches T1, T2 and
+T4 **by its intent** and reaches **T3 by no route at all** while nothing reports pressure — asserted over
+the whole intent set rather than argued.
+
+Two lexicon decisions are worth writing down because they are the invariant expressed as vocabulary. **A
+balance question is deterministic**: "what is my balance" maps to `recalculate_balances`, therefore `T0`,
+therefore answered by code — a model may not be asked for it. **A question about a figure is not a request
+for one**: "how much is safe to spend" maps to `explain_safe_to_spend`, a conversation about a number the
+engines produced. An unreadable body, a blank message and an unrecognised trigger all fail closed onto a
+deterministic intent, because a mistyped command answered by a model would be a confident answer about an
+operation nobody named.
+
+**R16 was not weakened, and both directions are shown.** The classifier and the dispatcher are byte-identical
+to before. `turnWorker.ts` gained one optional per-item planner hook, and it exists for a type-level reason:
+`TurnFacts` carries "no figure, no free text" by the classifier's own design, so the owner's words cannot
+travel to a planner through the facts and must travel with the item. The refusing direction is a
+`@ts-expect-error` on `classification.modelGrant` — the deterministic branch types it `never`, so the
+compiler is the guarantee and the test observes the compiler — plus runtime belts for a forged grant, a
+foreign turn, an empty turn and an over-bound turn. The releasing direction plans a complete request and
+opens the door with it. **24 tests.**
+
+### B6 — the model provider module (S3)
+
+`src/server/model/modelProvider.ts` replaced the port that threw `MODEL_PROVIDER_UNAVAILABLE` for every
+request. It resolves the base from the **existing** `MODEL_API_BASE` entry with **no default**, resolves this
+agent's credential through `loadAgentModelBinding` — the one loader that knows which entry belongs to which
+agent, so a `finance` port cannot read `OR_KEY_LIFE` — composes the body with the privacy policy the request
+type makes REQUIRED, hands the pair to an injected capability, and judges the answer.
+
+**The reader is shared, not copied, and the extraction was necessary rather than tidy.** The task says reuse
+the benchmark-path reader. It could not be imported: `liveModelCaller.isolation.test.ts` asserts that **no
+runtime file under `src/server/**` imports that adapter**, because the adapter holds the developer-machine
+grant and the transport seam. Writing a second reader was also refused. So the five refusals moved into
+`src/features/benchmark/providerResponseReader.ts` — the part that holds no capability at all, five
+judgements over a body of text — and both paths now import it. `readLiveResponse` re-raises the shared
+refusal as `LiveRunError` with the same code and the same detail key, so the benchmark path's error
+vocabulary is unchanged and its 41 tests were untouched. **The isolation guard is intact.**
+
+The five, unchanged in substance: a non-success status; an unparseable body or one that is not an object; an
+absent usage block or a cost that is not a non-negative safe integer of micro-USD; a substituted model; and
+an unstated schema verdict read as **invalid** rather than valid. Each halts rather than degrades.
+
+**Telemetry goes through the existing repository.** `recordTelemetry`, via an injected sink: reported cost
+(integer micro-USD, `provider_reported_actual`, taken as reported and never recomputed), tokens, latency,
+schema verdict, and the asserted privacy policy. **No prompt text and no completion text** — asserted by
+serialising the record and searching for the fixture turn and the fixture answer. A refusal is recorded with
+**zeroed** measurements: nothing was reported, so nothing is claimed. One wrinkle worth recording rather than
+hiding: the port is assembled from the host **before** the boot opens the store, so the sink is *bindable* and
+`main.ts` binds it through the very store factory the boot already uses. Records arriving before the bind are
+**counted**, not silently dropped and not raised — losing the call because the observation could not be filed
+would put the record ahead of the work.
+
+**The dialler is its own module and the suite never invokes it.**
+`src/server/model/liveModelDial.ts`, `node:https` and `node:buffer` only, **no dependency added**, following
+B4's D-DIALLER precedent for the same reason: a build that needs new code written after the owner performs a
+gate is not a ready build. It is the only place that composes the address and the authorization header, and
+therefore the only caller of `revealModelCredential`. It holds **no policy** — no retry, no status
+interpretation, no envelope reading; an absent status is reported as `0`, which the shared reader refuses.
+`selectModelDial` in `main.ts` chooses it structurally when this agent's `OR_KEY_FINANCE` entry is configured
+(**G4** is the whole of the condition, asked through the loader's own `describeConfiguredPresence`) and
+`gatedModelDial()` otherwise, which refuses naming **G4** and **D-BENCH**. **No environment entry and no
+invocation flag was added.** The live branch is proved by a `WeakSet`-backed identity marker only that module
+can mint; the gated branch is invoked, because refusing is all it does.
+
+**The provisional guard stays, and it is proved in both directions.**
+`provisionalStillRefuses.test.ts` asserts what changed and what did not: a call is now *possible* — the door
+reaches the port with a minted grant and returns a result — and still *not routable*, because `routeModel`
+cannot name a model from a fixture-backed registry, so the wired capability records **zero** invocations and
+a capability never called has spent nothing. The same registry entry routes the moment `provisional: false`,
+so the cut is demonstrably the flag rather than the grades. **B8** is what moves it.
+
+**Not tested, stated plainly.** The socket. Whether a real peer answers, times out inside the derived
+deadline, or truncates at the byte bound is observable only by dialling. The first exercise of that path is
+the owner's, on the host, after G4.
+
+### B7 — deterministic answers (S6)
+
+`src/server/process/deterministicAnswer.ts`. The route returned the turn's own correlation reference, so a
+reply was a bare identifier. It now answers a **named and listed** set — exactly the six intents the
+classifier routes `T0`, derived from `INTENT_FAMILY` rather than re-typed, so the list cannot drift from what
+actually arrives — in one human sentence each, with one honest out-of-family sentence so the function stays
+total. A `Record` over the whole intent union means a new intent cannot be added without a sentence.
+
+**It quotes no figure.** The contract's own scope line keeps the Stage 1-4 engines out of v1.0, so where a
+number would be the natural answer the sentence points at the owner-only web view instead. That is asserted,
+not promised: **no sentence contains a single digit**, so a figure added later fails the suite rather than
+reaching the owner as an authoritative-looking number nobody computed. The correlation reference is kept out
+of the sentence deliberately — putting it in front of the owner is how the reply became an identifier in the
+first place. **8 tests**, one driving a real `T0` turn through `dispatchTurn` and observing the port
+untouched.
+
+### B2 — skipped, with the cost shown
+
+The task says to skip it if it costs anything real. It does. Its premise — that the enumerated agent set, the
+per-agent entry-name resolver and the per-agent bounds already exist — is true, and they are *already used*:
+`agentEntryNames`, `describeConfiguredPresence`, `loadAgentModelBinding` and `loadTelegramTransportConfig`
+are all parameterised by identity today, with `FINANCE_AGENT` passed in rather than spelled inline. What is
+**not** parameterised is the process's own store and volume: `FINANCE_DATA_DIR`, `FINANCE_STORE_FILE`,
+`FINANCE_CONTAINER_PORT`, `FINANCE_STORE_NAME` — and **no `LIFE_*` counterpart of any of them exists**, in
+`environment.ts`, in the value ledger, or in the six deployment templates. Parameterising the entrypoint
+therefore means inventing four environment entries that no gate supplies and no ledger row tracks, which R23
+would then have to gate, for an agent this repository never runs (option (c)). That is a new surface, not
+hygiene. The property B2 existed to obtain is already in force and already tested: `agentEntryNames` refuses
+an unknown identity with `ENV_AGENT_UNKNOWN` rather than defaulting it.
+
+### Gate
+
+`npm run verify:all -- --all` green. Floor ratcheted **2223 → 2301**, the measured count (**+78**: 24 for B5,
+36 for B6's three files, 10 for the model selection, 8 for B7). No guard weakened, no `eslint-disable` added,
+no gate performed or claimed. What remains between a delivered message and a model-generated reply is now
+**only** the owner's: **G3** (the bot token), **G4** (the model credential) and **D-BENCH** → **B8** (one
+authorised pass, a measured registry). No code change is needed when any of them lands.

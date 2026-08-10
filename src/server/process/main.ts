@@ -70,6 +70,14 @@ import {
   type ProviderRequestFn,
 } from '../telegram/providerRequest.ts';
 import { createLiveProviderRequest } from '../telegram/liveProviderRequest.ts';
+import { createLiveModelDial } from '../model/liveModelDial.ts';
+import {
+  createBindableTelemetrySink,
+  createModelProviderPort,
+  gatedModelDial,
+  type ModelDialFn,
+} from '../model/modelProvider.ts';
+import { openFinanceStore } from '../db/store.ts';
 import { createRedactedLogger } from '../ops/redactedLogger.ts';
 import type { TelegramAcceptDecision, TelegramDelivery } from '../ports/telegram.ts';
 import type { ModelRequest, ModelResult, OpenRouterPort } from '../ports/openrouter.ts';
@@ -103,7 +111,9 @@ import {
   type AppResponse,
   type AppServerProcess,
 } from './appServer.ts';
-import { conservativeTurnFacts, createTurnDispatchWorker } from './turnWorker.ts';
+import { createTurnDispatchWorker } from './turnWorker.ts';
+import { answerDeterministically } from './deterministicAnswer.ts';
+import { readInboundTurn, refuseUnplannedTurn, turnRequestPlanner } from './turnIntake.ts';
 
 /** The flag that selects the readiness answer instead of the agent. */
 export const HEALTH_FLAG = '--health';
@@ -125,6 +135,15 @@ export const POLL_POLICY = { timeoutSeconds: 30, limit: 50 } as const;
 /** The outbound retry budget, and the queue's. Bounded, so one refusal cannot become a loop. */
 export const SEND_RETRY_POLICY = { baseMs: 1_000, maxMs: 60_000, maxAttempts: 4 } as const;
 export const WORK_RETRY_POLICY = { baseMs: 5_000, maxMs: 300_000, maxAttempts: 5 } as const;
+
+/**
+ * The model request deadline (task B6). A BOUND rather than a policy, and it is declared here beside
+ * the other three because this is where the process states its bounds: nothing below owns a deadline,
+ * and the model dialler refuses to be built without one so it cannot acquire a default of its own.
+ * It is deliberately not derived from {@link POLL_POLICY}, whose timeout is the hold the agent asks
+ * the MESSAGING provider for and describes a different exchange entirely.
+ */
+export const MODEL_POLICY = { deadlineSeconds: 60 } as const;
 
 /** The header the provider echoes, read from the module that owns the name rather than restated. */
 export const SECRET_TOKEN_HEADER = TELEGRAM_SECRET_TOKEN_HEADER.toLowerCase();
@@ -225,11 +244,14 @@ export function createNodeHttpListenerHost(now: () => string, botId: string): Ht
 }
 
 /**
- * The model port. **Absent under the current gate posture**, and that absence is the honest state:
- * a live provider adapter needs G4's key and an outbound call, both of which are gated (steering §2).
- * Until it exists, a model-bearing turn is refused with a code and the queue retries then abandons
- * it; a deterministic turn is served in full. The alternative — a stand-in that answered — would be a
- * fabricated financial answer, which is the one outcome this repository never produces.
+ * The model port BEFORE task B6: it threw for every request, because no module performed one.
+ *
+ * Kept, and no longer wired. `../model/modelProvider.ts` is the module that performs the request, and
+ * {@link financeAgentDependenciesFromHost} wires it with the capability
+ * {@link selectModelDial} chooses. This function remains as the most conservative port a caller can
+ * ask for — a test that needs a port which cannot possibly reach anything uses it rather than
+ * constructing one inline — and it is the honest answer for a deployment that wants the model tier
+ * off entirely rather than gated.
  */
 export function createUnavailableModelPort(): OpenRouterPort {
   return {
@@ -301,11 +323,65 @@ export function selectProviderRequest(env: EnvSource): ProviderRequestFn {
     : gatedProviderRequest();
 }
 
+// ---------------------------------------------------------------------------------------------
+// Which model dial capability this deployment gets (task B6, seam S3)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The condition that selects the live model dialler, and it is ONE condition: this agent's model-key
+ * entry is configured, asked through the loader's own rule ({@link describeConfiguredPresence}, which
+ * means set, non-blank, and not still its template placeholder).
+ *
+ * That entry is gate **G4**, so it is populated by the owner minting a credential and placing it in
+ * the host's root-owned configuration directory, and by nothing else. A developer machine has no such
+ * entry, so a developer machine gets the gated capability; the test suite passes a synthetic
+ * environment and therefore does too. The same shape B4's `providerCapabilityFor` takes, for the same
+ * reason: no liveness entry exists to reuse, and this task adds none.
+ */
+export function modelCapabilityFor(env: EnvSource): ProviderCapability {
+  const keyEntry = agentEntryNames(FINANCE_AGENT).modelKeyEntry;
+  return describeConfiguredPresence(FINANCE_AGENT, env)[keyEntry] === true ? 'live' : 'gated';
+}
+
+/**
+ * Select the capability structurally: two branches, one function each, and no flag inside either.
+ *
+ * Selecting the live one CONSTRUCTS a dialler; it dials nothing. **D-BENCH is still ahead of any
+ * call**: this selection decides which capability is wired, and `routeModel` decides whether a turn
+ * may name a model at all — which it refuses while the eligibility registry is provisional (R18). So a
+ * configured credential makes a call possible, and B8 is what makes one routable.
+ */
+export function selectModelDial(env: EnvSource): ModelDialFn {
+  return modelCapabilityFor(env) === 'live'
+    ? createLiveModelDial({ deadlineSeconds: MODEL_POLICY.deadlineSeconds })
+    : gatedModelDial();
+}
+
 /** Assemble the dependencies from the host. `env` comes from the loader's one bridge. */
 export function financeAgentDependenciesFromHost(botId: string): FinanceAgentDependencies {
   const env = processEnvSource();
   const sentinelPath = String(env.KILL_SENTINEL_PATH ?? '');
-  const channel = createModelChannel(createUnavailableModelPort());
+  // Task B6 (seam S3): the real model provider module, in place of the port that threw for every
+  // request. It composes the body, resolves this agent's credential through the loader that owns its
+  // entry name, judges the answer with the SHARED benchmark-path reader, and records what §6.4 permits
+  // through the EXISTING telemetry repository. The capability is selected structurally by
+  // `selectModelDial`: the socket-owning dialler when this agent's G4 credential is configured, and
+  // `gatedModelDial` — which holds no network primitive and refuses naming G4/D-BENCH — otherwise.
+  //
+  // The telemetry sink is bound to the store LATER, because the store opens inside the boot sequence
+  // and the port must exist before it. See the `openStore` hook below: it is the one place in this
+  // process that has both the handle and the sink in scope.
+  const telemetry = createBindableTelemetrySink();
+  const channel = createModelChannel(
+    createModelProviderPort({
+      agent: FINANCE_AGENT,
+      env,
+      dial: selectModelDial(env),
+      now: wallClock,
+      newId: newReference,
+      record: telemetry.sink,
+    }),
+  );
   // The record `financeReadinessReport` above reads, written by this process on its own volume. The
   // factory resolves nothing until it is used, so an incomplete environment still refuses the boot by
   // naming every unfilled entry at once rather than failing here on one path (R27).
@@ -339,21 +415,41 @@ export function financeAgentDependenciesFromHost(botId: string): FinanceAgentDep
     worker: createTurnDispatchWorker({
       dispatch: {
         channel,
-        // The deterministic route. It answers with the turn's own reference, because the Stage 1-4
-        // engines are driven by the store rather than by a message, and wiring that pipeline is a
-        // separate task: what matters here is that the T0 branch reaches no model.
-        executeDeterministically: (_facts, turnRef) => turnRef,
-        planModelRequest: (grant) => {
-          throw Object.assign(new Error(`NIZAM finance agent: no request planner is wired for a ${grant.tier} turn; gate G4 unblocks live routing`), {
-            code: 'MODEL_PROVIDER_UNAVAILABLE',
-          });
-        },
+        // Task B7 (seam S6): the deterministic route answers in a human sentence over a small, named
+        // and listed intent set — the six the classifier routes `T0`. It quotes NO figure and it is
+        // not the Stage 1-4 engine wiring, which the contract's own scope line keeps out of v1.0:
+        // where a number would be the natural answer, the sentence points at the owner-only web view.
+        executeDeterministically: answerDeterministically,
+        // Reached only if no per-turn planner was composed for the item, which is a defect in the
+        // composition rather than a state a turn can be in. It refuses (task B5, seam S4).
+        planModelRequest: refuseUnplannedTurn,
       },
-      // See `turnWorker.ts`: no extraction step exists yet, so every turn classifies T0 and no model
-      // is invoked. Fail-closed, and it spends nothing.
-      readTurnFacts: () => conservativeTurnFacts(),
+      // Task B5 (seam S5): the real extraction step. It derives the three facts that are properties
+      // of the message — the intent, whether a triggered turn is missing its subject, and whether the
+      // request must enforce structured output — and takes the fourteen deterministic-engine verdicts
+      // as `NO_ENGINE_VERDICTS`, because v1.0 does not wire the Stage 1-4 engines to chat and this
+      // tier never sources a judgement about the owner's money (§6's standing invariant). So a turn
+      // now reaches the model-bearing tiers by its INTENT, and reaches T3 by no route at all.
+      readTurnFacts: (item) => readInboundTurn(item).facts,
+      // Task B5 (seam S4): the planner for this turn, carrying this turn's own words. The facts type
+      // holds no free text by design, so the utterance travels with the item — see `turnWorker.ts`.
+      // `readInboundTurn` is pure, so reading it once per seam is the same read twice.
+      planTurnRequest: (item) => {
+        const turn = readInboundTurn(item);
+        return turnRequestPlanner({ agent: FINANCE_AGENT, turnRef: turn.turnRef, text: turn.text });
+      },
     }),
     listenerHost: createNodeHttpListenerHost(wallClock, botId),
+    // Task B6: bind the telemetry sink at the moment the store opens. The boot sequence opens the
+    // store through this hook, so this is the only point in the process where the handle and the sink
+    // are both in scope — the port was assembled before the store existed, which is why the sink is
+    // bindable rather than constructed with a handle. The store itself is opened by the SAME factory
+    // the boot would have used, so nothing about the containment guard or the pragmas changes.
+    openStore: (config) => {
+      const opened = openFinanceStore(config);
+      telemetry.bind(opened.handle);
+      return opened;
+    },
     // Per call, and never cached: the sentinel is the form an operator can flip without a restart.
     sentinelExists: () => sentinelPath.length > 0 && existsSync(sentinelPath),
     logSink,
