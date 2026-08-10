@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "start": "node src/server/process/start.ts",
+    "health": "node src/server/process/start.ts --health",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",

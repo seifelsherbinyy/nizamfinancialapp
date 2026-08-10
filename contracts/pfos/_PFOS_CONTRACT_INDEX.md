@@ -239,3 +239,25 @@ the naive reuse that applies all three gates under `longPoll` (10 of 25 fail) an
 relaxation **D1** rejected (4 fence tests fail) - then reverted. **No contract file was edited, no owning
 requirement range moved, and no production code changed in that increment**: the tests pass against the guard
 exactly as task 10.5 left it, which is the only condition under which a fence means anything.
+
+**R29 is now mechanical rather than documented, 2026-08-10 (task 10.7).** Contract 12 §6.3's agent process and
+§8's kill switch existed as *modules* and not as a *process*: `src/server/telegram/index.ts` is a barrel
+re-export, and `package.json` had no server framework and no start script - which is precisely why the absence
+was easy to miss, since the application logic was complete and tested behind mocks. `src/server/process/` is the
+process. `haltGate.ts` holds §8's two forms with their asymmetry made explicit: the **file sentinel is re-read on
+every check** and cached nowhere, because an environment variable cannot be flipped without a restart and a halt
+that needs a restart is not a halt; `NIZAM_KILL_ALL` is read **once at boot** because that is the only moment its
+value can change; a switch whose position cannot be read - an unrecognised value, or a probe that threw - is
+treated as **engaged**. `financeAgent.ts` adds the three behaviours a module cannot have: it calls the six-service
+aggregate refusal **first and catches nothing**, so an incomplete environment is a non-zero exit rather than a
+degraded run; it gates exactly R29's three activities (model call, model-path write, bus publish) and gates
+**nothing else**, so R17's deterministic obligation alert has no gate to fail; and it binds a listener **only** in
+`webhook`, on `FINANCE_CONTAINER_PORT` alone, leaving `listeningPorts` empty under `longPoll` by construction
+rather than by unbinding afterwards. **No contract file was edited and no owning requirement range moved** - R29
+was already in contract 12's `R6-R30` range. **No dependency was added:** steering §1 permits Fastify or Hono,
+and neither was taken, because `acceptHandler` is typed synchronous and single-route so the platform's own
+`node:http` covers the whole listening surface. Two findings are recorded in the build log with their reasons:
+**F18**, no module derives `TurnFacts` from a provider body yet, so the facts reader is an injected dependency and
+the process supplies the conservative reader that classifies every turn `T0` - fail-closed, and it spends nothing;
+and **F19**, the bot identity is a process **argument** rather than an environment entry, because no template,
+`SERVICE_ENTRY_NAMES` row or value-ledger row declares it.

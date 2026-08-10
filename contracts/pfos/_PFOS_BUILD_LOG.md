@@ -4124,3 +4124,174 @@ with no network, no credential and no host.
   was invented, not even a plausible placeholder of the right width.
 - **No gate attempted, no checkbox ticked in `ops/GATE_REGISTER.md`**, G7 still CLOSED - WONT-DO, no
   outbound call, and the other repository untouched.
+
+## Task 10.7 - the finance-agent process, and the three things a module cannot be (2026-08-10)
+
+**Owning requirement:** R29. **Design:** delta **D4** (the entrypoint and what `longPoll` removes from it) and
+**D6** (the listener assertion). **Mandate:** §8 step 6 / §6 item 3. **Finding closed:** the process half of
+**O1**.
+
+### What was actually missing
+
+Not the logic. `src/server/telegram/index.ts` re-exports auth, dedup, the work queue, the accept path, the worker
+runner and the live adapter, all of them tested behind mocks - and that completeness is what made the gap easy to
+miss. `package.json` had `dev`, `build`, `preview`, `test`, `lint`, `typecheck` and the two verify scripts, and no
+`start`. **The code existed; the process did not.** Even with G1 through G8 all clear, there was nothing for a
+container to run.
+
+### The shape
+
+`src/server/process/`, five files, one of which touches the platform:
+
+| File | What it owns |
+|---|---|
+| `haltGate.ts` | §8's two halt forms, and the one activity a halt never reaches |
+| `financeAgent.ts` | boot refusal, the three gated activities, the listener set, the loop, shutdown |
+| `turnWorker.ts` | `workerRunner`'s slow side wired to `routing/turnDispatch` |
+| `main.ts` | the **only** file naming a platform facility: HTTP server, filesystem, streams, signals |
+| `start.ts` | one statement: turn an outcome into an exit status |
+
+The split between `main.ts` and `start.ts` is one statement wide and it is deliberate: a module that starts a
+process as a side effect of being imported cannot be tested, because the first import would open a store, bind a
+listener and register signal handlers.
+
+### Behaviour 1 - it refuses to boot, and it does not catch that refusal
+
+`requireServiceEnvironment({ service: 'finance', env })` is the **first** statement of `bootFinanceAgent`, wrapped
+in nothing. There is no `catch` on that path and no degraded mode to fall back to. A booted-but-unconfigured agent
+is the failure fail-closed exists to prevent, one layer up: every per-request guard would refuse correctly while
+the process as a whole sat there pretending to be a deployment. `runFinanceAgentProcess` reports the message and
+returns exit code **1**.
+
+The aggregate is what makes it useful rather than merely correct. Four entries removed produces **one** message
+naming all four, with a code per finding rather than one umbrella code - asserted by removing four and reading
+`aggregate.entries`, which a first-failure error cannot pass. The message is assembled from entry names, service
+identities and codes and never from a value, so reporting it in full is safe (R24).
+
+### Behaviour 2 - the halt, and the asymmetry between its two forms
+
+The **file sentinel** is re-read on every check and cached nowhere. The test that carries this is the only shape a
+cached read fails: the injected probe is flipped **between two calls on the same gate**, in both directions, and
+the answer is asserted to have changed. A gate that had cached the construction-time read would still answer
+`false` after the sentinel appeared; a gate that cached the first engaged read would still answer `true` after it
+was removed.
+
+`NIZAM_KILL_ALL` is read **once**, at boot, because that is the only moment its value can have changed. Reading it
+repeatedly would be a false promise about the weaker of the two forms.
+
+Three things fail closed rather than open:
+
+- An **unrecognised** coarse value (`yes`, `true`, `2`, `01`, empty) engages the halt. A switch whose position
+  cannot be read is treated as on.
+- A sentinel probe that **threw** is treated as present. "We could not tell whether the operator has halted us" is
+  not a licence to carry on spending.
+- The sentinel form is reported in preference to the coarse form when both are engaged, so an operator reads the
+  live one.
+
+**What a halt stops is exactly R29's three activities** - `model_call`, `model_path_write`, `bus_publish` - and
+`HALTED_ACTIVITIES` is asserted equal to that list, so a fourth cannot be added without a failing test. Each of
+the three asserts **before** touching its dependency, and the test reads the dependency's own record afterwards:
+no model call recorded, no second write performed, no second signal published.
+
+**R17's other half is structural.** `produceDeterministicAlerts` has no gate, and
+`deterministicAlertsPermitted()` returns `true` with no branch that could ever return otherwise.
+`ACTIVITIES_A_HALT_NEVER_STOPS` names it, so gating it later would mean deleting a named guarantee. The test runs
+the same producer before and under the halt and asserts the answers are equal - a halt is a spend and write guard,
+never a blackout, and losing a due-date warning to one is the single worst failure this system could have.
+
+### Behaviour 3 - the port, and the absence of one
+
+Under `longPoll` the listener block **does not run at all**, so `listeningPorts` is empty by construction rather
+than by unbinding afterwards. D6 asks for that absence to be asserted against the process's own listener set, and
+the reason is worth restating: probing a socket and finding nothing is also what a crashed listener, a wrong port
+and a firewall look like, so a socket probe would pass for the wrong reason. Both directions are read - the
+process's own `listeningPorts` **and** the injected host's record of what it was asked to bind:
+
+```
+longPoll  ->  agent.listeningPorts == []            host.requested == []
+webhook   ->  agent.listeningPorts == [PORT]        host.requested == [PORT]        length == 1
+```
+
+### No framework, and why
+
+Steering §1 permits Fastify or Hono for this agent. **Neither was taken.** `acceptHandler.accept` is typed
+**synchronous** precisely so nothing slow can precede the acknowledgement, and the listening surface is one route
+whose handler performs one local transaction. A framework would contribute routing, validation and plugin
+machinery this surface has no use for, in exchange for a dependency, a lockfile entry and a supply-chain surface.
+`node:http` is the platform's own server, is available under the pinned runtime, and covers the whole requirement.
+**`package.json` gained two scripts and zero dependencies**, so the AC16 lockfile check is untouched.
+
+The webhook listener answers **`200` with an empty body for every outcome**, including a refusal. A refusal must
+be indistinguishable from an acceptance (§5.2), and a non-2xx answer would additionally tell the provider the
+delivery failed - earning a retry of a message this agent has already declined.
+
+### The loop and the shutdown
+
+The loop calls `liveTransport.pollOnce()`; it does not restate the ordering. R26.1's rule - the offset advances
+only after the dedup-claim-plus-enqueue transaction has returned - is the adapter's and stays there. The loop is
+asserted to advance the offset once per durably enqueued update, and to move past a **refused** update without
+enqueuing anything (finding **F17** from task 10.5: a refusal that did not advance would wedge the poller on a
+stranger's message).
+
+Shutdown is five ordered steps, and the order is the requirement: stop accepting; close the listeners; **let the
+in-flight iteration settle**; return anything still `running` to `queued`; close the store **last**. Closing the
+store under a running drain would abort a transaction that was about to commit, which is the one way a clean
+shutdown could lose durable work. The test leaves three rows queued and a worker that never settles its item,
+shuts down, **reopens the store from disk**, and asserts all three are still there with nothing `done` and nothing
+`failed`. A delivery arriving after the signal is refused with the same frozen `rejected` value every other
+refusal returns, and writes nothing.
+
+The idle wait is a real macrotask. An idle loop that only awaited microtasks would starve the timer the
+termination signal arrives on, which is a property of the loop worth getting right: a poller that never yields
+cannot be interrupted.
+
+### Health, and what reaches a log
+
+The compose healthcheck invokes `<FINANCE_HEALTH_PROBE>` as a **CMD**, not an HTTP request, which is why the
+`longPoll` posture needs no port for health either. `npm run health` is that command; `readiness()` is the
+in-process answer. Silence from the worker is a **failure**, not an absence of news, so a process that has drained
+nothing reports `not_ready`, and one that has begun shutting down reports `not_ready` again.
+
+Every line goes through `redactedLogger`, which takes an event and named features rather than a format string.
+The test parses every emitted line and asserts it contains neither the sentinel path, nor the API base, nor the
+data directory (R19, R24).
+
+### Findings
+
+**F18 - no module derives `TurnFacts` from a provider body, and one should not be invented here.** Every field of
+`TurnFacts` is a deterministic engine's verdict or an enumerated intent; nothing in the tree turns a message into
+one. So `readTurnFacts` is a **required injected dependency** of the worker, and the process supplies
+`conservativeTurnFacts()`: intent `validate_schema`, every verdict false. That classifies **T0** by the
+`deterministic_intent` rule, mints no grant, and therefore cannot reach the model port even if a later edit handed
+it a channel. It is fail-closed and it spends nothing - the alternative, guessing a model-bearing intent from an
+unparsed body, would spend the owner's cap on a guess. **Owner:** the extraction step is a later task; this is
+recorded so nobody reads the T0 route as a claim that the turn pipeline is complete.
+
+**F19 - the bot identity is an argument, not an entry.** No template, no `SERVICE_ENTRY_NAMES` row and no
+`DEPLOYMENT_VALUE_LEDGER.md` row declares it, and the two ways to obtain it - reading the bot token or calling the
+provider's identity endpoint - both belong to a gate. Inventing a template entry would put a value in the
+environment file set that no gate supplies and no ledger row tracks, and would break the count assertion that
+holds `SERVICE_ENTRY_NAMES` equal to the six templates. So it is `--bot-id`, and absent or empty it is a boot
+refusal (`ENV_BOT_IDENTITY_EMPTY`), never a default: a blank half of the dedup key would let one bot's update be
+dropped as a duplicate of the other's (R14).
+
+**The live adapters stay absent, and say so.** `main.ts` wires a provider client and a model port that **refuse**
+with `TELEGRAM_SEND_REFUSED` and `MODEL_PROVIDER_UNAVAILABLE`. They are present so the shape is complete and
+refuse so nothing pretends a provider answered. G3/G6 supply the first; G4 supplies the second. A stand-in that
+answered would be a fabricated financial answer.
+
+### Gate result
+
+- `npm run verify:all -- --all` - **20 of 20 executed checks passed**, run after the commit because AC14 and AC15
+  require a clean tree.
+- Tests **1872 -> 1906** passing, and the AC04 `--min` floor ratcheted **1872 -> 1906**. Up only. Nothing lowered,
+  allowlisted, skipped or exempted.
+- **AC08b unchanged:** the new tier is under `src/server/**`, which the check already excludes from the browser
+  bundle; no browser entry point reaches it and AC05/AC05b/AC06 still pass.
+- **AC16 unchanged:** two scripts added, zero dependencies, so the toolchain pin and the lockfile are untouched.
+- **One `process.env` bridge preserved:** `processEnvSource()` is still the only expression in `src/` that reads
+  the ambient environment. `main.ts` calls it; nothing under it reads around it.
+- **R24 holds.** Every value in every test is synthetic and derived from the entry name. No secret was invented,
+  not even a plausible placeholder of the right shape.
+- **No gate attempted, no checkbox ticked in `ops/GATE_REGISTER.md`**, G7 still CLOSED - WONT-DO, no outbound
+  call, no process started against a live provider, and the other repository untouched.

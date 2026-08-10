@@ -317,6 +317,21 @@ function readPositiveInteger(env: EnvSource, entry: string, code: EnvConfigError
   return parsed;
 }
 
+/**
+ * Any entry whose value is a positive whole number, read by the SAME rule `MAX_WORK_ITEMS` is read
+ * by (added by phase 10.7).
+ *
+ * WHY THIS IS EXPORTED. The six-service pass above asserts COMPLETENESS — set, non-blank, not still
+ * a placeholder — and deliberately not shape, because a shape rule belongs to whoever consumes the
+ * value. Two of the finance service's entries are consumed by the PROCESS rather than by a typed
+ * loader here: `FINANCE_CONTAINER_PORT` and `STORE_BUSY_TIMEOUT_MS`. Exporting the rule keeps one
+ * implementation of "a bare run of digits, refusing a decimal and an exponent rather than rounding
+ * them", instead of the process growing a second one that could drift from this one.
+ */
+export function parsePositiveIntegerEntry(env: EnvSource, entry: string, why: string): number {
+  return readPositiveInteger(env, entry, 'ENV_MAX_WORK_ITEMS_NOT_POSITIVE_INTEGER', why);
+}
+
 /** `MAX_WORK_ITEMS` (§5.5.5). Zero is not a bound, it is a queue nothing drains. */
 export function parseMaxWorkItems(env: EnvSource, entry: string = SHARED_ENTRIES.maxWorkItems): number {
   return readPositiveInteger(

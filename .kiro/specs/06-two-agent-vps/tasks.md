@@ -211,10 +211,17 @@
       once. **Shown failing, twice:** making `longPoll` apply all three gates (the naive reuse) fails
       **10** of the 25; making an absent or empty expected token mean "skip the check" (the
       relaxation D1 rejected) fails **4** fence tests. Both mutations reverted.
-- [ ] 10.7 Build the finance-agent entrypoint (§6.3, R29). `src/server/telegram/index.ts` is a
+- [x] 10.7 Build the finance-agent entrypoint (§6.3, R29). `src/server/telegram/index.ts` is a
       barrel, not a main: add a process that wires `acceptHandler` + `workerRunner` +
       `routing/turnDispatch`, refuses to boot on an incomplete environment, and honours the sentinel.
       Binds no public port in `longPoll`; listens on `FINANCE_CONTAINER_PORT` in `webhook`.
+      **Done 2026-08-10.** `src/server/process/` - `haltGate.ts` (the sentinel re-read per call,
+      `NIZAM_KILL_ALL` at boot, an unreadable switch treated as engaged), `financeAgent.ts` (the
+      three process behaviours), `turnWorker.ts` (`workerRunner` wired to `routing/turnDispatch`),
+      `main.ts` (the only file naming a platform facility) and `start.ts` (`npm start`). **No server
+      framework added:** the accept path is synchronous and single-route, so `node:http` covers it.
+      The `longPoll` absence is asserted against the process's own `listeningPorts` and the injected
+      host's own request record, in both directions (D6). 34 tests; floor 1872 -> 1906.
 - [ ] 10.8 A Dockerfile per image this repository owns, plus a build path producing the tags compose
       references (six `<*_IMAGE_REF>` placeholders today build nothing - **O1**). Decide and record
       the **F12** resolution: publish 80 as a second port on `caddy`, **or** rely on TLS-ALPN-01 on
