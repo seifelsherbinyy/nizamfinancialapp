@@ -267,10 +267,37 @@
       tested conversion each way with no `parseFloat`, no `.toFixed(` and no decimal literal.
       `ops/GATE_REGISTER.md` was **not** edited; the one-line G4 change is a recommendation in the
       build log. 23 tests; floor 1906 -> 1929.
-- [ ] 10.11 Tell the owner exactly which gate steps to perform, with the command for each: **G1**
+- [x] 10.11 Tell the owner exactly which gate steps to perform, with the command for each: **G1**
       hardening plus `/etc/<CONFIG_DIR>`; **G4** two keys at 2.50 with training opt-out; **G5** with
       the consent screen published to production (**D-G5**); **G8** the `age` keypair.
       (§8 step 7 - an instruction sheet, never an attempt)
+      **Done 2026-08-10.** `.kiro/specs/06-two-agent-vps/OWNER_GATE_ACTIONS.md` - the **ordered gate
+      walkthrough**, written for a human at a terminal, with `OWNER_FILL_IN_SHEET.md` named in its
+      first lines as the **value reference** so the owner never wonders which to open. One section per
+      gate he must work now - G1, **G3 placement only** (both bots exist and were verified live, so
+      creation is the finished half), G4, G5, G8 - each with its purpose in a sentence, the commands in
+      order, and the verification block **copied verbatim from `ops/GATE_REGISTER.md`** rather than
+      reinvented, plus the reminder that the observation is what gets recorded and never the value.
+      **F13 is carried as a two-row unit table** in G4, because a literal `2.50` in the ledger entry is
+      a startup refusal while the integer form sent to the provider is a limit a million times too
+      large; the register's own `<FINANCE_WEEKLY_CAP>` interpolation is flagged as the one place the
+      owner must supply the decimal reading, since the register outranks `agentWeeklyCaps.ts` on gate
+      verification. **G2 and G6 are named as DEFERRED** with the reason (phase 1 is `longPoll`: no
+      domain, no DNS, no certificate, no public port, no proxy) and **G7 as CLOSED/WONT-DO**, so he does
+      not go looking for them. The stack section gives the `<FINANCE_IMAGE_REF>` build per
+      `ops/IMAGE_BUILD.md`, the six env files, and the bare `up` that publishes nothing because `caddy`
+      carries `profiles: [phase2]`.
+      **Four findings, reported rather than invented.** G1 step 5 (intrusion blocking, unattended
+      updates) has **no verification line** while every other G1 step does; G4 step 3's opt-out check is
+      a console observation, not a runnable command; G5 step 1 has no command in this repository, the
+      flow being the provider's own; and **the walkthrough cannot close end to end today** -
+      `BACKUP_FOLDER_REF` and G8's drill both wait on the uploader task 10.9 owns. The sheet also states
+      the ceiling plainly: with every gate observed, `docker compose up` still cannot stand the stack up,
+      because `<BUS_IMAGE_REF>` and `<SCHEDULER_IMAGE_REF>` are `OWNED_BUILD_PENDING` (**O2**) and
+      `finance-agent` declares `depends_on: signalbus: service_healthy`, so **L2 and L3 are blocked on
+      this repository, not on the owner**. No gate step was performed, no network call made,
+      `ops/GATE_REGISTER.md` was **not** edited, and no box was ticked anywhere but here. No test added -
+      this task's deliverable is a document; floor stays 1982.
 - [ ] 10.12 Run the test ladder, stopping at the first rung that fails (§9). **L0** config refusal and
       **L1** guards are runnable now. **L2** compose, **L3** transport, **L4** routing and safety are
       `BLOCKED - awaiting human` until G1/G3-placement/G4 clear. Record each rung's observation.

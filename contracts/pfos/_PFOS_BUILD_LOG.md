@@ -4601,3 +4601,102 @@ where the resolution is recorded.
 - **No image was built, no tag resolved, no registry contacted, no outbound call made, no host port
   published, no `setWebhook`, no DNS record, no `docker compose up`.** This task authored text and code.
 - **The other repository was not touched.** G7 still CLOSED - WONT-DO.
+
+---
+
+## 2026-08-10 - spec 06 task 10.11: the owner's gate walkthrough (§8 step 7)
+
+**Contract:** PFOS 12 - Two-Agent VPS Deployment & Operations, §9 (the human gate register).
+**Spec:** `.kiro/specs/06-two-agent-vps/` task **10.11**. **Authority:** `KIRO_SHIP_LIVE.prompt.md`
+§8 step 7 - "tell the owner exactly which gate steps to perform, with the command for each".
+**Deliverable:** `.kiro/specs/06-two-agent-vps/OWNER_GATE_ACTIONS.md`. **An instruction sheet, never
+an attempt.**
+
+### What it is, and what it deliberately is not
+
+It is the **ordered gate walkthrough**, written for a human at a terminal rather than for a reader.
+`OWNER_FILL_IN_SHEET.md` (task 10.3) is the **value reference** - 62 entry-to-file assignments, each
+with its gate, its `secret` flag and its proof command. Both are named in the new document's first
+lines with which is which, so the owner never has to work out which to open. Nothing from 10.3 is
+duplicated; the walkthrough points at it wherever a step needs values.
+
+`ops/GATE_REGISTER.md` outranks both and the new document says so. Every verification block in it is
+**copied from the register**, not reinvented, and each is followed by the reminder that the observation
+is what gets recorded and never the value (R24).
+
+### The order, and why it is the order
+
+**G1 -> G3 (placement) -> G4 -> G5 -> G8.** The register's ordering is a dependency ordering: G3, G4,
+G5 and G8 each end by writing a secret into `/etc/<CONFIG_DIR>`, which only G1 creates, so working G4
+first produces a production secret with nowhere to live. **G3 is the placement half only** - both bots
+already exist and were verified live by read-only probes, so creation is finished and the walkthrough
+says which half is which rather than restating steps the owner has already worked.
+
+### F13 carried where a wrong number would boot successfully
+
+G4's section leads with a two-row unit table before any command, because the same D-CAP figure is
+written two ways: `<FINANCE_KEY_LIMIT_USD>` is **decimal USD text** in the provider's key-creation
+body, and `FINANCE_WEEKLY_CAP` is **integer micro-USD** in the environment entry, where a decimal is
+refused rather than rounded. A literal `2.50` in the entry is a startup refusal; the integer form sent
+to the provider is a limit a million times too large. The register's G4 step 2 still interpolates
+`<FINANCE_WEEKLY_CAP>` into the provider body, so the walkthrough flags that as the one place the owner
+supplies the decimal reading - the register outranks `src/features/routing/agentWeeklyCaps.ts` on gate
+verification, which is why task 10.10 left it as a recommendation and this task did not take it either.
+
+**D-G5** is stated as the highest-value sentence in G5's section: a Testing screen issues a seven-day
+refresh token and the unattended uploader dies **silently** on day eight. **D-ROTATE** is in the ground
+rules with its compensating control - `getWebhookInfo` on every run - and there is no rotation step
+anywhere in the document.
+
+### Deferred work is named so the owner does not go looking for it
+
+**G2 and G6 are DEFERRED**, with the reason rather than the label: phase 1 ships on
+`TELEGRAM_MODE=longPoll`, which is outbound only - no domain, no DNS record, no certificate, no public
+port, no proxy - and G2 is additionally blocked on a domain that does not exist, the account holding
+zero zones as measured. `setWebhook` is named as a thing not to run. Deferred is not cancelled: both
+keep their gate numbers and every verification line, and phase 2 is a configuration change because the
+guards are identical either way. **G7 is CLOSED - WONT-DO** and is listed only so a reader who finds
+G1-G6 and G8 does not conclude it was lost.
+
+### The stack section, and the ceiling it reports honestly
+
+The `<FINANCE_IMAGE_REF>` build is quoted from `ops/IMAGE_BUILD.md` with the immutable-tag rule and the
+digest-in-the-operator-file rule, because `ops/runbook/ROLLBACK.md` reverts by naming a previous tag. The
+bare `docker compose up` is given as the whole of "keep the proxy down", since `caddy` carries
+`profiles: [phase2]` and is the only service with a `ports:` key. L0 and L1 are runnable now; L4 needs
+L2/L3 plus G4; L5 waits on task 10.9 and then G5 step 4 and G8 step 6.
+
+### Findings recorded rather than invented
+
+- **G1 step 5 has no verification line.** Intrusion blocking and unattended security updates are a step;
+  the VERIFICATION block covers every other G1 step and not that one. Not patched here - the command
+  differs by distribution, and guessing one produces a line that passes on the wrong machine.
+- **G4 step 3's verification is a console observation, not a runnable command.** The register names no
+  provider endpoint reporting the account-level training posture. Acceptable as written; recorded so it
+  is not later mistaken for something a script covers.
+- **G5 step 1 has no command in this repository.** No consent-flow script is tracked, and writing one was
+  not this task. The flow is the provider's own documented installed-app flow, run from the laptop.
+- **The walkthrough cannot close end to end in one sitting**, and this is the answer to the question the
+  task asked. `BACKUP_FOLDER_REF` is created by the uploader on first run (D-G5), the uploader does not
+  exist - `<BACKUP_IMAGE_REF>` is `OWNED_BUILD_PENDING` on task 10.9 - so G5's folder line and G8's
+  restore drill both wait. Beyond that: with **every** gate observed, `docker compose up` still cannot
+  stand the stack up, because `<BUS_IMAGE_REF>` and `<SCHEDULER_IMAGE_REF>` are `OWNED_BUILD_PENDING`
+  (finding **O2**) and `finance-agent` declares `depends_on: signalbus: condition: service_healthy`. So
+  **L2 and L3 are blocked on build work in this repository, not on the owner**, and the document says
+  that in the same table that lists the rungs.
+
+### Gate result
+
+- `npm run verify:all -- --all` - **20 of 20 executed checks passed**, run after the commit because AC14
+  and AC15 require a clean tree.
+- **No test added and no floor moved**; the deliverable is a document. The AC04 `--min` floor stays at
+  **1982**. Up only, and nothing lowered, allowlisted, skipped or exempted.
+- **`ops/GATE_REGISTER.md` was NOT edited.** No gate renumbered, removed, softened or reopened, no
+  `Status:` moved, no verification line changed, and **no checkbox ticked** anywhere except `10.11`'s own
+  line in `tasks.md` - not in the register, and not in the "Waiting on user input" list.
+- **No gate step was performed.** No host provisioned or hardened, no secret placed, no key minted, no
+  keypair generated, no consent screen clicked, no image built, no stack started, no `setWebhook`, no DNS
+  record, no outbound network call. **The other repository was not touched.** G7 still CLOSED - WONT-DO.
+- Every value in the new document is an `<ANGLE_BRACKET>` placeholder and none resolves to anything real.
+  It lives under `.kiro/specs/`, outside AC18's `ops/**` scan roots, and was held to the same standard
+  regardless.

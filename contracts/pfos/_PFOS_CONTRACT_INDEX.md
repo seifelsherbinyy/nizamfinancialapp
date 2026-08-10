@@ -315,3 +315,32 @@ with a `ports:` key, carries a `profiles:` entry, and `src/server/ops/composeTem
 directions of it. **No contract file was edited and no owning requirement range moved** - R28 and R30 were
 already in contract 12's `R6-R30` range. **The other repository was not touched**, no image was built, no tag
 resolved, no registry contacted and no outbound call made.
+
+**The owner's gate walkthrough, 2026-08-10 (task 10.11).** Contract 12 §9's human gate register states what
+each gate requires and how it is verified; what it does not do is walk one person through the subset that is
+open, in order, in one sitting. `.kiro/specs/06-two-agent-vps/OWNER_GATE_ACTIONS.md` is that walkthrough -
+**G1**, **G3 placement only** (both bots exist and were verified live, so creation is the finished half),
+**G4**, **G5**, **G8** - each with its purpose in a sentence, its commands in order, and its verification
+block **copied from `ops/GATE_REGISTER.md`** rather than reinvented, followed by the reminder that the
+observation is recorded and never the value (**R24**). It names task 10.3's `OWNER_FILL_IN_SHEET.md` in its
+first lines as the **value reference** and itself as the **gate walkthrough**, so the two are not confused and
+the 62 entry-to-file assignments are referenced rather than duplicated. The order is the register's dependency
+order, and the reason is stated: four gates end by writing a secret into `/etc/<CONFIG_DIR>`, which only G1
+creates. **F13 is carried where a wrong number would otherwise boot successfully** - G4 leads with a two-row
+unit table, decimal USD text for the provider's `limit` against integer micro-USD for the ledger entry, and
+flags the register's own `<FINANCE_WEEKLY_CAP>` interpolation as the one place the owner supplies the decimal
+reading, since the register outranks `agentWeeklyCaps.ts` on gate verification. **D-G5** is stated as the
+consequence rather than the label (a Testing screen's seven-day token kills the unattended uploader silently
+on day eight) and **D-ROTATE** appears only as a ground rule with its `getWebhookInfo` compensating control -
+there is no rotation step. **G2 and G6 are named DEFERRED with the reason** (phase 1 is `longPoll`: no domain,
+no DNS, no certificate, no public port, no proxy) and **G7 as CLOSED - WONT-DO**, so the owner does not go
+looking for them. Four findings are reported rather than invented: G1 step 5 has **no verification line**
+while every other G1 step does; G4 step 3's opt-out check is a console observation, not a runnable command; G5
+step 1 has no command in this repository; and the walkthrough **cannot close end to end today**, because
+`BACKUP_FOLDER_REF` and G8's drill wait on the uploader task 10.9 owns, and because with every gate observed
+`docker compose up` still cannot stand the stack up - `<BUS_IMAGE_REF>` and `<SCHEDULER_IMAGE_REF>` are
+`OWNED_BUILD_PENDING` (**O2**) and `finance-agent` declares `depends_on: signalbus: service_healthy`, so
+**L2 and L3 are blocked on this repository, not on the owner**. **No contract file was edited and no owning
+requirement range moved.** `ops/GATE_REGISTER.md` was **not** edited - no gate renumbered, removed, softened or
+reopened, no `Status:` moved, and no box ticked anywhere but `10.11`'s own line. No gate step was performed, no
+network call made, and the other repository was not touched.
