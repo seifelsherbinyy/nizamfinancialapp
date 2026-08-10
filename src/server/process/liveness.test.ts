@@ -22,7 +22,7 @@ import {
   BUS_HEARTBEAT_MAX_AGE_MS,
   heartbeatIsFresh,
 } from './busServer';
-import { createFileLivenessRecord, LIVENESS_TOUCH_INTERVAL_MS, livenessIsFresh } from './liveness';
+import { CLOCK_QUANTIZATION_MS, createFileLivenessRecord, LIVENESS_TOUCH_INTERVAL_MS, livenessIsFresh } from './liveness';
 
 const RECORD_NAME = 'service-liveness';
 const WINDOW_MS = 30_000;
@@ -103,6 +103,38 @@ describe('the file-backed record carries an age and nothing else (R24)', () => {
     const record = createFileLivenessRecord(dir, RECORD_NAME, () => statSync(join(dir, RECORD_NAME)).mtimeMs + 1_500);
     record.touch();
     expect(record.ageMs()).toBe(1_500);
+  });
+
+  it('reports a sub-quantum future date as zero, and a real one unchanged (the task 10.20 flake)', () => {
+    // THE DEFECT THIS PINS. An age is the difference between two different clocks: the filesystem's
+    // sub-millisecond record of the write, and this process's quantized wall clock. Read inside the
+    // same quantum, the subtraction goes slightly NEGATIVE with nothing wrong — and `livenessIsFresh`
+    // correctly reads a negative age as a backwards clock, so a service that had just recorded itself
+    // reported NOT READY at random. Under §7.3 the orchestrator restarts what reports unhealthy, so
+    // the consequence was a healthy service being restarted for no reproducible reason. It surfaced
+    // as one unidentified failing test in an intermediate run of task 10.20; task 10.18 reproduced it
+    // in `financeReadiness.test.ts` and traced it here.
+    //
+    // Both directions, computed off the record's OWN recorded time so nothing here waits on a clock.
+    const dir = freshDirectory();
+    const recorded = (): number => statSync(join(dir, RECORD_NAME)).mtimeMs;
+
+    createFileLivenessRecord(dir, RECORD_NAME).touch();
+
+    for (const disagreement of [0.5, 1, CLOCK_QUANTIZATION_MS - 1]) {
+      const inside = createFileLivenessRecord(dir, RECORD_NAME, () => recorded() - disagreement);
+      expect(inside.ageMs(), `${disagreement}ms of clock disagreement`).toBe(0);
+      expect(livenessIsFresh(inside.ageMs(), WINDOW_MS)).toBe(true);
+    }
+
+    for (const ahead of [CLOCK_QUANTIZATION_MS, 1_000, WINDOW_MS * 2]) {
+      const beyond = createFileLivenessRecord(dir, RECORD_NAME, () => recorded() - ahead);
+      expect(beyond.ageMs(), `${ahead}ms genuinely ahead`).toBe(-ahead);
+      // Still refused, which is the property the fix must not have cost: a record dated meaningfully
+      // in the future is a clock nobody can interpret, and interpreting it generously would report a
+      // service ready on the strength of a record it cannot date.
+      expect(livenessIsFresh(beyond.ageMs(), WINDOW_MS)).toBe(false);
+    }
   });
 
   it('answers null before anything was recorded, and null again once it is cleared', () => {

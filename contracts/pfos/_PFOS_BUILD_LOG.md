@@ -5290,3 +5290,41 @@ no new trust - and it is why the tunnel is treated as the security boundary rath
 - **Nothing steering §2 gates was run.** No listener was bound - every test drives an injected host that
   binds nothing - no image built, no stack started, no port published, no outbound call, and the other
   repository was not touched.
+
+### The flake task 10.20 could not identify, identified and fixed (2026-08-10)
+
+Task 10.20 reported `2086 total, 2085 passed, 1 failed` in one intermediate run and could not reproduce it.
+This session reproduced it on the first full harness run after task 10.18 - `2125 total, 2124 passed, 1
+failed` - and read the failing case out of the machine report the harness already writes:
+
+```
+src/server/process/financeReadiness.test.ts
+"answers ready under longPoll while binding NOTHING, asserted in both directions"
+AssertionError: expected 'not_ready' to be 'ready'
+```
+
+**It is a real defect, not a test artefact.** `createFileLivenessRecord.ageMs` subtracts two DIFFERENT
+clocks: the filesystem's record of when the file was written, which carries sub-millisecond precision, and
+this process's wall clock, which is quantized. A record written and then read inside the same quantum
+therefore produces a small NEGATIVE age with nothing wrong anywhere. `livenessIsFresh` reads a negative age
+as "the clock moved backwards" and answers not-fresh - which is the right treatment of a real backwards
+jump and the wrong treatment of quantization. So a service that had just recorded itself reported **not
+ready at random**, and under §7.3 the orchestrator restarts what reports unhealthy: the production
+consequence was a healthy service being restarted, or a stack that never went healthy, for no reason an
+operator could reproduce. All four services that answer readiness this way were exposed.
+
+**The fix is at the measurement, not in the rule.** `ageMs` now reports a negative age inside
+`CLOCK_QUANTIZATION_MS` as zero - which is what it means, the record was written just now - and returns
+anything beyond that bound unchanged, so `livenessIsFresh` still refuses a record genuinely dated ahead.
+The rule's fail-closed treatment of a future-dated record is untouched at every magnitude that matters: a
+backwards jump worth refusing is seconds or hours, never a few milliseconds.
+
+**One existing test was amended, and it is worth saying why rather than burying it.**
+`financeReadiness.test.ts`'s backwards-clock case dated the record **one millisecond** ahead. A millisecond
+is not a backwards clock; it is exactly the artefact. So that case was asserting that the artefact was
+refused - which is both how the defect got in and why nobody found it, because the suite contained an
+assertion that the broken behaviour was correct. It now names an offset a clock could actually have moved
+by, and `liveness.test.ts` pins both directions of the bound explicitly: three sub-quantum disagreements
+read as zero and stay fresh, three real future-datings read unchanged and stay refused.
+
+One test added by the fix; the AC04 floor moved 2125 -> 2126 in the same increment.

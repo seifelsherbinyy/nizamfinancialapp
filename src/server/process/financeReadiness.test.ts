@@ -269,7 +269,15 @@ describe('a stopped or wedged agent reports NOT ready (R22)', () => {
     try {
       await agent.runWorkerOnce();
 
-      const backwards = financeReadinessReport({ env: deps.env, nowMs: clockOffsetFrom(dataDir, -1) });
+      // THE MAGNITUDE IS THE POINT, and it used to be one millisecond. A record dated a millisecond
+      // ahead is not a backwards clock — it is the wall clock and the filesystem disagreeing about the
+      // same instant, which happens whenever a record is written and read inside the same quantum.
+      // Asserting that it read not-ready therefore asserted the ARTEFACT, and the same artefact made
+      // this suite fail at random in the run of the case below (task 10.20's unidentified flake, found
+      // and traced by task 10.18). `liveness.ts` now reports a sub-quantum disagreement as zero, and
+      // `liveness.test.ts` pins both directions. What this case is about is a clock that actually
+      // moved, so it names an offset a clock could actually have moved by.
+      const backwards = financeReadinessReport({ env: deps.env, nowMs: clockOffsetFrom(dataDir, -60_000) });
       expect(backwards.status).toBe('not_ready');
       expect(workerCheck(backwards)).toBe('queue_worker_not_reporting');
     } finally {

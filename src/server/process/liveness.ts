@@ -96,6 +96,35 @@ export function livenessIsFresh(ageMs: number | null, maxAgeMs: number): boolean
 }
 
 /**
+ * The bound on how far the two clocks in {@link createFileLivenessRecord.ageMs} can disagree while
+ * both are working correctly.
+ *
+ * This is not a tolerance for a wrong answer; it is the resolution of the question. An age is the
+ * difference between two DIFFERENT time sources: the filesystem's record of when a file was written,
+ * which carries sub-millisecond precision, and the wall clock this process reads, which is quantized.
+ * A record written and then read inside the same quantum therefore produces a small NEGATIVE age -
+ * the file appears to have been written a fraction of a millisecond in the future - with no clock
+ * having moved anywhere.
+ *
+ * **This was a live defect, not a theoretical one.** `livenessIsFresh` reads a negative age as "the
+ * clock moved backwards" and answers not-fresh, which is the correct treatment of a real backwards
+ * jump and the wrong treatment of quantization. A service that had just recorded itself therefore
+ * reported **not ready at random**, roughly once per few thousand readings, and under §7.3 the
+ * orchestrator restarts what reports unhealthy - so the failure mode was a healthy service being
+ * restarted, or a stack that never became healthy, for no reason an operator could reproduce. It
+ * surfaced as an unidentified single test failure in one intermediate run of task 10.20, and task
+ * 10.18 reproduced it and traced it here.
+ *
+ * The fix belongs at the MEASUREMENT and not in the rule, which is why this constant lives beside
+ * `ageMs` rather than inside `livenessIsFresh`: the artefact is a property of comparing two clocks,
+ * and the rule's fail-closed treatment of a future-dated record is correct and stays exactly as it
+ * was. The bound is generous enough to cover the coarsest wall-clock quantum this runtime is
+ * observed to have on any supported platform, and small enough to be irrelevant next to any real
+ * clock movement: a backwards jump worth refusing is seconds or hours, never a few milliseconds.
+ */
+export const CLOCK_QUANTIZATION_MS = 16;
+
+/**
  * A liveness record as a file inside `directory`, named `fileName`.
  *
  * `nowMs` is injected so a test dates a record without waiting and without touching a system clock,
@@ -118,7 +147,14 @@ export function createFileLivenessRecord(
     clear: () => rmSync(pathOf(), { force: true }),
     ageMs: () => {
       try {
-        return nowMs() - statSync(pathOf()).mtimeMs;
+        const raw = nowMs() - statSync(pathOf()).mtimeMs;
+        // A negative age INSIDE the quantization bound is two clocks disagreeing about the same
+        // instant, not a clock that moved: it is reported as zero, which is what it means - the
+        // record was written just now. A negative age BEYOND the bound is a record genuinely dated
+        // ahead of this process's clock, and it is returned unchanged so `livenessIsFresh` refuses
+        // it. See CLOCK_QUANTIZATION_MS for the defect this removes and why the rule is untouched.
+        if (raw < 0 && raw > -CLOCK_QUANTIZATION_MS) return 0;
+        return raw;
       } catch {
         return null;
       }
