@@ -5328,3 +5328,73 @@ by, and `liveness.test.ts` pins both directions of the bound explicitly: three s
 read as zero and stay fresh, three real future-datings read unchanged and stay refused.
 
 One test added by the fix; the AC04 floor moved 2125 -> 2126 in the same increment.
+
+### Phase 10 task 10.12 — the test ladder was RUN, and it found the top blocker (2026-08-10)
+
+Mandate §9's ladder, executed rather than described. Record:
+`.kiro/specs/06-two-agent-vps/LIVE_PROGRESS.md` — one row per rung with the command and what it
+returned, the L2-L5 blockers with whose they are, and the verbatim transcripts in an appendix.
+
+**L0 OBSERVED, through the real entrypoint in its own child process.**
+`node scripts/ladder/l0-config.mjs` → `L0 PASSED`, exit 0. The runner spawns
+`src/server/process/start.ts` and reads what that process wrote to its own streams; nothing in it
+imports the loader or asserts against a returned value, because an in-process assertion is what the
+existing loader and guard tests already are and §9's opening line says a rung is not passed because
+the code looks right. Case A breaks **four** entries at once — two removed, one emptied, one left
+holding its own template placeholder — deliberately, because a first-failure loader passes the
+single-entry version of this rung. The boot exited **1** having written ONE aggregate naming all four
+under **three different codes** (`ENV_ENTRY_ABSENT` ×2, `ENV_ENTRY_UNSUBSTITUTED_PLACEHOLDER`,
+`ENV_ENTRY_EMPTY`) with the count stated, so one restart answers the whole question (R27). Case B
+restored the four and the boot **proceeded** — `store_opened` on the process's own output stream, and
+an **empty** error stream, which is what rules out a boot that proceeded while still complaining.
+
+**L1 OBSERVED, by running task 10.6's 25 tests rather than writing new ones.**
+`npx vitest run src/server/telegram/modeAwareGuard.negative.test.ts` → `Test Files 1 passed (1)`,
+`Tests 25 passed (25)`, 18.85s.
+
+**Finding F20, and it is the single most consequential thing this run produced.** Bare
+`node src/server/process/start.ts` **cannot start**. Every relative import under `src/` is written
+extensionless; `moduleResolution: "bundler"` resolves that and so do Vite and Vitest; **Node's own ESM
+resolver performs no extension search**, so the first import answers `ERR_MODULE_NOT_FOUND` before any
+environment is read, on every host, in every mode. Measured against Node v24.14.1, the pinned major.
+The CommonJS route was probed and does not help. The consequence is not academic:
+
+- all three owned images' `ENTRYPOINT` name one of these shims (`start.ts`, `busStart.ts`,
+  `schedulerStart.ts`) and would exit immediately;
+- all four `--health` commands and the restore drill's `probe.ts` exit non-zero for a reason unrelated
+  to readiness — and `caddy` and `scheduler` wait on `finance-agent: service_healthy`, while both
+  agents wait on `signalbus: service_healthy`;
+- `package.json`'s `start` and `health` scripts are unrunnable as written.
+
+So rung **L2 is `BLOCKED - awaiting build` and the blocker is OURS**: with G1, G3, G4, G5 and G8 all
+observed, `docker compose up` would still stand up nothing. **It was invisible because tasks 10.7,
+10.19, 10.20 and 10.21 asserted these processes through Vitest**, which imports them through the
+project's resolver — that proves the process logic and says nothing at all about launching it. This is
+precisely the gap between "what is written" and "what is observed" that the ladder exists to expose,
+and three of those four tasks recorded their process as done on the strength of the former.
+
+**Not repaired here, and that is a scope judgement rather than an omission.** The repair is a packaging
+decision with two candidate shapes — an extension on every relative specifier in the graph (with
+`allowImportingTsExtensions`, which the project currently sets to `false`), or a build step emitting
+runnable modules into the image — and it touches the three Dockerfiles, `ops/IMAGE_BUILD.md`,
+`package.json` and possibly every module under `src/`. It deserves its own task, its own tests and its
+own commit. What this run did instead was make the rung it blocks observable:
+`scripts/ladder/ts-resolve.mjs` registers a resolve hook that restores **exactly** the one resolution
+the project's toolchain already performs — a file, then a directory index — and nothing else: no
+transform, no path mapping, no condition. So L0 was observed against the real `main`, the real loader
+and the real store, and F20 is recorded as its own finding rather than mistaken for a loader defect.
+
+**L2-L5 are recorded with the precise blocker and whose it is**, and none was simulated, asserted from
+code, or marked passed. L3 needs L2 then G3 **placement** (both bots already exist and were verified
+live, so creation is the finished half); L4 needs G4's two keys; L5 needs task **10.9**'s uploader —
+which is why `<BACKUP_IMAGE_REF>` is still `OWNED_BUILD_PENDING` — and then G5 and G8.
+
+**Nothing steering §2 gates was run.** No `setWebhook`, no DNS record, no published port, no image
+built, no stack started, no outbound call — the finance agent's live provider client refuses by
+construction in this build, which is what makes case B safe to run at all — and the other repository
+was not cloned, fetched, read, modified or pushed. `ops/GATE_REGISTER.md` was **not** edited and no gate
+checkbox was ticked. Every ladder value is a self-evident non-value and the store is created in a
+temporary directory outside the tree and removed at the end (R24).
+
+No test added — this task's deliverable is an observation, not a mechanism. Floor stays **2126**
+against a real 2126.

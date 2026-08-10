@@ -298,9 +298,39 @@
       this repository, not on the owner**. No gate step was performed, no network call made,
       `ops/GATE_REGISTER.md` was **not** edited, and no box was ticked anywhere but here. No test added -
       this task's deliverable is a document; floor stays 1982.
-- [ ] 10.12 Run the test ladder, stopping at the first rung that fails (§9). **L0** config refusal and
+- [x] 10.12 Run the test ladder, stopping at the first rung that fails (§9). **L0** config refusal and
       **L1** guards are runnable now. **L2** compose, **L3** transport, **L4** routing and safety are
       `BLOCKED - awaiting human` until G1/G3-placement/G4 clear. Record each rung's observation.
+      **Done 2026-08-10, and the run found a blocker nothing had observed.** Record:
+      `.kiro/specs/06-two-agent-vps/LIVE_PROGRESS.md`, one row per rung with the command and what it
+      returned, plus verbatim transcripts.
+      **L0 OBSERVED** through the REAL entrypoint in its own child process, not in process:
+      `node scripts/ladder/l0-config.mjs` → `L0 PASSED`. Case A breaks **four** entries at once - two
+      removed, one emptied, one left holding its template placeholder - because a first-failure loader
+      passes the single-entry version of this rung; the boot exited **1** with ONE aggregate naming all
+      four under **three different codes**. Case B restored them and the boot **proceeded**
+      (`store_opened` on the process's own stream, error stream empty).
+      **L1 OBSERVED** by running the 25 tests task 10.6 wrote rather than writing new ones:
+      `npx vitest run src/server/telegram/modeAwareGuard.negative.test.ts` → `Tests 25 passed (25)`.
+      **Finding F20, and it is the top blocker to conversing with the bot.** Bare
+      `node src/server/process/start.ts` **cannot start**: every relative import under `src/` is
+      extensionless, which this project's toolchain resolves and Node's own ESM resolver does not, so
+      the first import answers `ERR_MODULE_NOT_FOUND` before any environment is read. All three owned
+      images' `ENTRYPOINT`, all four `--health` commands, the restore drill's probe and both
+      `package.json` scripts are unrunnable as written. It was invisible because tasks 10.7, 10.19,
+      10.20 and 10.21 asserted these processes through Vitest, which imports through the project's
+      resolver - that proves the logic and says nothing about launching it. So **L2 is
+      `BLOCKED - awaiting build` and the blocker is OURS**: with every gate observed,
+      `docker compose up` would still stand up nothing. Not repaired here - it is a packaging decision
+      (an extension on every specifier in the graph, or a build step emitting runnable modules) that
+      touches three Dockerfiles and possibly all of `src/`, and it deserves its own task, tests and
+      commit. `scripts/ladder/ts-resolve.mjs` restores **exactly** that one resolution and nothing
+      else, so the rung F20 blocks could still be observed against the real loader and the real store.
+      **L2-L5 recorded with the precise blocker and whose it is**, none simulated, none marked passed,
+      and nothing steering §2 gates was run: no `setWebhook`, no DNS record, no published port, no
+      image build, no stack start, no outbound call. Every ladder value is a self-evident non-value and
+      the store lives in a temporary directory outside the tree (R24). No test added - this task's
+      deliverable is an observation; floor stays 2126.
 - [ ] 10.13 Exercise backup and **one** restore (**L5**). A backup that has not been restored is not a
       backup - `ops/runbook/DISASTER_RECOVERY.md` makes the drill the prerequisite, not the recovery.
       `BLOCKED - awaiting human` on G5 + G8.

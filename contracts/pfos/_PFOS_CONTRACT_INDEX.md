@@ -475,3 +475,24 @@ decision, the three rejected alternatives, the threat model **including what it 
 and what phase 2 changes - which is nothing, unless the owner decides it explicitly and it is recorded
 first. **No contract file was edited**, no port bound, no stack started, `ops/GATE_REGISTER.md` untouched
 and no box ticked but `10.18`'s own.
+
+**The test ladder was RUN, and finding F20 is now the top blocker to a bot that answers, 2026-08-10
+(task 10.12).** Mandate §9's rungs L0 and L1 are `OBSERVED` with the command and the return recorded in
+`.kiro/specs/06-two-agent-vps/LIVE_PROGRESS.md`: L0 through the **real entrypoint in its own child
+process** (`node scripts/ladder/l0-config.mjs`), breaking **four** entries at once because a
+first-failure loader would pass the single-entry version of that rung, and observing one aggregate that
+names all four under three different codes with a non-zero exit, then the boot proceeding once they were
+restored; L1 by running task 10.6's existing 25 tests rather than writing new ones (`25 passed`).
+**F20:** bare `node src/server/process/start.ts` cannot start at all — every relative import under
+`src/` is extensionless, which `moduleResolution: "bundler"`, Vite and Vitest all resolve and Node's own
+ESM resolver does not — so all three owned images' `ENTRYPOINT`, all four `--health` commands, the
+restore drill's probe and both `package.json` scripts are unrunnable as written, and rung **L2 is blocked
+on THIS repository rather than on the owner**: with every gate observed, the stack would still stand up
+nothing. It was invisible because tasks 10.7, 10.19, 10.20 and 10.21 proved those processes through
+Vitest, which imports through the project's resolver — the logic, never the launch. It is recorded and
+deliberately **not** repaired in this increment, because the repair is a packaging decision touching the
+three Dockerfiles, `ops/IMAGE_BUILD.md`, `package.json` and possibly every module under `src/`, and it
+deserves its own task and tests. `scripts/ladder/ts-resolve.mjs` restores **exactly** the one resolution
+the toolchain performs, and nothing else, so the rung F20 blocks was still observable. **No contract file
+was edited**, `ops/GATE_REGISTER.md` untouched, no gate ticked, nothing steering §2 gates was run, and no
+test was added — the deliverable is an observation. Floor stays **2126** against a real 2126.
