@@ -14,10 +14,14 @@
 > modifying — that is option **(a)** work, in a session opened there. Nothing here is a claim that a
 > life-side capability exists today. Read the `State` column before acting on a row.
 >
-> **Phase 1 reality, stated once so no row has to repeat it.** Under the authorised option **(b)**, phase
-> 1 ships the **finance agent** on its bot alone; the other bot stays created, hardened and idle. Every
-> `life` row below is therefore `NOT BUILT` or `OTHER REPO` today, and every cross-agent signal is
-> **latent**: the channel exists and is tested, and nothing crosses until the second agent runs.
+> **Phase 1 reality, CORRECTED on 2026-08-10 by measured evidence.** This note previously said phase 1
+> ships the finance agent alone under option **(b)**, with the other bot created, hardened and idle. A
+> read-only inspection of the other repository, recorded in `ops/NIZAMCORE_VERIFIED_STATE.md`, found the
+> life agent **built and stopped on the same line as this one**, a non-calling model layer released by
+> one credential. `OTHER REPO` in the `State` column below therefore means *built there*, not *absent*.
+> The v1.0 path is option **(c)** in the readme of spec `07-bot-bringup-v1`: deploy what exists and
+> wire its model layer in place. Every cross-agent signal is still **latent**, because the widening list
+> is empty and nothing crosses until the owner widens a kind in a recorded change.
 
 ## How to read the table
 
@@ -120,13 +124,21 @@ here.
 The PFOS current-state steering file states the rule that applies: **author the relevant contract before
 building its area, and never invent policy a contract would govern.** So this document does not decide
 what a therapy turn may say, and rows 22 to 27 carry only what the boundary needs: who owns the
-capability, and what may cross. Whoever builds the life side authors that contract first. Recording the
-absence is the most this side can honestly do, and it is more than leaving the rows out would have been.
+capability, and what may cross.
+
+**Corrected on 2026-08-10: the gap is a visibility gap, not a specification gap.** *gap* in the
+`Governing contract` column means *no contract in THIS repository governs it*, and that reading is
+correct and unchanged. It does **not** mean the life side is ungoverned. The other repository holds its
+own governance, measured and recorded in `ops/NIZAMCORE_VERIFIED_STATE.md`: three named gates, a governor
+with sole write on the ledger and no tool calls, a twelve-agent registry, and a documentation set larger
+than this repository's. Rows 22, 23 and 26 in particular are **built there** under named modules, not
+waiting to be designed. What is genuinely absent is a document on this side that a reader here can cite,
+and that absence is now covered by the verified-state record rather than by an empty cell.
 
 ## Where each side goes next
 
 | Side | Next |
 |---|---|
 | finance | phase 1 ships it on its own bot. The blockers are recorded in the spec's own progress record, not here |
-| life | option **(a)**: a session opened on the other repository applies the three change specifications under `ops/nizamcore-patches/`, authors the missing life contract, and builds rows 22 to 28. Owner-gated |
+| life | **CORRECTED 2026-08-10.** Rows 22 to 27 and 29 to 32 are already built in the other repository. Change specs 001 and 002 under `ops/nizamcore-patches/` are **off the v1.0 path**, because that repository already holds both a long-poll relay and a webhook receiver; only 003 (bus egress, row 28) remains and it is v2. The v1.0 work is option **(c)**: wire the existing model layer and place one credential, per the task list of spec `07-bot-bringup-v1`, tasks `A0` to `A4`. Owner-gated on `A0` |
 | both | nothing in `ops/INTEROP_CONTRACT.md` changes when the second agent arrives. That is the point of having written it first |

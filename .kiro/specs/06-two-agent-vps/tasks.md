@@ -528,7 +528,25 @@
       `phaseOneServicesNamedIn` reads that command back and compares it with the code, so neither can
       move alone. `OWNER_GATE_ACTIONS.md` step 4 was **wrong** and now names the three services.
       7 tests; floor 2086 -> 2093.
-- [x] 10.16 **The cross-repo interop contract** (owner clarification 2026-08-10, and **R31**). The owner
+- [ ] 10.23 **No owned image can start: bare `node` cannot resolve an extensionless relative import**
+      (found by task 10.12 while running the ladder - finding **F20** - and **R28**, **R29**). Every
+      relative import under `src/` is written extensionless (`import { main } from './main'`). The
+      project resolves that through `moduleResolution: "bundler"`, and Vite and Vitest search the same
+      way; **Node's own ESM resolver performs no extension search**, so `node src/server/process/start.ts`
+      answers `ERR_MODULE_NOT_FOUND` on its first import, before any environment is read, on every host,
+      in every mode. Measured against Node v24.14.1, the pinned major; the CommonJS route was probed and
+      does not help. It blocks all three owned images' `ENTRYPOINT`, all four `--health` commands, the
+      restore drill's `probe.ts`, and `npm start` / `npm run health` - so with **every** gate G1-G8
+      observed, `docker compose up` still stands up nothing and rung **L2** is unreachable. The single
+      next blocking action for the whole deployment, and it is **ours**, not the owner's. It hid because
+      tasks 10.7, 10.19, 10.20 and 10.21 proved those processes through Vitest, which imports through
+      the project's resolver: that proves the logic and says nothing about the launch. Choose between an
+      explicit extension on every relative specifier (with `allowImportingTsExtensions`) and a build step
+      emitting runnable modules, weigh them on artifacts moved, whether the browser build still passes,
+      whether Vitest still resolves and whether the fix can regress silently, and **record the decision
+      where a reader will find it**. Then add a check that fails closed on the real launch path, wired
+      into an existing check rather than a twenty-first, because the check count is asserted in several
+      documents.
       defines "clone and migrate both repositories" as *making the two understand each other* - feeding
       information and communicating - **not** a code migration and not a repository move. So the
       deliverable is a contract, not a git operation: author `ops/INTEROP_CONTRACT.md` naming every

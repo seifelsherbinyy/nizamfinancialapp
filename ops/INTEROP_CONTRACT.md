@@ -35,10 +35,26 @@ They share **four** things and nothing else: this contract, the envelope documen
 keys). **They share no code**, and that is by design rather than by neglect — steering §1 records the
 polyglot decision and its reason, which is that there will never be a second implementation of money.
 
-**Phase 1 is one agent, and that is authorised.** Option **(b)** of the owner mandate §7 is in force:
-phase 1 ships the **finance agent** on its bot alone; the other bot stays created, hardened and
-**idle**. Nothing in this contract changes when the second agent arrives, which is the point of writing
-it before the second agent exists.
+**Phase 1 scope: SUPERSEDED on 2026-08-10 by measured evidence.** This section previously recorded
+option **(b)** of the owner mandate §7 as in force, phase 1 shipping the finance agent alone with the
+other bot created, hardened and idle. That rested on the belief that the life agent did not yet exist.
+The belief was never measured, and it is wrong. A read-only inspection of the other repository, recorded
+in full in `ops/NIZAMCORE_VERIFIED_STATE.md`, found the life agent **built**: a long-poll relay written
+against the messaging API, a twelve-agent registry with every persona present, three governance gates, a
+governor holding sole write on the ledger, and 29 relay tests. It is stopped on the same line this
+repository is stopped on, a non-calling model layer released by one credential, and it is stopped for
+the same reason. Neither agent is behind the other.
+
+**The v1.0 path is therefore option (c)**, recorded in the readme of spec `07-bot-bringup-v1`: deploy
+the life agent that already exists and wire its model layer in place. Option (c) needs no change to this
+repository's scope, which stays the finance agent, and no steering amendment. It does need the owner to
+authorise modifying the other repository, which is spec 07 task **A0** and is the single open gate on
+half of v1.0.
+
+**Nothing else in this contract changes.** The channel, the envelope and the four bands were written to
+be correct before the second agent ran, and they remain correct now that the second agent is known to
+exist. Every `life` claim elsewhere in this document should be read against
+`ops/NIZAMCORE_VERIFIED_STATE.md`, which is the only measured account of that side in this repository.
 
 ## 1. The envelope is the SOLE channel
 
