@@ -14,27 +14,27 @@
 
 ### Wave A0 - inventory and refusal, before any parsing
 
-- [ ] A0.1 Enumerate the whole banking tree read-only and write an **exclusion register**: one row per
+- [x] A0.1 Enumerate the whole banking tree read-only and write an **exclusion register**: one row per
       detected item, each either a tier assignment or an explicit decline with a reason. Assert in code
       that ingested plus excluded equals detected (**K6**). A completeness check over only what you
       already listed cannot find what you forgot.
-- [ ] A0.2 Encode the **work-material subtree exclusion as a rule, not a filter**, referenced by
+- [x] A0.2 Encode the **work-material subtree exclusion as a rule, not a filter**, referenced by
       placeholder only. Negative-test it: point the rule at a decoy path and show the load refuses.
       Assert no term from that subtree appears in any artifact this spec produces.
-- [ ] A0.3 Resolve the drive folder references from the operator environment. An unresolved reference
+- [x] A0.3 Resolve the drive folder references from the operator environment. An unresolved reference
       **fails closed**. Do not write a folder or file identifier into a tracked file, and do not add a
       default.
 
 ### Wave A1 - shape, before content
 
-- [ ] A1.1 Assert the canonical ledger's columns as an **exact ordered name set** before parsing a
+- [x] A1.1 Assert the canonical ledger's columns as an **exact ordered name set** before parsing a
       single row. Negative-test twice: a file of the right width with two columns swapped must be
       refused, and a file with a column renamed must be refused. A width-only guard passes both, which
       is the reason this task exists.
-- [ ] A1.2 Prove the **grain** before keying anything. Test each candidate key, print the duplicate
+- [x] A1.2 Prove the **grain** before keying anything. Test each candidate key, print the duplicate
       excess, and make uniqueness a hard gate. Then shuffle the source rows and re-run: any total that
       moves was reading row order as data, and that is a defect, not a variance.
-- [ ] A1.3 Assert the credit-limit table's shape the same way, and that its account references resolve
+- [x] A1.3 Assert the credit-limit table's shape the same way, and that its account references resolve
       to the account roster. An unresolvable reference is a finding, not a skipped row.
 
 ### Wave A2 - the loader
@@ -138,3 +138,74 @@
   ]
 }
 ```
+
+## Observed, 2026-08-10 — waves A0 and A1
+
+Recorded because a task box says a thing was done and this says what was seen.
+
+### Wave A0 — the register, and the fetch it drives
+
+The banking tree was enumerated read-only: **223 objects detected, 223 classified**, as 14 transactional,
+15 knowledge, 96 deferred to v2 and 98 excluded by rule, with a reason on every row. Both refusals were
+observed firing with their codes: an unresolved folder reference, and an unset exclusion list. The
+exclusion rule was measured in both directions by pointing it at a decoy that matches nothing — the rule
+keeps **90 objects out of ingestion, 28 of them documents that would otherwise have been indexed as
+personal-finance knowledge**, while the transactional count stays at 14 either way, so the rule does not
+touch transactional truth.
+
+Tier 1 is now materialised locally, **driven by the register rather than a list of names**, so an object
+that is not tier 1 by rule cannot be downloaded. 14 objects, 948,397 bytes, a sha256 per file. The
+destination has two guards because the first is defeatable: a prefix allowlist is satisfied by the
+literal `outputs/../src`, so paths are resolved before comparison, and `git check-ignore` is asked about
+every planned path before the first byte is read. Both refusals were observed; the legitimate path was
+observed releasing; and a tampered file was restored and proved byte-identical against its fetch-time
+hash.
+
+### Wave A1 — shape and grain hold; one finding
+
+- **A1.1** The canonical export's header matches the contract as an exact ordered name set, 25 of 25,
+  and parses with **zero row errors** at the row count the contract declares (**1,216**). The two
+  tampers that matter are both **exactly 25 columns wide** and both refused, which is what makes the
+  name check load-bearing instead of decorative. The contract is checked against the tracked schema
+  document as an independent statement of the same truth, and that check was observed failing from
+  **both** sides.
+- **A1.2** All four candidate keys are unique across 1,216 rows, none flagged duplicate, so the grain is
+  `duplicate_key` and nothing needs a surrogate. A seeded shuffle **moved 1,214 rows** and left every
+  total identical: row order is not data. The shuffle asserts its own rows-moved count, because a
+  shuffle that moved nothing would prove nothing.
+- **A1.3** The limit table's three columns are exact and **every account reference resolves to exactly
+  one ledger account**. Two of the three roster accounts carry a limit row, which is consistent with one
+  account being non-revolving.
+
+### Findings
+
+- **F21 — the credit-limit table has references and no values.** Every row carries an account reference;
+  **no row carries a limit or a statement close day**. Confirmed twice, by parse and by byte arithmetic.
+  So every credit-utilisation and statement-cycle figure downstream currently has no input. The gate
+  enforces the invariant that actually protects the owner — **all-or-nothing, never partially populated**,
+  since one account with a limit beside one without silently breaks the second account's utilisation
+  while the table looks full — and it records the all-absent case as this finding. Populating a single
+  row makes the gate fire, which is what stops the finding quietly ageing. Observed firing.
+- **F22 — the money format is decimal in the source and milliunits in the store, and the boundary
+  guesses.** `detectMoneyFormat` scans for a single `.` anywhere in four columns and applies its verdict
+  to the whole file. On this artifact it is correct — 927 cells carry a decimal point — but a file of
+  whole-amount decimals carries no `.` at all and would be read as milliunits, understating every value
+  by a factor of a thousand, silently. Belongs to **A2.3**, which already requires a refusal rather than
+  a detection.
+- **F23 — the shared importer coerces three fields instead of refusing.** An unrecognised
+  `transaction_type` becomes `charge`, an unrecognised `extraction_method` becomes `manual`, and an
+  absent `direction` is inferred from the sign of the amount. The second directly contradicts **K4**,
+  which requires unknown provenance to load as unknown; a row extracted by an unknown method must not
+  claim it was entered by hand. Belongs to **A2.4**.
+- **F24 — the importer tolerates a duplicated and an undeclared column.** It builds a name-to-index map,
+  so a repeated column name resolves last-wins and reads a whole column from the wrong place, and an
+  extra column is ignored rather than reported. Both are refused by the new strict gate at the ingestion
+  boundary; the lenient path is unchanged on purpose, because a person's exported spreadsheet may
+  legitimately order its columns differently and still mean the same thing. Two callers, two risk
+  profiles, one implementation of the contract.
+
+### What this cost, and what it did not
+
+No parser was written and no optical character recognition was needed: the extraction is already done
+upstream, and wave A1 reads it. No contract file was edited, no gate was ticked, and the test floor
+**rose from 2126 to 2146** — twenty cases, ten of which need no financial data and run anywhere.
