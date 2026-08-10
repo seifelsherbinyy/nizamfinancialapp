@@ -5517,3 +5517,57 @@ R24 held under AC18, which scans this file: no host, address, port, token, ident
 the PFOS contracts are cited **without their file extensions** so that no dotted token had to be
 declared, and the one citation that would have needed a declaration was reworded instead. No test added —
 the deliverable is a document. Floor stays **2126**.
+
+### Phase 10 task 10.14 — the cumulative scorecard, marked ruthlessly (2026-08-10)
+
+`.kiro/specs/06-two-agent-vps/LIVE_PROGRESS.md`, rewritten to mandate §10's full shape: **19 rows** —
+eight gates, six ladder rungs, five §6 build items — each with a state drawn from the four §10 admits,
+evidence, the owner action if there is one, and a date. The verbatim transcripts are in an appendix, so
+no `OBSERVED` row rests on a summary of itself.
+
+**Three rows are `OBSERVED` and no more:** L0, L1 and §6.1, each naming the command and quoting what came
+back. Everything else is blocked or not started.
+
+**The evidence rule was applied against this repository's own work rather than only against the owner's**,
+and that is where it bit:
+
+- **§6.3, the finance-agent entrypoint, is `BLOCKED - awaiting build`** even though its process behaviour
+  was observed in L0 case B — it booted, refused, opened its store, bound nothing under `longPoll`.
+  The reason is F20: the entrypoint **as packaged cannot be launched**, and launchability outranks
+  behaviour here because it is the launch that rung L2 needs. Recording it `OBSERVED` on the strength of
+  the behaviour would have been the exact inflation §10's evidence rule exists to prevent.
+- **§6.2 is `OBSERVED` with its limit written into the state cell**: the live adapter is constructed in
+  the real process and its mode-aware guard is proven by 25 tests, and **delivery is not observed at
+  all**, because this build wires a provider client whose two members refuse.
+- **§6.4 records that no image has ever been built.** Three recipes exist; building one is outside this
+  phase's permitted actions; and under F20 all three would produce containers that exit immediately.
+
+**§5 is marked at 1 of 7.** Only condition 7 — the harness at 20 of 20 with a committed tree — is
+observed, with the harness's own two summary lines quoted. The other six are marked `no` with a reason
+each, and the table states the thing most worth knowing: **five of the six fail for one underlying
+reason**, that nothing is running anywhere, rather than for five different ones. Two of the six deserve
+their reasoning recorded here as well:
+
+- **Condition 4 is split honestly.** The band-not-figure half is strong, because it is a schema absence
+  rather than a filter, and task 10.16 has now recorded it for both sides. The *reachability* half is a
+  property of a running host, and no host is running — so the condition as written is not observed.
+- **Condition 2 is refused despite the isolation being proven.** One process booted on a developer
+  machine against a store in a temporary directory is not *two independent agent processes* on a host,
+  and the second agent is in the other repository and unbuilt. The structural isolation is real; the
+  condition is about something else.
+
+**One vocabulary gap is recorded rather than papered over.** §10 admits exactly four states and none of
+them means *closed, deliberately, and never coming back*, which is what G7 is. It is recorded as
+`NOT STARTED` with the closure stated in its evidence, and a paragraph under the table says why a fifth
+state was **not** invented: a new state would make this record incomparable with its next rewrite, and
+comparability across rewrites is the whole value of a cumulative record.
+
+G3 carries its **creation half's live evidence cited to the owner's own 2026-08-09 session** —
+`getMe` twice on both tokens, `getWebhookInfo` confirming no webhook — with **placement** named as the
+open half, so the row neither claims a gate nor loses an observation that was genuinely taken. No gate was
+attempted, advanced or ticked from this session; `ops/GATE_REGISTER.md` was not edited.
+
+The three closing lines are the last three lines of the file and nothing follows them: what is live, the
+single next blocking action and whose it is — **ours, F20** — and the count, **1 of 7**.
+
+No test added — the deliverable is a record. Floor stays **2126**.

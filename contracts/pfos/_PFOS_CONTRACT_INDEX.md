@@ -534,3 +534,20 @@ rule is to author the contract before the area rather than invent policy this re
 Every cross-agent kind is `producer_only` today, so the signal column says what a kind is *for* and not
 that it is readable. **No contract file was edited**, `ops/GATE_REGISTER.md` untouched, no gate ticked, no
 test added; floor stays 2126.
+
+**The scorecard exists and it says 1 of 7, 2026-08-10 (task 10.14).**
+`.kiro/specs/06-two-agent-vps/LIVE_PROGRESS.md` in mandate §10's full shape: **19 rows** — eight gates,
+six ladder rungs, five build items — with verbatim transcripts in an appendix so no `OBSERVED` row rests
+on a summary of itself. **Three rows are `OBSERVED`**: L0, L1 and the environment loader. The evidence
+rule bit **this repository's own work** hardest: the finance-agent entrypoint is
+`BLOCKED - awaiting build` despite its behaviour having been observed, because as packaged it cannot be
+launched (F20), and launchability is what rung L2 needs; the live adapter is `OBSERVED` with **delivery
+explicitly not observed**; and no image has ever been built. **§5 is 1 of 7** — only the harness
+condition — and the table records that five of the six failures share one underlying reason rather than
+having five: nothing is running anywhere. Condition 4 is split (the band-not-figure half is a schema
+absence and holds; the reachability half is a property of a host that is not running) and condition 2 is
+refused despite isolation being proven, because one process on a developer machine is not two on a host.
+G7's closure is recorded in its evidence rather than by inventing a fifth state, with the reason stated:
+a new state would make the record incomparable with its next rewrite. G3 keeps its creation half's live
+evidence cited to the owner's own session with **placement** named as the open half. **No contract file
+was edited**, no gate attempted or ticked, no test added; floor stays 2126.

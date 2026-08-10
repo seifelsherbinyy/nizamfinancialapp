@@ -334,11 +334,37 @@
 - [ ] 10.13 Exercise backup and **one** restore (**L5**). A backup that has not been restored is not a
       backup - `ops/runbook/DISASTER_RECOVERY.md` makes the drill the prerequisite, not the recovery.
       `BLOCKED - awaiting human` on G5 + G8.
-- [ ] 10.14 Write and keep current `.kiro/specs/06-two-agent-vps/LIVE_PROGRESS.md` (§10): one row per
+- [x] 10.14 Write and keep current `.kiro/specs/06-two-agent-vps/LIVE_PROGRESS.md` (§10): one row per
       gate G1-G8, per ladder rung L0-L5, and per §6 build item; `State` exactly one of `OBSERVED`,
       `BLOCKED - awaiting human`, `BLOCKED - awaiting build`, `NOT STARTED`; `Evidence` mandatory for
       `OBSERVED` (a row with no evidence is `NOT STARTED`). Close with three lines: what is live, the
       single next blocking action and whose it is, and the count of §5's seven conditions observed.
+      **Done 2026-08-10.** **19 rows** - eight gates, six rungs, five build items - with the verbatim
+      transcripts in an appendix, so no `OBSERVED` row rests on a summary of itself. **Three rows are
+      `OBSERVED` and no more**: L0, L1 and §6.1, and each names the command and quotes what came back.
+      **The evidence rule was applied against this repository's own work, not only the owner's**, and
+      that is where it bit: **§6.3, the finance-agent entrypoint, is `BLOCKED - awaiting build`** even
+      though its process behaviour was observed, because the entrypoint **as packaged cannot be
+      launched** (F20) - the launchability outranks the behaviour, since it is the launch that L2 needs.
+      §6.2 is `OBSERVED` **with its limit named in the state cell**: the adapter is constructed in the
+      real process and its guard is proven, and **delivery is not observed at all**. §6.4 records that
+      **no image has ever been built**.
+      **§5 marked ruthlessly: 1 of 7.** Only condition 7 (the harness at 20 of 20 with a committed tree)
+      is observed. The other six are marked `no` with the reason, and the table states that **five of the
+      six fail for one underlying reason** - nothing is running anywhere - rather than for five different
+      ones, which is the more useful thing for the owner to know. Condition 4 is split honestly: the
+      band-not-figure half is strong because it is a schema absence, and the reachability half is a
+      property of a host that is not running. Condition 2 is refused despite the isolation being proven,
+      because *one process booted on a developer machine against a temporary store* is not two processes
+      on a host.
+      **G7 is the one row where the state column is the least informative cell**: §10 admits four states
+      and none of them means *closed, deliberately, and never coming back*. It is recorded as
+      `NOT STARTED` with the closure in its evidence, and the reason a fifth state was **not** invented is
+      stated under the table - a new state would make this record incomparable with its next rewrite.
+      G3 is `BLOCKED - awaiting human` with its **creation half's live evidence cited to the owner's own
+      2026-08-09 session** and placement named as the open half; no gate was attempted, advanced or ticked
+      from here. The three closing lines are the last three lines of the file and nothing follows them.
+      No test added - the deliverable is a record; floor stays 2126.
 - [x] 10.19 **The signal-bus server process and its image** (finding **O2**, and **R34**). This is the
       one thing standing between a fully gated host and a bot that answers, and it is build work in
       this repository rather than a gate. `ops/IMAGE_BUILD.md` records `<BUS_IMAGE_REF>` as
