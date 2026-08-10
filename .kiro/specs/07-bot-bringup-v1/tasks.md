@@ -82,6 +82,36 @@
       non-success status, a rate-limit response with a retry hint, a malformed body, and a body over the
       read bound. Assert no credential and no message text reaches any log line.
 
+      **D-DIALLER (2026-08-11): B4 now supplies BOTH the shape and the capability.** The first half of
+      this task left a real gap: Phase 2's exit says rung `L3'` becomes reachable for bot B "once a
+      credential exists in Phase 5", and README §2 claims "one credential release, two bots unblocked".
+      Neither was true while a socket-owning function still had to be **written** in Phase 5 — a build
+      that needs new code after the owner performs a gate is not a ready build. Steering §2 gates
+      *making* an outbound call from a server process; its BUILD NOW column lists the messaging
+      transport as build-now behind an injected port, and `pfos-current.md` calls the live adapter "a
+      separate, later, gated module". `src/features/benchmark/liveModelCaller.ts` is the precedent on
+      the model side. So the dialler is now **written**: `src/server/telegram/liveProviderRequest.ts`,
+      its own module, `node:https` and `node:buffer` only, **no dependency added**. It is the only
+      place that composes the dialled address from the resolved base and the revealed credential, and
+      therefore the only caller of `revealProviderCredential`. It dials and reports — status, body
+      text, latency, and the advertised retry interval read off the response headers — and holds **no
+      policy**: no retry, no status interpretation, no envelope reading. Its read bound is the existing
+      `MAX_PROVIDER_RESPONSE_BYTES` in bytes on the wire, and its request deadline is **derived** from
+      `POLL_POLICY.timeoutSeconds` rather than invented beside it.
+      **The capability is selected structurally, and it is never invoked in the suite.**
+      `selectProviderRequest` in `main.ts` chooses the dialler when this agent's `BOT_B_TOKEN` entry is
+      configured (asked through the loader's own `describeConfiguredPresence`, so G3 is the whole of the
+      condition) and `gatedProviderRequest()` otherwise, which still refuses naming G3/G6. **No
+      liveness entry was reused because this repository declares none:** `TELEGRAM_MODE` is
+      `webhook | longPoll` — which of two ways the two sides reach each other, not whether the
+      deployment is live — and `NIZAM_KILL_ALL` is a halt whose `HALTED_ACTIVITIES` does not name an
+      outbound messaging request. No environment entry and no invocation flag was added. The live
+      branch is proved by the dialler's own identity marker, never by calling it; the gated branch is
+      invoked, because refusing is all it does. Floor ratcheted 2193 → 2223 (30 tests added).
+      **What remains gated:** G3 (the token on the host) is what flips the selection, and no code
+      change is needed when it does; G6 (`setWebhook`) remains deferred and irrelevant under
+      `longPoll`; the socket itself is untested and is first exercised by the owner on the host.
+
 - [ ] B5 **Real turn facts and the request planner** (**S5**, **S4**). `readTurnFacts` at `main.ts:287`
       returns conservative facts, so **every turn classifies T0 and no model is ever invoked**. Extract
       real facts from the inbound message so the existing classifier can reach the model-bearing tiers,

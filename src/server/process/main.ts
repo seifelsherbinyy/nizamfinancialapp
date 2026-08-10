@@ -54,7 +54,12 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { tmpdir } from 'node:os';
 import nodeProcess from 'node:process';
 
-import { processEnvSource, type EnvSource } from '../config/environment.ts';
+import {
+  agentEntryNames,
+  describeConfiguredPresence,
+  processEnvSource,
+  type EnvSource,
+} from '../config/environment.ts';
 import { probeExitCode, probeReadiness, reportForRefusedInvocation, type ReadinessReport } from '../ops/healthProbe.ts';
 import { createModelChannel } from '../routing/turnDispatch.ts';
 import { TELEGRAM_SECRET_TOKEN_HEADER } from '../telegram/auth.ts';
@@ -62,7 +67,9 @@ import {
   createProviderTransportClient,
   gatedProviderRequest,
   readUpdateKeyFields,
+  type ProviderRequestFn,
 } from '../telegram/providerRequest.ts';
+import { createLiveProviderRequest } from '../telegram/liveProviderRequest.ts';
 import { createRedactedLogger } from '../ops/redactedLogger.ts';
 import type { TelegramAcceptDecision, TelegramDelivery } from '../ports/telegram.ts';
 import type { ModelRequest, ModelResult, OpenRouterPort } from '../ports/openrouter.ts';
@@ -249,6 +256,51 @@ function newReference(): string {
   return randomUUID();
 }
 
+// ---------------------------------------------------------------------------------------------
+// Which provider request capability this deployment gets (task B4, decision D-DIALLER)
+// ---------------------------------------------------------------------------------------------
+
+/** The two capabilities. A closed pair, so "which one is wired" is answerable by name. */
+export const PROVIDER_CAPABILITIES = ['live', 'gated'] as const;
+export type ProviderCapability = (typeof PROVIDER_CAPABILITIES)[number];
+
+/**
+ * The condition that selects the live dialler, and it is ONE condition: this agent's bot-token entry
+ * is configured, asked through the loader's own rule ({@link describeConfiguredPresence}, which means
+ * set, non-blank, and not still its template placeholder).
+ *
+ * **Why not a liveness entry:** there is none to reuse. `TELEGRAM_MODE` is the only mode entry this
+ * repository declares and its vocabulary is `webhook | longPoll` — which of the two ways the provider
+ * and the agent reach each other, not whether the deployment is live. Both of its values describe a
+ * running deployment, so neither can carry this decision. `NIZAM_KILL_ALL` is a halt rather than a
+ * liveness flag, and `HALTED_ACTIVITIES` does not name an outbound messaging request. The `finance`
+ * service declares no other candidate. Adding one would be a new environment entry, which this task
+ * forbids and R23 would then have to gate, so the credential-configured condition stands alone —
+ * stated plainly here rather than dressed up as something the environment says.
+ *
+ * That condition is not a weak one. The token entry is gate **G3**, so it is populated by the owner
+ * placing a credential in the host's root-owned configuration directory and by nothing else. A
+ * developer machine has no such entry, so a developer machine gets the gated capability; the test
+ * suite passes a synthetic environment and therefore does too.
+ */
+export function providerCapabilityFor(env: EnvSource): ProviderCapability {
+  const tokenEntry = agentEntryNames(FINANCE_AGENT).botTokenEntry;
+  return describeConfiguredPresence(FINANCE_AGENT, env)[tokenEntry] === true ? 'live' : 'gated';
+}
+
+/**
+ * Select the capability structurally: two branches, one function each, and no flag inside either.
+ *
+ * Selecting the live one CONSTRUCTS a dialler; it dials nothing. The request deadline it derives comes
+ * from {@link POLL_POLICY}'s own long-poll timeout, so there is one timeout policy in the process
+ * rather than two.
+ */
+export function selectProviderRequest(env: EnvSource): ProviderRequestFn {
+  return providerCapabilityFor(env) === 'live'
+    ? createLiveProviderRequest({ pollTimeoutSeconds: POLL_POLICY.timeoutSeconds })
+    : gatedProviderRequest();
+}
+
 /** Assemble the dependencies from the host. `env` comes from the loader's one bridge. */
 export function financeAgentDependenciesFromHost(botId: string): FinanceAgentDependencies {
   const env = processEnvSource();
@@ -272,13 +324,15 @@ export function financeAgentDependenciesFromHost(botId: string): FinanceAgentDep
     // Task B4 (seams S1/S2): the real provider module, in place of the two throwing stubs. It
     // resolves this agent's credential through the loader's own rules over the environment the ONE
     // ambient bridge produced, composes the request, holds the read bound, and fails closed on a
-    // non-success answer. **The socket is still gated**: `gatedProviderRequest` holds no network
-    // primitive and refuses, so nothing here pretends a provider answered, and G3/G6 supply one
-    // function rather than a module.
+    // non-success answer. **The capability is selected structurally** by `selectProviderRequest`
+    // (decision D-DIALLER): the socket-owning dialler when this agent's G3 credential is configured,
+    // and `gatedProviderRequest` — which holds no network primitive and refuses naming G3/G6 —
+    // otherwise. Nothing here pretends a provider answered, and no new code is needed once the owner
+    // performs G3.
     transportClient: createProviderTransportClient({
       agent: FINANCE_AGENT,
       env,
-      request: gatedProviderRequest(),
+      request: selectProviderRequest(env),
       now: wallClock,
       log: createRedactedLogger(FINANCE_AGENT, logSink, wallClock),
     }),

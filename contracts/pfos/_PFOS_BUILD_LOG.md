@@ -5644,3 +5644,107 @@ line is the structured record with only declared feature names.
 Floor ratcheted **2126 → 2193**, which also closes finding **F25**: spec 08's `tasks.md` recorded a
 ratchet to 2146 that was never applied to `scripts/verify/all.mjs`, and the true count had since reached
 2165, leaving the monotonic guard 39 cases slack. The floor now equals the measured count.
+
+### Spec 07 Phase 2 task B4, second half — the dialler exists, and the gate became a selection (2026-08-11)
+
+Decision id **D-DIALLER**. The first half of B4 built `src/server/telegram/providerRequest.ts` and made the
+network capability an injected parameter, wiring `gatedProviderRequest()` — which holds no socket and
+refuses, naming G3 and G6. Defensible, and it left a real gap. Phase 2's exit says rung `L3'` becomes
+reachable for bot B "once a credential exists in Phase 5", and spec 07 README §2 claims "one credential
+release, two bots unblocked". Neither was true while a socket-owning function still had to be **written** in
+Phase 5. **A build that needs new code after the owner performs a gate is not a ready build.**
+
+**The ruling.** Steering §2 gates *making* an outbound call from a server process. It does not forbid
+*writing* the adapter: §2's BUILD NOW column lists the messaging transport as build-now behind an injected
+port, and `pfos-current.md` says "the live adapter is a separate, later, gated module".
+`src/features/benchmark/liveModelCaller.ts` is the precedent on the model side of the tier — a live caller
+that exists in the tree and is exercised only under an authorised carve-out. This mirrors it on the
+messaging side, and the gate is now expressed as a **selection** rather than as an unwritten file.
+
+**One new module: `src/server/telegram/liveProviderRequest.ts`.** `node:https` and `node:buffer`, the
+platform's own facilities, and **no dependency added**. There was no in-tree style to follow: the model-side
+`liveModelCaller.ts` holds no network primitive at all, declaring its transport as a parameter it
+deliberately never implements, so the repository contained *zero* concrete live adapters before this one.
+The nearest precedent for a bounded, byte-counted read over the platform's own HTTP module is `readBody` in
+`process/main.ts`, which uses `node:http`; the dialler mirrors it with `node:https` so there is one style of
+socket read in this tree rather than two.
+
+**It is the only place the address is composed, and therefore the only caller of the one reveal.**
+`composeDialledAddress` joins the resolved base, the credential segment and the provider's published method
+name, and the address it returns is held in a local and handed straight to the platform. A scan of the
+module's executable lines asserts exactly one call to `revealProviderCredential`. Nothing else in the
+repository composes an address, and nothing receives one back.
+
+**Nothing that could disclose anything leaves it.** The module holds no logger, no sink and no `console` —
+asserted by source scan — so the single redacted line per request is still the existing module's, built
+through `redactedLogger` and through nothing else. Every refusal is a `ProviderDialError` carrying an
+enumerated code and the operation name, and the platform's own error is **discarded rather than chained**: a
+socket failure's message names the host it could not reach, so a `cause` would smuggle the address into
+every handler that formats an error tree. Three codes, one per way no answer exists at all: an unsecured
+base, an unreachable peer, an expired deadline.
+
+**No policy in the dialler.** It dials and reports `status`, `bodyText`, `latencyMs` and the interval the
+provider advertised, read off the `retry-after` header and **reported rather than obeyed** — the wait belongs
+to the existing `SEND_RETRY_POLICY`, which already consumes the typed rate-limit refusal. Source scans assert
+the module contains no retry budget, no backoff, no success range, and no `JSON.parse`: whether the body
+parses, whether the envelope reports success, and whether the status is a success are all the existing
+reader's judgements and they stay there. An absent status is reported as `0`, which is outside the success
+range, so the reader refuses it — the dialler does not decide that, it merely does not invent a success.
+
+**Two bounds, both derived.** The read bound is the existing `MAX_PROVIDER_RESPONSE_BYTES`, measured in bytes
+on the wire, and reading stops once the bound is **exceeded** rather than reached — stopping exactly at it
+would hand the reader a truncated body that counts as within bounds, which it would then refuse as
+unparseable: the right outcome for the wrong reason, and a reason that hides the fact that the provider sent
+too much. The accumulation rule is extracted as a pure function so the bound is tested without a socket, and
+a test carries its report through the **existing** reader and observes `body_over_read_bound`. The request
+deadline is derived from `POLL_POLICY.timeoutSeconds` — the one long-poll policy, doubled, because a socket
+deadline shorter than the hold would abort every successful long poll — and an unusable hold is refused at
+**construction**, so a bad deadline never reaches a socket.
+
+**The selection is the load-bearing part, and it is structural.** `selectProviderRequest(env)` in
+`process/main.ts` returns the dialler when this agent's `BOT_B_TOKEN` entry is configured — asked through the
+loader's own `describeConfiguredPresence`, so "configured" still means set, non-blank and not still its
+template placeholder — and `gatedProviderRequest()` otherwise. Two branches, one function each, no flag
+inside either.
+
+**No liveness entry was reused, because this repository declares none, and that is reported rather than
+papered over.** `TELEGRAM_MODE` is the only mode entry the finance service declares and its vocabulary is
+`webhook | longPoll`: which of two ways the provider and the agent reach each other, not whether the
+deployment is live. Both values describe a running deployment, so neither can carry the decision.
+`NIZAM_KILL_ALL` is a halt rather than a liveness flag, and `HALTED_ACTIVITIES` does not name an outbound
+messaging request. The `finance` entry set holds no other candidate. Adding one would be a new environment
+entry that R23 would then have to gate, and a new invocation flag was equally out of scope, so the
+credential-configured condition stands **alone**. It is not a weak condition: the token entry is gate **G3**,
+populated by the owner placing a credential in the host's root-owned configuration directory and by nothing
+else. A developer machine has no such entry and therefore gets the gated capability; the suite passes
+synthetic environments and therefore does too.
+
+**Tests: 30 added, and NO NETWORK CALL IS MADE BY ANY OF THEM** — not to a provider, not to loopback, not to
+a local fake listener. The live capability is **constructed and never invoked**; constructing it opens
+nothing. Which capability was wired is proved by a `WeakSet`-backed identity marker that only the dialler
+module can mint, so a cast cannot forge it and the assertion needs no call. Both directions are asserted: an
+unconfigured credential — absent, empty, blank, and still a placeholder — selects the gated capability, and
+that one *is* invoked and observed refusing with `transport_gated` while naming G3 and G6, because refusing
+holds no socket and is the whole of what it does. The rest is the pure surface: address composition for both
+operations and for a base with a trailing separator, the refusal of an unsecured base, the byte-counted bound
+including a wide character that a code-unit bound would have measured cheaply, the header read across a list
+value, a mixed-case name, a zero, a negative, a decimal and a date form, and the refusal shape carrying no
+address and no credential and chaining no platform error.
+
+**What is NOT tested, stated plainly rather than left to be discovered.** The socket. Whether the platform
+returns the bytes expected, whether a real peer times out inside the derived deadline, and whether a real
+oversized answer truncates at the bound are observable only by dialling, so they are left untested — an
+untested branch reported honestly is worth more than a green that made a call. The first exercise of that
+path is the owner's, on the host, after G3.
+
+**What remains gated.** G3 places the token on the host and is what flips the selection; **no code change is
+needed when it does**, which is the whole point of this task. G6 (`setWebhook`) stays deferred per README §5
+and is irrelevant under `longPoll`, where the provider delivers nothing. B5 and B6 still stand between a
+delivered message and a model-generated reply.
+
+**No guard was weakened, no floor lowered, no `eslint-disable` added, and no gate performed or claimed.** The
+dialler was deliberately NOT added to `src/server/telegram/index.ts`, whose note states there is no exported
+request function that dials; keeping it out of the barrel keeps that statement true and keeps the single
+import site visible.
+
+Floor ratcheted **2193 → 2223**, the measured count.
