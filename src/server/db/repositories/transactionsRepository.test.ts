@@ -12,11 +12,11 @@
  *      which contract 02 §5.2 forbids removing automatically.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { RepositoryStateError } from '../errors';
-import { createAccountsRepository } from './accountsRepository';
-import { createTransactionsRepository, type TransactionsRepository } from './transactionsRepository';
-import type { TransactionInsert } from './rows';
-import { openTestStore, type TestStore } from './testStore';
+import { RepositoryStateError } from '../errors.ts';
+import { createAccountsRepository } from './accountsRepository.ts';
+import { createTransactionsRepository, type TransactionsRepository } from './transactionsRepository.ts';
+import type { TransactionInsert } from './rows.ts';
+import { openTestStore, type TestStore } from './testStore.ts';
 
 const ACCOUNT_ID = 'acct-under-test';
 

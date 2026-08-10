@@ -28,7 +28,7 @@ import {
   signalDraftFrom,
   snapshotArtifactFrom,
   type RecordedInteractionSet,
-} from './fixtures';
+} from './fixtures.ts';
 
 const FIXTURE_NAME = 'two-agent-smoke';
 

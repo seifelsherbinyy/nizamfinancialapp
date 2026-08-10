@@ -14,9 +14,9 @@
  * A full account number is never persisted. The only identifier column is a last-four
  * fragment, and the DDL constrains its length (§3.2, contract 02 §9).
  */
-import { assertMonetaryCoverage, assertMoneyField, assertOptionalMoneyField } from '../moneyBoundary';
-import { RepositoryStateError } from '../errors';
-import { DEFAULT_CURRENCY, type AccountInsert, type AccountRow, type AccountType, type Money } from './rows';
+import { assertMonetaryCoverage, assertMoneyField, assertOptionalMoneyField } from '../moneyBoundary.ts';
+import { RepositoryStateError } from '../errors.ts';
+import { DEFAULT_CURRENCY, type AccountInsert, type AccountRow, type AccountType, type Money } from './rows.ts';
 import {
   fromStoredBoolean,
   recordAudit,
@@ -24,7 +24,7 @@ import {
   toStoredBoolean,
   withTransaction,
   type RepositoryContext,
-} from './support';
+} from './support.ts';
 
 const TABLE = 'accounts';
 

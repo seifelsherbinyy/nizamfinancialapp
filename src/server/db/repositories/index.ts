@@ -12,31 +12,31 @@
  * tier's own `Money`, `LedgerTransactionType`, `AccountType`, and obligation-priority
  * tuples rather than restating them (§3.2, §4.3).
  */
-export { createAccountsRepository, type AccountBalanceUpdate, type AccountListFilter, type AccountsRepository } from './accountsRepository';
+export { createAccountsRepository, type AccountBalanceUpdate, type AccountListFilter, type AccountsRepository } from './accountsRepository.ts';
 export {
   createDecisionsRepository,
   type DecisionListFilter,
   type DecisionsRepository,
   type DecisionSupersedeResult,
-} from './decisionsRepository';
+} from './decisionsRepository.ts';
 export {
   createFxRatesRepository,
   toFxRate,
   type FxRateListFilter,
   type FxRatesRepository,
-} from './fxRatesRepository';
+} from './fxRatesRepository.ts';
 export {
   createObligationsRepository,
   type ObligationAmountRevision,
   type ObligationListFilter,
   type ObligationsRepository,
-} from './obligationsRepository';
+} from './obligationsRepository.ts';
 export {
   createTransactionsRepository,
   type SupersedeResult,
   type TransactionListFilter,
   type TransactionsRepository,
-} from './transactionsRepository';
+} from './transactionsRepository.ts';
 export {
   ASSIGNABLE_DECISION_OUTCOME_STATES,
   DECISION_OUTCOME_STATES,
@@ -73,7 +73,7 @@ export {
   type TransactionRow,
   type TransactionStatus,
   type VerificationLevel,
-} from './rows';
+} from './rows.ts';
 export {
   createRepositoryContext,
   recordAudit,
@@ -81,4 +81,4 @@ export {
   type AuditEntry,
   type RepositoryContext,
   type RepositoryContextConfig,
-} from './support';
+} from './support.ts';

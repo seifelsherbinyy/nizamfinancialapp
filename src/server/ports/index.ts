@@ -24,10 +24,10 @@ export type {
   NoFieldBeyond,
   NoMagnitude,
   Redacted,
-} from './shapeGuards';
+} from './shapeGuards.ts';
 
 // The failure vocabulary shared by all five ports.
-export { PORT_FAILURE_CODES, type PortFailure, type PortFailureCode } from './errors';
+export { PORT_FAILURE_CODES, type PortFailure, type PortFailureCode } from './errors.ts';
 
 // Transport — contract 12 §5.
 export {
@@ -45,7 +45,7 @@ export {
   type TelegramWorkItem,
   type TelegramWorkOutcome,
   type TelegramWorkerPort,
-} from './telegram';
+} from './telegram.ts';
 
 // Model routing — contract 12 §6.
 export {
@@ -63,7 +63,7 @@ export {
   type OpenRouterPortConfig,
   type ProviderPrivacyPolicy,
   type ZeroDataRetentionPosture,
-} from './openrouter';
+} from './openrouter.ts';
 
 // Backup egress — contract 12 §7.1.
 export {
@@ -79,7 +79,7 @@ export {
   type SnapshotListing,
   type SnapshotUploadReceipt,
   type SnapshotVerification,
-} from './drive';
+} from './drive.ts';
 
 // Recovery context — the life tier's connector as this side agrees to see it.
 export {
@@ -93,7 +93,7 @@ export {
   type WhoopRecoveryQuery,
   type WhoopRecoveryState,
   type WhoopUnavailableReason,
-} from './whoop';
+} from './whoop.ts';
 
 // The consent bus — contract 12 §4. Note the absence of an update or delete member.
 export {
@@ -121,4 +121,4 @@ export {
   type SignalRefusalReason,
   type SignalTier,
   type StoredSignalReceipt,
-} from './signalBus';
+} from './signalBus.ts';

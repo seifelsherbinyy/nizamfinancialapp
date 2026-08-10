@@ -5,8 +5,8 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { Reconcile } from './Reconcile';
-import { bootStore, fixtureDb, makeTxn } from '../../../tests/helpers/fixtures';
+import { Reconcile } from './Reconcile.tsx';
+import { bootStore, fixtureDb, makeTxn } from '../../../tests/helpers/fixtures.ts';
 import { useNizamStore } from '@/state/store';
 import { accountClearedBalance } from '@/lib/ledger/ledgerStore';
 import { setCleared, updateTransaction } from '@/state/actions';

@@ -22,8 +22,8 @@
  * exactly what contract 06 §4 exists to prevent.
  */
 import { randomUUID } from 'node:crypto';
-import type { StoreHandle } from '../connection';
-import type { SqliteDatabase } from '../sqliteBinding';
+import type { StoreHandle } from '../connection.ts';
+import type { SqliteDatabase } from '../sqliteBinding.ts';
 
 /** Everything a repository is given. Nothing it needs is read from the environment. */
 export interface RepositoryContext {

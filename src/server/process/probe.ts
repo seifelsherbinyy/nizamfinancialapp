@@ -25,7 +25,7 @@
  */
 import nodeProcess from 'node:process';
 
-import { runProbe } from '../ops/healthProbe';
+import { runProbe } from '../ops/healthProbe.ts';
 
 const { exitCode } = runProbe(nodeProcess.argv.slice(2));
 nodeProcess.exitCode = exitCode;

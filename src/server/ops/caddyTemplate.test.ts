@@ -42,8 +42,8 @@ import {
   parseCaddySubset,
   type CaddyFindingCode,
   type CaddyNode,
-} from './caddyTemplate';
-import { BUS_SERVICE, FINANCE_SERVICE, LIFE_SERVICE } from './composeTemplate';
+} from './caddyTemplate.ts';
+import { BUS_SERVICE, FINANCE_SERVICE, LIFE_SERVICE } from './composeTemplate.ts';
 
 const TEMPLATE_PATH = fileURLToPath(new URL('../../../ops/Caddyfile', import.meta.url));
 const COMPOSE_PATH = fileURLToPath(new URL('../../../ops/docker-compose.yml', import.meta.url));

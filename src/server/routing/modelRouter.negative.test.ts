@@ -37,8 +37,8 @@ import {
   MODEL_MIMO,
   PREMIUM_MODELS,
   TIER_CAPABLE,
-} from '../../features/routing/modelPolicy';
-import { agentWeeklyBudget, weekKeyOf, type AgentWeeklyBudget } from '../../features/routing/spendLedger';
+} from '../../features/routing/modelPolicy.ts';
+import { agentWeeklyBudget, weekKeyOf, type AgentWeeklyBudget } from '../../features/routing/spendLedger.ts';
 import {
   admitEligibilityRegistry,
   ELIGIBILITY_REGISTRY_VERSION,
@@ -46,7 +46,7 @@ import {
   type EligibilityRegistryEntry,
   type EligibleModel,
   type LiveEligibilityRegistry,
-} from './eligibilityRegistry';
+} from './eligibilityRegistry.ts';
 import {
   eligibleCandidatesAt,
   isRoutedModel,
@@ -56,14 +56,14 @@ import {
   routeModel,
   type PremiumOptIn,
   type RoutedModel,
-} from './modelRouter';
+} from './modelRouter.ts';
 import {
   classifyTurn,
   isModelBearing,
   type ModelBearingTier,
   type ModelInvocationGrant,
   type TurnFacts,
-} from './turnClassifier';
+} from './turnClassifier.ts';
 
 const WEEK_KEY = weekKeyOf('2026-08-06');
 /** Synthetic cap, comfortably above one nominal turn at any tier. */

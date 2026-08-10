@@ -87,9 +87,9 @@
  * integer milliunits behind `src/lib/money`. This module does not import the money core, performs
  * no arithmetic, holds no cap literal, and names no host, path, or key (R24).
  */
-import type { StoreHandle } from './connection';
-import type { ModelCallTelemetry } from '../ports/openrouter';
-import type { Redacted } from '../ports/shapeGuards';
+import type { StoreHandle } from './connection.ts';
+import type { ModelCallTelemetry } from '../ports/openrouter.ts';
+import type { Redacted } from '../ports/shapeGuards.ts';
 import {
   COST_SOURCE_ACTUAL,
   isSpendAgent,
@@ -97,8 +97,8 @@ import {
   weekKeyOf,
   type CostSourceActual,
   type SpendAgent,
-} from '../../features/routing/spendLedger';
-import { TELEMETRY_FORBIDDEN_COLUMNS } from './schema';
+} from '../../features/routing/spendLedger.ts';
+import { TELEMETRY_FORBIDDEN_COLUMNS } from './schema.ts';
 
 /**
  * `model_telemetry`'s columns, in `table_info` order: migration 003's declaration followed by

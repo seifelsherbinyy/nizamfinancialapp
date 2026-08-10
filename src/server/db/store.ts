@@ -12,8 +12,8 @@
  * Contract 06 §8.3.2: pruning never runs implicitly on open, on migration, or as a side
  * effect of a read. Nothing in this path prunes anything.
  */
-import { openStore, type StoreConnectionConfig, type StoreHandle } from './connection';
-import { migrate, type MigrationSummary } from './migrations';
+import { openStore, type StoreConnectionConfig, type StoreHandle } from './connection.ts';
+import { migrate, type MigrationSummary } from './migrations.ts';
 
 export interface StoreOpenConfig extends StoreConnectionConfig {
   /** The store's logical name, e.g. the finance agent's own store. Injected, never guessed. */

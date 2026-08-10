@@ -48,9 +48,9 @@ import { request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
 import nodeProcess from 'node:process';
 
-import { processEnvSource } from '../config/environment';
-import { probeExitCode, probeReadiness, type ReadinessReport } from '../ops/healthProbe';
-import { createFileLivenessRecord, livenessIsFresh } from './liveness';
+import { processEnvSource } from '../config/environment.ts';
+import { probeExitCode, probeReadiness, type ReadinessReport } from '../ops/healthProbe.ts';
+import { createFileLivenessRecord, livenessIsFresh } from './liveness.ts';
 import {
   bootScheduler,
   runSchedulerProcess,
@@ -64,8 +64,8 @@ import {
   type SchedulerRunOutcome,
   type SchedulerTarget,
   type TickDeliveryOutcome,
-} from './scheduler';
-import type { InternalEndpoint } from './internalEndpoint';
+} from './scheduler.ts';
+import type { InternalEndpoint } from './internalEndpoint.ts';
 
 /** The flag that selects the readiness answer instead of the clock. */
 export const SCHEDULER_HEALTH_FLAG = '--health';

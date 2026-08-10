@@ -31,7 +31,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { ENTRY_SPECS, TRACKED_SUFFIX } from './envTemplates';
+import { ENTRY_SPECS, TRACKED_SUFFIX } from './envTemplates.ts';
 import {
   ALL_GATES,
   BLOCKED_STATUS,
@@ -47,7 +47,7 @@ import {
   parseGateRegister,
   quotedPaths,
   type GateRegisterFindingCode,
-} from './gateRegister';
+} from './gateRegister.ts';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const OPS_DIR = `${REPO_ROOT}ops`;

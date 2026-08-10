@@ -59,10 +59,10 @@ import { randomUUID } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import nodeProcess from 'node:process';
 
-import { processEnvSource } from '../config/environment';
-import { probeExitCode, probeReadiness, reportForRefusedInvocation, type ReadinessReport } from '../ops/healthProbe';
-import { createFileLivenessRecord } from './liveness';
-import { NARROW_TIERS_READABLE_BY_BOTH, WIDENED_KINDS } from '../signals';
+import { processEnvSource } from '../config/environment.ts';
+import { probeExitCode, probeReadiness, reportForRefusedInvocation, type ReadinessReport } from '../ops/healthProbe.ts';
+import { createFileLivenessRecord } from './liveness.ts';
+import { NARROW_TIERS_READABLE_BY_BOTH, WIDENED_KINDS } from '../signals/index.ts';
 import {
   bootBusServer,
   BUS_EXPECTED_SCHEMA_VERSION,
@@ -80,7 +80,7 @@ import {
   type BusResponse,
   type BusRunOutcome,
   type BusServerDependencies,
-} from './busServer';
+} from './busServer.ts';
 
 /** The flag that selects the readiness answer instead of the server. */
 export const BUS_HEALTH_FLAG = '--health';

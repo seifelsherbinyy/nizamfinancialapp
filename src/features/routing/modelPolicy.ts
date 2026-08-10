@@ -12,9 +12,9 @@
  * CAPABLE model within {mimo, glm}; Grok and Kimi are OFF unless the owner explicitly opts in for an
  * ultra-complex task. Money uses `*Usd` field names and reuses the money-core cost model (no toFixed).
  */
-import { frozenSnapshot, priceFor } from '../benchmark/pricing';
-import { costOfUsage } from '../benchmark/cost';
-import { type TokenUsage } from '../benchmark/benchmark.types';
+import { frozenSnapshot, priceFor } from '../benchmark/pricing.ts';
+import { costOfUsage } from '../benchmark/cost.ts';
+import { type TokenUsage } from '../benchmark/benchmark.types.ts';
 
 /** Routing tier (contract 10 taxonomy). T0 is deterministic/code-only (no model). */
 export type Tier = 'T0' | 'T1' | 'T2' | 'T3' | 'T4';

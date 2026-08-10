@@ -26,10 +26,10 @@
  * stored row, not just the mapped one.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { MonetaryBoundaryError, RepositoryStateError } from '../errors';
-import { createDecisionsRepository, type DecisionsRepository } from './decisionsRepository';
-import type { DecisionInsert } from './rows';
-import { openTestStore, type TestStore } from './testStore';
+import { MonetaryBoundaryError, RepositoryStateError } from '../errors.ts';
+import { createDecisionsRepository, type DecisionsRepository } from './decisionsRepository.ts';
+import type { DecisionInsert } from './rows.ts';
+import { openTestStore, type TestStore } from './testStore.ts';
 
 let store: TestStore;
 let decisions: DecisionsRepository;

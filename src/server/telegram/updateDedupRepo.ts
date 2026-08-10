@@ -44,8 +44,8 @@
  *
  * No bot identifier, sender, token, or update identifier appears here as a literal (R24).
  */
-import type { StoreHandle } from '../db/connection';
-import type { DedupKey } from '../ports/telegram';
+import type { StoreHandle } from '../db/connection.ts';
+import type { DedupKey } from '../ports/telegram.ts';
 
 /** Discriminator for every refusal this module raises. A caller matches `code`, never prose. */
 export type UpdateDedupErrorCode =

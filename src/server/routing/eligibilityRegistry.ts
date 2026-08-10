@@ -88,8 +88,8 @@
  * `OpenRouterPortConfig.eligibilityRegistryPathRef`, a reference to an environment entry, and the
  * text it resolves to is handed in by the caller.
  */
-import type { ModelEligibility } from '../../features/benchmark/eligibility';
-import type { ModelBearingTier } from './turnClassifier';
+import type { ModelEligibility } from '../../features/benchmark/eligibility.ts';
+import type { ModelBearingTier } from './turnClassifier.ts';
 
 /**
  * Contract 09's finance eligibility bands. Derived from {@link ModelEligibility} rather than

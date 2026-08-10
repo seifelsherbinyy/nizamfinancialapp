@@ -53,10 +53,10 @@ import {
   quotedDrillSequence,
   verificationOf,
   type RunbookFindingCode,
-} from './runbookTemplate';
-import { RESTORE_SEQUENCE } from './backupScripts';
-import { EXPECTED_SCHEMA_VERSION } from './healthProbe';
-import { TELEGRAM_TRANSPORT_MODES } from '../ports/telegram';
+} from './runbookTemplate.ts';
+import { RESTORE_SEQUENCE } from './backupScripts.ts';
+import { EXPECTED_SCHEMA_VERSION } from './healthProbe.ts';
+import { TELEGRAM_TRANSPORT_MODES } from '../ports/telegram.ts';
 
 const OPS_DIR = fileURLToPath(new URL('../../../ops/', import.meta.url));
 const RUNBOOK_DIR = fileURLToPath(new URL('../../../ops/runbook/', import.meta.url));

@@ -49,7 +49,7 @@
  */
 import { createHash } from 'node:crypto';
 
-import type { PortFailureCode } from '../ports/errors';
+import type { PortFailureCode } from '../ports/errors.ts';
 import type {
   ConsentScope,
   SignalDirection,
@@ -61,7 +61,7 @@ import type {
   SignalPayload,
   SignalProducer,
   SignalTier,
-} from '../ports/signalBus';
+} from '../ports/signalBus.ts';
 import {
   CONSENT_SCOPES,
   DATE_SHAPED_VALUE,
@@ -82,7 +82,7 @@ import {
   STORED_ENVELOPE_KEYS,
   TEMPORAL_FIELD_TOKENS,
   UTC_INSTANT,
-} from './envelopeSchema';
+} from './envelopeSchema.ts';
 
 /**
  * Why an envelope was refused. One member per binding rule, so a caller — and an operator

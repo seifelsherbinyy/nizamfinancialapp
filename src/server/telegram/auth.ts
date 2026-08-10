@@ -87,8 +87,8 @@
  */
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
-import type { PortFailureCode } from '../ports/errors';
-import type { TelegramDelivery, TelegramTransportConfig, TelegramTransportMode } from '../ports/telegram';
+import type { PortFailureCode } from '../ports/errors.ts';
+import type { TelegramDelivery, TelegramTransportConfig, TelegramTransportMode } from '../ports/telegram.ts';
 
 /**
  * The header the provider echoes on every request (architecture §1.4). Public protocol: it is

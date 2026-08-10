@@ -21,8 +21,8 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import type { SignalEnvelope, SignalKind, SignalProducer, SignalQuery, SignalTier } from '../ports/signalBus';
-import { SIGNAL_KINDS, SIGNAL_NOTE_MAX_LENGTH, SIGNAL_REFUSAL_REASONS, SIGNAL_TIERS } from '../ports/signalBus';
+import type { SignalEnvelope, SignalKind, SignalProducer, SignalQuery, SignalTier } from '../ports/signalBus.ts';
+import { SIGNAL_KINDS, SIGNAL_NOTE_MAX_LENGTH, SIGNAL_REFUSAL_REASONS, SIGNAL_TIERS } from '../ports/signalBus.ts';
 import {
   deidentificationBreaches,
   defaultConsentScopeFor,
@@ -39,8 +39,8 @@ import {
   type KindWidening,
   type ReadableTiersBySubscriber,
   type ServedSignalEnvelope,
-} from './consentGate';
-import { SignalValidationError, unwrapSignalValidation, validateForWrite } from './envelopeValidation';
+} from './consentGate.ts';
+import { SignalValidationError, unwrapSignalValidation, validateForWrite } from './envelopeValidation.ts';
 
 const MODULE_SOURCE = readFileSync(fileURLToPath(new URL('./consentGate.ts', import.meta.url)), 'utf8');
 

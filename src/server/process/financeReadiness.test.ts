@@ -35,11 +35,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { KILL_SENTINEL_MOUNT_TARGET, SERVICE_ENTRY_NAMES, SHARED_ENTRIES, type EnvSource } from '../config/environment';
-import { openFinanceStore } from '../db/store';
-import { probeExitCode } from '../ops/healthProbe';
-import type { TelegramTransportMode, TelegramWorkOutcome } from '../ports/telegram';
-import type { TelegramFetchRequest, TelegramUpdateBatch } from '../telegram/liveTransport';
+import { KILL_SENTINEL_MOUNT_TARGET, SERVICE_ENTRY_NAMES, SHARED_ENTRIES, type EnvSource } from '../config/environment.ts';
+import { openFinanceStore } from '../db/store.ts';
+import { probeExitCode } from '../ops/healthProbe.ts';
+import type { TelegramTransportMode, TelegramWorkOutcome } from '../ports/telegram.ts';
+import type { TelegramFetchRequest, TelegramUpdateBatch } from '../telegram/liveTransport.ts';
 import {
   bootFinanceAgent,
   FINANCE_CONTAINER_PORT_ENTRY,
@@ -51,9 +51,9 @@ import {
   type FinanceAgentDependencies,
   type HttpListenerHandle,
   type HttpListenerHost,
-} from './financeAgent';
-import { createFileLivenessRecord } from './liveness';
-import { financeReadinessReport, POLL_POLICY, runHealthCommand } from './main';
+} from './financeAgent.ts';
+import { createFileLivenessRecord } from './liveness.ts';
+import { financeReadinessReport, POLL_POLICY, runHealthCommand } from './main.ts';
 
 const SENTINEL_PATH = `${KILL_SENTINEL_MOUNT_TARGET}/halt`;
 const SYNTHETIC_BASE = 'https://provider.invalid';

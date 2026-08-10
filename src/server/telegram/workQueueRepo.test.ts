@@ -19,8 +19,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { StoreHandle } from '../db/connection';
-import { openFinanceStore } from '../db/store';
+import type { StoreHandle } from '../db/connection.ts';
+import { openFinanceStore } from '../db/store.ts';
 import {
   abandonExhaustedWork,
   claimNextWork,
@@ -34,7 +34,7 @@ import {
   WorkQueueError,
   type WorkQueueContext,
   type WorkRetryPolicy,
-} from './workQueueRepo';
+} from './workQueueRepo.ts';
 
 const BOT_ONE = 'bot-one';
 const BOT_TWO = 'bot-two';

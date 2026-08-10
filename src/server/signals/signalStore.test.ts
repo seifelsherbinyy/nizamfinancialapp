@@ -29,8 +29,8 @@ import {
   SIGNAL_PRODUCERS,
   SIGNAL_TIERS,
   type SignalDraft,
-} from '../ports/signalBus';
-import { signalEnvelopeHash, unwrapSignalValidation, validateSignalNote, SignalValidationError } from './envelopeValidation';
+} from '../ports/signalBus.ts';
+import { signalEnvelopeHash, unwrapSignalValidation, validateSignalNote, SignalValidationError } from './envelopeValidation.ts';
 import {
   appendSignal,
   openSignalStore,
@@ -40,8 +40,8 @@ import {
   SignalStoreError,
   storedSignalCount,
   type SignalStoreContext,
-} from './signalStore';
-import { AUDIT_FORBIDDEN_COLUMNS, SIGNAL_SCHEMA_STATEMENTS, SIGNAL_STORE_FILE_NAME } from './signalStoreSchema';
+} from './signalStore.ts';
+import { AUDIT_FORBIDDEN_COLUMNS, SIGNAL_SCHEMA_STATEMENTS, SIGNAL_STORE_FILE_NAME } from './signalStoreSchema.ts';
 
 // ---------------------------------------------------------------------------------------------
 // Scaffolding — a real store, an injected clock, an injected id source

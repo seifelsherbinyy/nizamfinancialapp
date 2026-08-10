@@ -30,7 +30,7 @@ import type {
   DecisionCard,
   Recommendation,
   Affordability,
-} from './decision.types';
+} from './decision.types.ts';
 
 const STATUS_SEVERITY: Record<ObligationStatus, number> = {
   green: 0,

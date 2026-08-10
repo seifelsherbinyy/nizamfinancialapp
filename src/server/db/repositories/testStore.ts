@@ -16,8 +16,8 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { openFinanceStore } from '../store';
-import { createRepositoryContext, type RepositoryContext } from './support';
+import { openFinanceStore } from '../store.ts';
+import { createRepositoryContext, type RepositoryContext } from './support.ts';
 
 export interface TestStore {
   readonly ctx: RepositoryContext;

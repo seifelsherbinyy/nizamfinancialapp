@@ -58,7 +58,7 @@
  *
  * Two absences are inherited from the port: no update, no delete. A correction is another publish.
  */
-import type { PortFailureCode } from '../ports/errors';
+import type { PortFailureCode } from '../ports/errors.ts';
 import {
   SIGNAL_TIERS,
   type SignalBusPort,
@@ -72,11 +72,11 @@ import {
   type SignalReadOutcome,
   type SignalTier,
   type StoredSignalReceipt,
-} from '../ports/signalBus';
-import type { Exact } from '../ports/shapeGuards';
-import { validateSignalDraft } from '../signals/envelopeValidation';
-import { MockPortFailure } from './failure';
-import type { InvocationRecorder } from './invocationRecorder';
+} from '../ports/signalBus.ts';
+import type { Exact } from '../ports/shapeGuards.ts';
+import { validateSignalDraft } from '../signals/envelopeValidation.ts';
+import { MockPortFailure } from './failure.ts';
+import type { InvocationRecorder } from './invocationRecorder.ts';
 
 /** Which tiers a subscriber may read. Injectable, so a test can close one. */
 export type ReadableTiers = Readonly<Record<SignalProducer, readonly SignalTier[]>>;

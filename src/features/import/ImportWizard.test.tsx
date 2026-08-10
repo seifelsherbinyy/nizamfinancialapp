@@ -5,8 +5,8 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { ImportWizard } from './ImportWizard';
-import { bootStore } from '../../../tests/helpers/fixtures';
+import { ImportWizard } from './ImportWizard.tsx';
+import { bootStore } from '../../../tests/helpers/fixtures.ts';
 import { useNizamStore } from '@/state/store';
 import { LEDGER_COLUMNS } from '@/lib/ledger/ledger.types';
 

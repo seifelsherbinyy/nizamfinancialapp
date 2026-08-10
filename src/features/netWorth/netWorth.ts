@@ -17,8 +17,8 @@ import { isCreditType } from '@/features/accounts/accounts.types';
 import type { Money } from '@/lib/money/money';
 import { add, sub, sum, mulRatio, cmp } from '@/lib/money/money';
 import { reserveFor } from '@/features/obligations/obligation.types';
-import type { Asset, FxRate, MacroContext, CurrencyCode } from './netWorth.types';
-import { BASE_CURRENCY, DEFAULT_MACRO } from './netWorth.types';
+import type { Asset, FxRate, MacroContext, CurrencyCode } from './netWorth.types.ts';
+import { BASE_CURRENCY, DEFAULT_MACRO } from './netWorth.types.ts';
 
 const BPS = 10_000;
 

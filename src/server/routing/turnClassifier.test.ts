@@ -23,7 +23,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { TIER_CAPABLE, type Tier } from '../../features/routing/modelPolicy';
+import { TIER_CAPABLE, type Tier } from '../../features/routing/modelPolicy.ts';
 import {
   capableModelsAt,
   CLASSIFICATION_RULES,
@@ -38,7 +38,7 @@ import {
   type ModelInvocationGrant,
   type TurnFacts,
   type TurnIntent,
-} from './turnClassifier';
+} from './turnClassifier.ts';
 
 /** Every verdict benign: a turn with nothing remarkable about it. */
 export const BENIGN_FACTS: TurnFacts = Object.freeze({

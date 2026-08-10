@@ -21,11 +21,11 @@
  * Every rate below is synthetic. No real currency pair or market rate appears in this repo.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mulRatio } from '../../../lib/money/money';
-import { MonetaryBoundaryError } from '../errors';
-import { assertRatePair, rateColumnsFor } from '../moneyBoundary';
-import { createFxRatesRepository, toFxRate, type FxRatesRepository } from './fxRatesRepository';
-import { openTestStore, type TestStore } from './testStore';
+import { mulRatio } from '../../../lib/money/money.ts';
+import { MonetaryBoundaryError } from '../errors.ts';
+import { assertRatePair, rateColumnsFor } from '../moneyBoundary.ts';
+import { createFxRatesRepository, toFxRate, type FxRatesRepository } from './fxRatesRepository.ts';
+import { openTestStore, type TestStore } from './testStore.ts';
 
 const AS_OF = '2026-03-15';
 

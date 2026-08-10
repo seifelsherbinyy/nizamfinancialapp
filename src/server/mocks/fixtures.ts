@@ -41,8 +41,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
-import { SNAPSHOT_ENCRYPTION_SCHEMES, type EncryptedSnapshotArtifact, type SnapshotEncryptionScheme } from '../ports/drive';
-import { WHOOP_RECOVERY_BANDS, type WhoopRecoveryBand, type WhoopRecoveryState } from '../ports/whoop';
+import { SNAPSHOT_ENCRYPTION_SCHEMES, type EncryptedSnapshotArtifact, type SnapshotEncryptionScheme } from '../ports/drive.ts';
+import { WHOOP_RECOVERY_BANDS, type WhoopRecoveryBand, type WhoopRecoveryState } from '../ports/whoop.ts';
 import {
   CONSENT_SCOPES,
   SIGNAL_DIRECTIONS,
@@ -58,9 +58,9 @@ import {
   type SignalDraft,
   type SignalPayload,
   type SignalTier,
-} from '../ports/signalBus';
-import type { TelegramDelivery } from '../ports/telegram';
-import type { RecordedModelExchange } from './openrouterMock';
+} from '../ports/signalBus.ts';
+import type { TelegramDelivery } from '../ports/telegram.ts';
+import type { RecordedModelExchange } from './openrouterMock.ts';
 
 // One definition of a recorded exchange, re-exported so a fixture document and a replay agree.
 export type { RecordedModelExchange };

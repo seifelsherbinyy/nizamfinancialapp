@@ -29,9 +29,9 @@
  * alongside the tables themselves. Maintaining the set twice is how a new monetary column
  * silently escapes a guard, so it is maintained once and read from here.
  */
-import { isMoney, type Money } from '../../lib/money/money';
-import { MonetaryBoundaryError } from './errors';
-import { MONETARY_COLUMNS, RATE_COLUMNS } from './schema';
+import { isMoney, type Money } from '../../lib/money/money.ts';
+import { MonetaryBoundaryError } from './errors.ts';
+import { MONETARY_COLUMNS, RATE_COLUMNS } from './schema.ts';
 
 /** The monetary columns of one table, per the DDL. Empty for a table that holds no money. */
 export function monetaryColumnsFor(table: string): readonly string[] {

@@ -39,7 +39,7 @@
  * distinguish a bad token from a disallowed sender, because the failure vocabulary does not
  * either.
  */
-import type { PortFailureCode } from '../ports/errors';
+import type { PortFailureCode } from '../ports/errors.ts';
 import type {
   TelegramAcceptDecision,
   TelegramDelivery,
@@ -49,9 +49,9 @@ import type {
   TelegramTransportConfig,
   TelegramWorkItem,
   TelegramWorkOutcome,
-} from '../ports/telegram';
-import { MockPortFailure } from './failure';
-import type { InvocationRecorder } from './invocationRecorder';
+} from '../ports/telegram.ts';
+import { MockPortFailure } from './failure.ts';
+import type { InvocationRecorder } from './invocationRecorder.ts';
 
 export interface TelegramMockConfig {
   readonly transport: TelegramTransportConfig;

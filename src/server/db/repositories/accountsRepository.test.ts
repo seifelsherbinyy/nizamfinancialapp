@@ -13,10 +13,10 @@
  *      nowhere to put it.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { RepositoryStateError } from '../errors';
-import { createAccountsRepository, type AccountsRepository } from './accountsRepository';
-import type { AccountInsert } from './rows';
-import { openTestStore, type TestStore } from './testStore';
+import { RepositoryStateError } from '../errors.ts';
+import { createAccountsRepository, type AccountsRepository } from './accountsRepository.ts';
+import type { AccountInsert } from './rows.ts';
+import { openTestStore, type TestStore } from './testStore.ts';
 
 let store: TestStore;
 let accounts: AccountsRepository;

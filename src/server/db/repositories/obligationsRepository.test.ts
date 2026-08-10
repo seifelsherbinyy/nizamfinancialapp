@@ -11,11 +11,11 @@
  *       so the default read order IS the funding sequence: tier, then soonest due, then id.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { RepositoryStateError } from '../errors';
-import { createAccountsRepository } from './accountsRepository';
-import { createObligationsRepository, type ObligationsRepository } from './obligationsRepository';
-import { priorityOrdinal, type ObligationInsert } from './rows';
-import { openTestStore, type TestStore } from './testStore';
+import { RepositoryStateError } from '../errors.ts';
+import { createAccountsRepository } from './accountsRepository.ts';
+import { createObligationsRepository, type ObligationsRepository } from './obligationsRepository.ts';
+import { priorityOrdinal, type ObligationInsert } from './rows.ts';
+import { openTestStore, type TestStore } from './testStore.ts';
 
 const ACCOUNT_ID = 'acct-liability';
 

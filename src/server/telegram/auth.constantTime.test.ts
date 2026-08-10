@@ -40,7 +40,7 @@ import {
   equalizedTokenDigest,
   TOKEN_DIGEST_BYTES,
   TOKEN_DIGEST_KEY_BYTES,
-} from './auth';
+} from './auth.ts';
 
 const AUTH_SOURCE = readFileSync(fileURLToPath(new URL('./auth.ts', import.meta.url)), 'utf8');
 

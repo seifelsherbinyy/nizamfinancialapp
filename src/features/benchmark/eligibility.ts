@@ -9,7 +9,7 @@
  * before a passing Phase-1 run; a single P0 breach, an unauthorized tool action, or a fabricated
  * financial figure disqualifies the model outright (all levels false).
  */
-import { type BenchmarkCategory, type CaseScore } from './benchmark.types';
+import { type BenchmarkCategory, type CaseScore } from './benchmark.types.ts';
 
 const MACHINE_CATEGORIES: BenchmarkCategory[] = [
   'sms_extraction',

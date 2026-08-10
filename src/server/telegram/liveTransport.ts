@@ -81,7 +81,7 @@
  * `sleep` is injected for the same reason the clock is: a test asserts the schedule it would have
  * waited, and waits for nothing.
  */
-import type { PortFailureCode } from '../ports/errors';
+import type { PortFailureCode } from '../ports/errors.ts';
 import type {
   TelegramAcceptDecision,
   TelegramDelivery,
@@ -92,14 +92,14 @@ import type {
   TelegramSendReceipt,
   TelegramTransportMode,
   TelegramWorkerPort,
-} from '../ports/telegram';
+} from '../ports/telegram.ts';
 import {
   acceptDelivery,
   createInboundHandler,
   type TelegramAcceptAuditLine,
   type TelegramAcceptContext,
   type TelegramAcceptStage,
-} from './acceptHandler';
+} from './acceptHandler.ts';
 
 // ---------------------------------------------------------------------------------------------
 // Refusals

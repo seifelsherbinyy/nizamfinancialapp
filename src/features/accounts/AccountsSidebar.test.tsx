@@ -5,9 +5,9 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { AccountsSidebar } from './AccountsSidebar';
-import { bootStore, fixtureDb, makeTxn } from '../../../tests/helpers/fixtures';
-import { redactIdentifier } from './accounts.types';
+import { AccountsSidebar } from './AccountsSidebar.tsx';
+import { bootStore, fixtureDb, makeTxn } from '../../../tests/helpers/fixtures.ts';
+import { redactIdentifier } from './accounts.types.ts';
 
 beforeEach(() => {
   window.location.hash = '#/budget';

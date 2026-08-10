@@ -27,13 +27,13 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { TELEGRAM_TRANSPORT_MODES, type TelegramTransportMode } from '../ports/telegram';
+import { TELEGRAM_TRANSPORT_MODES, type TelegramTransportMode } from '../ports/telegram.ts';
 import {
   authorizeDelivery as authorizeDeliveryInMode,
   type TelegramAuthPolicy,
   type TelegramAuthDecision,
   type TelegramAuthSubject,
-} from '../telegram/auth';
+} from '../telegram/auth.ts';
 import {
   AGENT_ENTRY_NAMES,
   ALLOWLIST_DELIMITER,
@@ -46,7 +46,7 @@ import {
   parseAllowedSenderIds,
   type EnvConfigErrorCode,
   type EnvSource,
-} from './environment';
+} from './environment.ts';
 
 const LOADER_SOURCE_PATH = 'src/server/config/environment.ts';
 

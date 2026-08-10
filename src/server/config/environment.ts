@@ -61,13 +61,13 @@
  * sender identifier, and no cap number appears below. The only literals are entry names, the
  * transport scheme prefix, and the two identifier shapes.
  */
-import { SPEND_AGENTS, isSpendAgent, type SpendAgent } from '../../features/routing/spendLedger';
+import { SPEND_AGENTS, isSpendAgent, type SpendAgent } from '../../features/routing/spendLedger.ts';
 import {
   TELEGRAM_TRANSPORT_MODES,
   type TelegramTransportConfig,
   type TelegramTransportMode,
-} from '../ports/telegram';
-import { secretTokenIsConfigured } from '../telegram/auth';
+} from '../ports/telegram.ts';
+import { secretTokenIsConfigured } from '../telegram/auth.ts';
 
 // ---------------------------------------------------------------------------------------------
 // The environment, as a value this module is handed

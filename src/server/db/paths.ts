@@ -14,7 +14,7 @@
  */
 import { existsSync, realpathSync } from 'node:fs';
 import { isAbsolute, relative, resolve, dirname, basename } from 'node:path';
-import { StorePathError } from './errors';
+import { StorePathError } from './errors.ts';
 
 /** Canonicalize when the path exists; otherwise leave it resolved-but-unvisited. */
 function canonical(candidate: string): string {

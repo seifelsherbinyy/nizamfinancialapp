@@ -23,7 +23,7 @@ export {
   type DedupRetentionWindow,
   type UpdateDedupContext,
   type UpdateDedupErrorCode,
-} from './updateDedupRepo';
+} from './updateDedupRepo.ts';
 // Phase 4.1 — the two authenticity checks, in §5.3's order. There is deliberately no export
 // that reports WHICH check refused: the decision type has no reason field (§5.2), and the stage
 // vocabulary belongs to the separate audit path a caller injects.
@@ -52,7 +52,7 @@ export {
   type TelegramAuthPolicy,
   type TelegramAuthStage,
   type TelegramAuthSubject,
-} from './auth';
+} from './auth.ts';
 // Phase 4.3 — the durable queue the accept path writes into and the worker drains (§5.5.2).
 // There is deliberately no "is this queued" predicate and no unconditional state setter: either
 // would be the read half of the race the conditional writes remove (§5.5.3).
@@ -77,7 +77,7 @@ export {
   type WorkQueueSubmission,
   type WorkRetryPolicy,
   type WorkSettlement,
-} from './workQueueRepo';
+} from './workQueueRepo.ts';
 // Phase 4.3 — the SYNCHRONOUS accept path (§5.5.1). It returns a decision rather than a promise,
 // so nothing slow can be written before the acknowledgement.
 export {
@@ -91,7 +91,7 @@ export {
   type TelegramAcceptContext,
   type TelegramAcceptFailureCode,
   type TelegramAcceptStage,
-} from './acceptHandler';
+} from './acceptHandler.ts';
 // Phase 4.3 — the ASYNCHRONOUS side, where every slow step lives and where a downstream failure
 // stays: it becomes a queue retry with backoff, never a transport failure (§5.5.4).
 export {
@@ -102,7 +102,7 @@ export {
   type WorkerFailureSink,
   type WorkerRunContext,
   type WorkerRunner,
-} from './workerRunner';
+} from './workerRunner.ts';
 // Phase 10.5 — the live adapter, both modes, behind the SAME port. The outside world is one
 // injected interface (`TelegramTransportClient`), so nothing here resolves a network module; and
 // under `longPoll` the read offset advances only after the enqueue has committed (R26.1), which is
@@ -128,4 +128,4 @@ export {
   type TelegramSendRetryPolicy,
   type TelegramTransportClient,
   type TelegramUpdateBatch,
-} from './liveTransport';
+} from './liveTransport.ts';

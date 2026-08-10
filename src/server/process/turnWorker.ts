@@ -29,9 +29,9 @@
  * Nothing below reads or writes message content: `queuedRef` is the correlation reference and the
  * only thing that reaches an observer (§6.4, R19).
  */
-import type { TelegramWorkerPort, TelegramWorkItem, TelegramWorkOutcome } from '../ports/telegram';
-import type { TurnFacts, TurnIntent } from '../routing/turnClassifier';
-import { dispatchTurn, type TurnDispatchDependencies, type TurnOutcome } from '../routing/turnDispatch';
+import type { TelegramWorkerPort, TelegramWorkItem, TelegramWorkOutcome } from '../ports/telegram.ts';
+import type { TurnFacts, TurnIntent } from '../routing/turnClassifier.ts';
+import { dispatchTurn, type TurnDispatchDependencies, type TurnOutcome } from '../routing/turnDispatch.ts';
 
 /**
  * The most conservative facts a turn can carry: a deterministic intent and every verdict false.

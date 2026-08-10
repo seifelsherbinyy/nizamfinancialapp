@@ -35,10 +35,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { openStore, type StoreHandle } from './connection';
-import { MonetaryBoundaryError, RepositoryStateError, StorePathError } from './errors';
-import { migrate, MIGRATIONS, type Migration } from './migrations';
-import { resolveStorePath } from './paths';
+import { openStore, type StoreHandle } from './connection.ts';
+import { MonetaryBoundaryError, RepositoryStateError, StorePathError } from './errors.ts';
+import { migrate, MIGRATIONS, type Migration } from './migrations.ts';
+import { resolveStorePath } from './paths.ts';
 import {
   createAccountsRepository,
   createDecisionsRepository,
@@ -48,8 +48,8 @@ import {
   type DecisionInsert,
   type ObligationInsert,
   type TransactionInsert,
-} from './repositories';
-import { openTestStore, type TestStore } from './repositories/testStore';
+} from './repositories/index.ts';
+import { openTestStore, type TestStore } from './repositories/testStore.ts';
 
 /**
  * The shapes an upstream parse mistake actually arrives in. Each is a value the guard must

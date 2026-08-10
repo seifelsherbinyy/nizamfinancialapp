@@ -33,7 +33,7 @@
  * injected value on {@link TelegramTransportConfig}, and this module supplies no default for any
  * of them.
  */
-import type { PortFailureCode } from './errors';
+import type { PortFailureCode } from './errors.ts';
 
 /**
  * One inbound delivery, exactly as untrusted as it arrives. Nothing is parsed yet: §5.3 puts

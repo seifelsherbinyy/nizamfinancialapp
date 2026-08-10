@@ -49,7 +49,7 @@ import {
   type LogErrorCode,
   type LogFieldValue,
   type LogLineClaim,
-} from './redactedLogger';
+} from './redactedLogger.ts';
 
 const SOURCE = readFileSync(fileURLToPath(new URL('./redactedLogger.ts', import.meta.url)), 'utf8');
 
@@ -94,8 +94,11 @@ describe('layer 1 - no field TYPE can hold prose (§6.4)', () => {
   it('the record is wrapped in BOTH shape guards, so a content or owner-money field cannot compile', () => {
     expect(SOURCE).toMatch(/export type LogRecord = Redacted</);
     expect(SOURCE).toMatch(/NoOwnerFigure</);
-    // The redaction vocabulary is the ports module's, imported rather than restated.
-    expect(SOURCE).toMatch(/from '\.\.\/ports\/shapeGuards'/);
+    // The redaction vocabulary is the ports module's, imported rather than restated. The extension is
+    // part of the specifier since finding F20 (task 10.23), and it is asserted rather than made
+    // optional here: this module is in the launch graph of all three owned images, so a specifier
+    // without one would mean bare `node` could not start any of them.
+    expect(SOURCE).toMatch(/from '\.\.\/ports\/shapeGuards\.ts'/);
   });
 
   it('there is no format string in this module, so there is no hole to widen', () => {

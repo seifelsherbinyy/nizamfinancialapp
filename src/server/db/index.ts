@@ -16,7 +16,7 @@ export {
   type EffectivePragmas,
   type StoreConnectionConfig,
   type StoreHandle,
-} from './connection';
+} from './connection.ts';
 export {
   MigrationChecksumError,
   MigrationFailedError,
@@ -28,7 +28,7 @@ export {
   ServerDbError,
   StorePathError,
   type ServerDbErrorCode,
-} from './errors';
+} from './errors.ts';
 export {
   currentSchemaVersion,
   migrate,
@@ -37,17 +37,17 @@ export {
   type Migration,
   type MigrateOptions,
   type MigrationSummary,
-} from './migrations';
+} from './migrations.ts';
 export {
   assertMonetaryCoverage,
   assertMoneyField,
   assertOptionalMoneyField,
   isMonetaryColumn,
   monetaryColumnsFor,
-} from './moneyBoundary';
-export { isWithinDataDir, resolveStorePath } from './paths';
+} from './moneyBoundary.ts';
+export { isWithinDataDir, resolveStorePath } from './paths.ts';
 // Phase 1.2 — the fact repositories and the vocabulary they share.
-export * from './repositories';
+export * from './repositories/index.ts';
 export {
   BOOTSTRAP_DDL,
   MONETARY_COLUMNS,
@@ -55,7 +55,7 @@ export {
   TABLES,
   TELEMETRY_FORBIDDEN_COLUMNS,
   type TableName,
-} from './schema';
+} from './schema.ts';
 // Phase 5.3 — the append-only telemetry store. No update or delete export, because there is no
 // update or delete path: telemetry is the evidence contract 11 governs from (contract 12 §6.4).
 export {
@@ -80,7 +80,7 @@ export {
   type TelemetryOutcome,
   type TelemetryQuery,
   type TelemetryRecord,
-} from './modelTelemetryRepo';
+} from './modelTelemetryRepo.ts';
 // Phase 1.4 — the append-only token-spend ledger. There is no update or delete export, because
 // there is no update or delete path (contract 06 §6.2.2).
 export {
@@ -90,5 +90,5 @@ export {
   readWeekRows,
   weeklySpendMicroUsd,
   type ProviderReportedSpend,
-} from './spendLedgerRepo';
-export { openFinanceStore, type OpenedStore, type StoreOpenConfig } from './store';
+} from './spendLedgerRepo.ts';
+export { openFinanceStore, type OpenedStore, type StoreOpenConfig } from './store.ts';

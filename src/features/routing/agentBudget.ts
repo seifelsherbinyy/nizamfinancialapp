@@ -27,9 +27,9 @@ import {
   type AgentWeeklyBudget,
   type SpendAgent,
   type SpendLedgerRow,
-} from './spendLedger';
-import { selectModel, type SelectionResult, type Tier } from './modelPolicy';
-import { type TokenUsage } from '../benchmark/benchmark.types';
+} from './spendLedger.ts';
+import { selectModel, type SelectionResult, type Tier } from './modelPolicy.ts';
+import { type TokenUsage } from '../benchmark/benchmark.types.ts';
 
 export interface AgentSelectionInput {
   readonly tier: Tier;

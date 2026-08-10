@@ -17,8 +17,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { loadAgentModelBinding, type EnvSource } from '../../server/config/environment';
-import { WEEKLY_BUDGET_USD } from './modelPolicy';
+import { loadAgentModelBinding, type EnvSource } from '../../server/config/environment.ts';
+import { WEEKLY_BUDGET_USD } from './modelPolicy.ts';
 import {
   agentCapSpellings,
   AgentCapError,
@@ -35,8 +35,8 @@ import {
   PROVIDER_LIMIT_MAX_DECIMAL_PLACES,
   providerKeyLimitUsdText,
   WEEKLY_CAP_TOTAL_MICRO_USD,
-} from './agentWeeklyCaps';
-import { COST_SOURCE_ACTUAL, MICRO_USD_PER_USD, type SpendAgent, type SpendLedgerRow } from './spendLedger';
+} from './agentWeeklyCaps.ts';
+import { COST_SOURCE_ACTUAL, MICRO_USD_PER_USD, type SpendAgent, type SpendLedgerRow } from './spendLedger.ts';
 
 const WEEK = 'W2026-01-05';
 const MODEL = 'synthetic/model-a';

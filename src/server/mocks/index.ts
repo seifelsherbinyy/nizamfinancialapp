@@ -32,13 +32,13 @@ export {
   type InvocationRecorder,
   type MockPortName,
   type RecordableDetail,
-} from './invocationRecorder';
+} from './invocationRecorder.ts';
 
 // One thrower for five boundaries.
-export { MockPortFailure, isMockPortFailure } from './failure';
+export { MockPortFailure, isMockPortFailure } from './failure.ts';
 
 // Transport — contract 12 §5.
-export { createTelegramMock, type TelegramMock, type TelegramMockConfig } from './telegramMock';
+export { createTelegramMock, type TelegramMock, type TelegramMockConfig } from './telegramMock.ts';
 
 // Model routing — contract 12 §6.
 export {
@@ -46,13 +46,13 @@ export {
   type OpenRouterMock,
   type OpenRouterMockConfig,
   type RecordedModelExchange,
-} from './openrouterMock';
+} from './openrouterMock.ts';
 
 // Backup egress — contract 12 §7.1.
-export { createDriveMock, type DriveMock, type DriveMockConfig } from './driveMock';
+export { createDriveMock, type DriveMock, type DriveMockConfig } from './driveMock.ts';
 
 // Recovery context — the life tier's connector as this side agrees to see it.
-export { createWhoopMock, type WhoopMock, type WhoopMockConfig } from './whoopMock';
+export { createWhoopMock, type WhoopMock, type WhoopMockConfig } from './whoopMock.ts';
 
 // The consent bus — contract 12 §4.
 export {
@@ -60,7 +60,7 @@ export {
   type ReadableTiers,
   type SignalBusMock,
   type SignalBusMockConfig,
-} from './signalBusMock';
+} from './signalBusMock.ts';
 
 // Recorded fixtures — steering §3's offline fallback.
 export {
@@ -80,4 +80,4 @@ export {
   type RecordedInteractionSet,
   type RecordedSignal,
   type RecordedSnapshot,
-} from './fixtures';
+} from './fixtures.ts';

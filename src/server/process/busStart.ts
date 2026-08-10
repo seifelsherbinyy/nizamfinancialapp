@@ -16,7 +16,7 @@
  * answers the whole question.
  */
 import nodeProcess from 'node:process';
-import { busMain } from './busMain';
+import { busMain } from './busMain.ts';
 
 const outcome = await busMain(nodeProcess.argv.slice(2));
 nodeProcess.exitCode = outcome.exitCode;

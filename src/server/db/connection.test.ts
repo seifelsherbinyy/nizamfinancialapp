@@ -17,11 +17,11 @@ import {
   REQUIRED_FOREIGN_KEYS,
   REQUIRED_JOURNAL_MODE,
   REQUIRED_SYNCHRONOUS,
-} from './connection';
-import { PragmaAssertionError, PragmaValueError, ServerDbError, StorePathError } from './errors';
-import { resolveStorePath } from './paths';
-import { sqlite } from './sqliteBinding';
-import { openFinanceStore } from './store';
+} from './connection.ts';
+import { PragmaAssertionError, PragmaValueError, ServerDbError, StorePathError } from './errors.ts';
+import { resolveStorePath } from './paths.ts';
+import { sqlite } from './sqliteBinding.ts';
+import { openFinanceStore } from './store.ts';
 
 const FILE_NAME = 'finance.db';
 const BUSY_TIMEOUT_MS = 5_000;

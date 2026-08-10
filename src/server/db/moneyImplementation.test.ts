@@ -83,9 +83,17 @@ function withoutComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
 }
 
-/** True when the module resolves anything from the money core, aliased or relative. */
+/**
+ * True when the module resolves anything from the money core, aliased or relative.
+ *
+ * The extension is optional in the pattern and mandatory in the tree: finding F20 (task 10.23) gave
+ * every relative specifier under `src/` its real extension, because Node's ESM resolver performs no
+ * extension search and the owned images launch source with bare `node`. It stays optional here
+ * because the aliased form carries none, and because this assertion is about WHICH module is
+ * imported rather than about how the specifier is spelled.
+ */
 function importsMoneyCore(source: string): boolean {
-  return /from\s+['"](?:@\/|(?:\.\.\/)+)lib\/money\/money['"]/.test(source);
+  return /from\s+['"](?:@\/|(?:\.\.\/)+)lib\/money\/money(?:\.tsx?)?['"]/.test(source);
 }
 
 const relative = (file: string): string => file.slice(SERVER_ROOT.length).replace(/\\/g, '/');

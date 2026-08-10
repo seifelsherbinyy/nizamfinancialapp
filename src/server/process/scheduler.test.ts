@@ -33,10 +33,10 @@ import {
   KILL_SENTINEL_MOUNT_TARGET,
   SERVICE_ENTRY_NAMES,
   type EnvSource,
-} from '../config/environment';
-import { parseProbeInvocation, PROBE_MODES } from '../ops/healthProbe';
-import { INTERNAL_ENDPOINT_REFUSALS } from './internalEndpoint';
-import { createFileLivenessRecord, type LivenessRecord } from './liveness';
+} from '../config/environment.ts';
+import { parseProbeInvocation, PROBE_MODES } from '../ops/healthProbe.ts';
+import { INTERNAL_ENDPOINT_REFUSALS } from './internalEndpoint.ts';
+import { createFileLivenessRecord, type LivenessRecord } from './liveness.ts';
 import {
   bootScheduler,
   FINANCE_TICK_ENDPOINT_ENTRY,
@@ -55,8 +55,8 @@ import {
   type SchedulerProcessHost,
   type SchedulerTarget,
   type TickDeliveryOutcome,
-} from './scheduler';
-import { createNodeHttpSchedulerHost, schedulerReadinessReport } from './schedulerMain';
+} from './scheduler.ts';
+import { createNodeHttpSchedulerHost, schedulerReadinessReport } from './schedulerMain.ts';
 
 const SENTINEL_PATH = `${KILL_SENTINEL_MOUNT_TARGET}/halt`;
 const LIFE_ENDPOINT = 'life-agent:9001';

@@ -44,7 +44,7 @@ export {
   type TurnClassification,
   type TurnFacts,
   type TurnIntent,
-} from './turnClassifier';
+} from './turnClassifier.ts';
 
 export {
   createModelChannel,
@@ -55,7 +55,7 @@ export {
   type TurnDispatchDependencies,
   type TurnOutcome,
   type TurnRoutingErrorCode,
-} from './turnDispatch';
+} from './turnDispatch.ts';
 
 export {
   admitEligibilityRegistry,
@@ -79,7 +79,7 @@ export {
   type EligibleModel,
   type LiveEligibilityRegistry,
   type ProvisionalEligibilityRegistry,
-} from './eligibilityRegistry';
+} from './eligibilityRegistry.ts';
 
 export {
   eligibleCandidatesAt,
@@ -93,4 +93,4 @@ export {
   type PremiumOptIn,
   type RoutedModel,
   type RoutingInputs,
-} from './modelRouter';
+} from './modelRouter.ts';

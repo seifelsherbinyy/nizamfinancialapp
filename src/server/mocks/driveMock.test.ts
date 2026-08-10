@@ -16,11 +16,11 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { createDriveMock, type DriveMockConfig } from './driveMock';
-import { MockPortFailure } from './failure';
-import { loadRecordedInteractions, nodeFixtureSource, snapshotArtifactFrom } from './fixtures';
-import { createInvocationRecorder } from './invocationRecorder';
-import type { DrivePortConfig, EncryptedSnapshotArtifact } from '../ports/drive';
+import { createDriveMock, type DriveMockConfig } from './driveMock.ts';
+import { MockPortFailure } from './failure.ts';
+import { loadRecordedInteractions, nodeFixtureSource, snapshotArtifactFrom } from './fixtures.ts';
+import { createInvocationRecorder } from './invocationRecorder.ts';
+import type { DrivePortConfig, EncryptedSnapshotArtifact } from '../ports/drive.ts';
 
 const FIXED_NOW = (): string => '2026-03-02T03:10:00Z';
 

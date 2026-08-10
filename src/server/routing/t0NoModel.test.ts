@@ -36,18 +36,18 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { MODEL_GLM } from '../../features/routing/modelPolicy';
-import { createInvocationRecorder, type InvocationRecorder } from '../mocks/invocationRecorder';
-import { createOpenRouterMock, type OpenRouterMock } from '../mocks/openrouterMock';
-import type { ModelRequest, OpenRouterPortConfig, ProviderPrivacyPolicy } from '../ports/openrouter';
-import { createModelChannel, dispatchTurn, type TurnDispatchDependencies } from './turnDispatch';
+import { MODEL_GLM } from '../../features/routing/modelPolicy.ts';
+import { createInvocationRecorder, type InvocationRecorder } from '../mocks/invocationRecorder.ts';
+import { createOpenRouterMock, type OpenRouterMock } from '../mocks/openrouterMock.ts';
+import type { ModelRequest, OpenRouterPortConfig, ProviderPrivacyPolicy } from '../ports/openrouter.ts';
+import { createModelChannel, dispatchTurn, type TurnDispatchDependencies } from './turnDispatch.ts';
 import {
   INTENT_FAMILY,
   TURN_INTENTS,
   type ModelInvocationGrant,
   type TurnFacts,
   type TurnIntent,
-} from './turnClassifier';
+} from './turnClassifier.ts';
 
 // ---------------------------------------------------------------------------------------------
 // The corpus

@@ -46,8 +46,8 @@ import {
   mapParticularFindings,
   parseShellScript,
   type BackupScriptFindingCode,
-} from './backupScripts';
-import { BACKUP_SERVICE } from './composeTemplate';
+} from './backupScripts.ts';
+import { BACKUP_SERVICE } from './composeTemplate.ts';
 
 const OPS_DIR = fileURLToPath(new URL('../../../ops/', import.meta.url));
 const BACKUP_PATH = fileURLToPath(new URL('../../../ops/backup/backup.sh', import.meta.url));

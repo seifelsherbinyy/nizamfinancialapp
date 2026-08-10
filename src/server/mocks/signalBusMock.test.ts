@@ -16,16 +16,16 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { MockPortFailure } from './failure';
-import { loadRecordedInteractions, nodeFixtureSource, signalDraftFrom } from './fixtures';
-import { createInvocationRecorder } from './invocationRecorder';
-import { createSignalBusMock, type SignalBusMockConfig } from './signalBusMock';
+import { MockPortFailure } from './failure.ts';
+import { loadRecordedInteractions, nodeFixtureSource, signalDraftFrom } from './fixtures.ts';
+import { createInvocationRecorder } from './invocationRecorder.ts';
+import { createSignalBusMock, type SignalBusMockConfig } from './signalBusMock.ts';
 import {
   SIGNAL_NOTE_MAX_LENGTH,
   type SignalBusPortConfig,
   type SignalDraft,
   type SignalNote,
-} from '../ports/signalBus';
+} from '../ports/signalBus.ts';
 
 const FIXED_NOW = (): string => '2026-03-02T09:05:01Z';
 

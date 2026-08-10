@@ -1,7 +1,19 @@
 #!/usr/bin/env node
-/** Acceptance criterion sixteen: a fresh clone reproduces the toolchain. Owner: build tooling. */
+/**
+ * Acceptance criterion sixteen: a fresh clone reproduces the toolchain, AND the runtime it pins can
+ * actually start what the images run. Owner: build tooling.
+ *
+ * The second half arrived with finding **F20** (spec 06 task 10.23). This check already owned the
+ * claim "this repository runs on the runtime it pins" - it reads `.nvmrc`, compares it with the
+ * runtime executing it, and fails if they disagree. F20 was that claim's missing half: the pin was
+ * correct, the tests were green, and bare `node` still could not start a single entrypoint, because
+ * every relative import was extensionless and Node performs no extension search. So the launch
+ * assertion lives here rather than as a twenty-first check, and `launch-path.mjs` holds it - see that
+ * file's header for what it asserts and how it proves it is not vacuous.
+ */
 import { existsSync } from "node:fs";
 import { read, verdict } from "./_util.mjs";
+import { launchPathFindings } from "./launch-path.mjs";
 const SUPPORTED = ["22", "24", "26"];
 const findings = [];
 if (!existsSync(".nvmrc")) findings.push(".nvmrc is missing, so a clone has no runtime pin");
@@ -22,4 +34,10 @@ else {
 const pkg = JSON.parse(read("package.json"));
 const floating = Object.entries({ ...(pkg.dependencies ?? {}) }).filter(([, v]) => /^[\^~]/.test(String(v)));
 if (floating.length) findings.push("runtime dependencies use a floating range: " + floating.map(([k, v]) => k + " " + v).join(", "));
-verdict("toolchain pin and lockfile make a fresh clone reproducible", findings);
+
+// The launch path: the pinned runtime starts every entrypoint the three owned images invoke.
+const launch = launchPathFindings();
+launch.notes.forEach((n) => console.log(n));
+findings.push(...launch.findings);
+
+verdict("toolchain pin and lockfile make a fresh clone reproducible, and the pinned runtime starts every entrypoint", findings);

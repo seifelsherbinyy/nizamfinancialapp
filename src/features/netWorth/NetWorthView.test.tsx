@@ -6,10 +6,10 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { NetWorthView } from './NetWorthView';
-import { bootStore, fixtureDb } from '../../../tests/helpers/fixtures';
+import { NetWorthView } from './NetWorthView.tsx';
+import { bootStore, fixtureDb } from '../../../tests/helpers/fixtures.ts';
 import { useNizamStore } from '@/state/store';
-import type { Asset } from './netWorth.types';
+import type { Asset } from './netWorth.types.ts';
 
 function egpAsset(): Asset {
   return {

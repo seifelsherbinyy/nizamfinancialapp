@@ -16,7 +16,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { createInvocationRecorder } from './invocationRecorder';
+import { createInvocationRecorder } from './invocationRecorder.ts';
 
 describe('the empty record is a real answer (§6.1, R16)', () => {
   it('reports emptiness for the whole log, for a port, and for a member', () => {

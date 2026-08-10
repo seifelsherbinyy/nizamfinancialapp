@@ -54,12 +54,12 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { tmpdir } from 'node:os';
 import nodeProcess from 'node:process';
 
-import { processEnvSource, type EnvSource } from '../config/environment';
-import { probeExitCode, probeReadiness, reportForRefusedInvocation, type ReadinessReport } from '../ops/healthProbe';
-import { createModelChannel } from '../routing/turnDispatch';
-import { TELEGRAM_SECRET_TOKEN_HEADER } from '../telegram/auth';
-import type { TelegramAcceptDecision, TelegramDelivery } from '../ports/telegram';
-import type { ModelRequest, ModelResult, OpenRouterPort } from '../ports/openrouter';
+import { processEnvSource, type EnvSource } from '../config/environment.ts';
+import { probeExitCode, probeReadiness, reportForRefusedInvocation, type ReadinessReport } from '../ops/healthProbe.ts';
+import { createModelChannel } from '../routing/turnDispatch.ts';
+import { TELEGRAM_SECRET_TOKEN_HEADER } from '../telegram/auth.ts';
+import type { TelegramAcceptDecision, TelegramDelivery } from '../ports/telegram.ts';
+import type { ModelRequest, ModelResult, OpenRouterPort } from '../ports/openrouter.ts';
 import {
   bootFinanceAgent,
   FINANCE_DATA_DIR_ENTRY,
@@ -72,8 +72,8 @@ import {
   type HttpListenerHost,
   type ProcessHost,
   type RunOutcome,
-} from './financeAgent';
-import { createFileLivenessRecord, livenessIsFresh } from './liveness';
+} from './financeAgent.ts';
+import { createFileLivenessRecord, livenessIsFresh } from './liveness.ts';
 import {
   APP_LIVENESS_FILE_NAME,
   APP_LIVENESS_MAX_AGE_MS,
@@ -88,8 +88,8 @@ import {
   type AppRequest,
   type AppResponse,
   type AppServerProcess,
-} from './appServer';
-import { conservativeTurnFacts, createTurnDispatchWorker } from './turnWorker';
+} from './appServer.ts';
+import { conservativeTurnFacts, createTurnDispatchWorker } from './turnWorker.ts';
 
 /** The flag that selects the readiness answer instead of the agent. */
 export const HEALTH_FLAG = '--health';

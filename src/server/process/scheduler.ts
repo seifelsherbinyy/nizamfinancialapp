@@ -86,11 +86,11 @@ import {
   requireServiceEnvironment,
   type DeploymentService,
   type EnvSource,
-} from '../config/environment';
-import { probeReadiness, type ProbeEnvironment, type ReadinessReport } from '../ops/healthProbe';
-import { createHaltGate, killAllEngagedAtBoot, type HaltForm, type HaltGate } from './haltGate';
-import { classifyInternalEndpoint, type InternalEndpoint, type InternalEndpointRefusal } from './internalEndpoint';
-import { livenessIsFresh, type LivenessRecord } from './liveness';
+} from '../config/environment.ts';
+import { probeReadiness, type ProbeEnvironment, type ReadinessReport } from '../ops/healthProbe.ts';
+import { createHaltGate, killAllEngagedAtBoot, type HaltForm, type HaltGate } from './haltGate.ts';
+import { classifyInternalEndpoint, type InternalEndpoint, type InternalEndpointRefusal } from './internalEndpoint.ts';
+import { livenessIsFresh, type LivenessRecord } from './liveness.ts';
 
 // ---------------------------------------------------------------------------------------------
 // Identity, and the five entries this service declares

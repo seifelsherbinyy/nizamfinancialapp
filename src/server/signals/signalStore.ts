@@ -46,22 +46,22 @@
  * `ops/BUS_NETWORK_BINDING.md`, which Phase 7 must honour. This module names no host, no port,
  * and no path: `dataDir` arrives injected.
  */
-import { openStore, type StoreConnectionConfig, type StoreHandle } from '../db/connection';
-import { migrate, type Migration, type MigrationSummary } from '../db/migrations';
-import { SIGNAL_KINDS, SIGNAL_PRODUCERS, type SignalEnvelope, type SignalKind, type SignalProducer } from '../ports/signalBus';
-import { SIGNAL_ENVELOPE_SCHEMA_ID } from './envelopeSchema';
+import { openStore, type StoreConnectionConfig, type StoreHandle } from '../db/connection.ts';
+import { migrate, type Migration, type MigrationSummary } from '../db/migrations.ts';
+import { SIGNAL_KINDS, SIGNAL_PRODUCERS, type SignalEnvelope, type SignalKind, type SignalProducer } from '../ports/signalBus.ts';
+import { SIGNAL_ENVELOPE_SCHEMA_ID } from './envelopeSchema.ts';
 import {
   SignalValidationError,
   validateForRead,
   validateForWrite,
   type SignalRefusal,
-} from './envelopeValidation';
+} from './envelopeValidation.ts';
 import {
   SIGNAL_SCHEMA_STATEMENTS,
   SIGNAL_STORE_FILE_NAME,
   SIGNAL_STORE_NAME,
   type SignalAuditEvent,
-} from './signalStoreSchema';
+} from './signalStoreSchema.ts';
 
 /**
  * The signals series. Its own series, because `signals.db` is its own file with its own

@@ -91,9 +91,9 @@ import {
   requireServiceEnvironment,
   type DeploymentService,
   type EnvSource,
-} from '../config/environment';
-import type { StoreHandle } from '../db/connection';
-import { probeReadiness, type ProbeEnvironment, type ReadinessReport } from '../ops/healthProbe';
+} from '../config/environment.ts';
+import type { StoreHandle } from '../db/connection.ts';
+import { probeReadiness, type ProbeEnvironment, type ReadinessReport } from '../ops/healthProbe.ts';
 import {
   SIGNAL_KINDS,
   SIGNAL_PRODUCERS,
@@ -101,7 +101,7 @@ import {
   type SignalProducer,
   type SignalQuery,
   type SignalReadOutcome,
-} from '../ports/signalBus';
+} from '../ports/signalBus.ts';
 import {
   appendSignal,
   openSignalStore,
@@ -115,15 +115,15 @@ import {
   type OpenedSignalStore,
   type SignalStoreContext,
   type SignalStoreOpenConfig,
-} from '../signals';
+} from '../signals/index.ts';
 import {
   classifyInternalEndpoint,
   INTERNAL_ENDPOINT_REFUSALS,
   RESERVED_ENDPOINT_HOSTS,
   type InternalEndpoint,
   type InternalEndpointRefusal,
-} from './internalEndpoint';
-import { LIVENESS_TOUCH_INTERVAL_MS, livenessIsFresh, type LivenessRecord } from './liveness';
+} from './internalEndpoint.ts';
+import { LIVENESS_TOUCH_INTERVAL_MS, livenessIsFresh, type LivenessRecord } from './liveness.ts';
 
 // ---------------------------------------------------------------------------------------------
 // Identity, and the three entries this service declares

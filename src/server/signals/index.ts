@@ -29,7 +29,7 @@ export {
   STORED_ENVELOPE_KEYS,
   TEMPORAL_FIELD_TOKENS,
   UTC_INSTANT,
-} from './envelopeSchema';
+} from './envelopeSchema.ts';
 export {
   deidentificationBreaches,
   defaultConsentScopeFor,
@@ -50,7 +50,7 @@ export {
   type KindWidening,
   type ReadableTiersBySubscriber,
   type ServedSignalEnvelope,
-} from './consentGate';
+} from './consentGate.ts';
 export {
   portFailureCodeFor,
   sealSignalEnvelope,
@@ -66,7 +66,7 @@ export {
   type SignalRefusal,
   type SignalValidation,
   type SignalValidationReason,
-} from './envelopeValidation';
+} from './envelopeValidation.ts';
 // Phase 3.3 — the append-only store and its audit mirror. There is no update export and no
 // delete export, because there is no update path and no delete path; the refusal lives in the
 // engine as a trigger (contract 12 §4.1). The internal-only network binding this store depends
@@ -86,7 +86,7 @@ export {
   type SignalStoreOpenConfig,
   type SignalStoreQuery,
   type StoredSignalRecord,
-} from './signalStore';
+} from './signalStore.ts';
 export {
   AUDIT_FORBIDDEN_COLUMNS,
   SIGNAL_AUDIT_EVENTS,
@@ -95,4 +95,4 @@ export {
   SIGNAL_STORE_TABLES,
   type SignalAuditEvent,
   type SignalStoreTable,
-} from './signalStoreSchema';
+} from './signalStoreSchema.ts';

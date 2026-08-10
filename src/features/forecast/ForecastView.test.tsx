@@ -6,8 +6,8 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ForecastView } from './ForecastView';
-import { bootStore, fixtureDb } from '../../../tests/helpers/fixtures';
+import { ForecastView } from './ForecastView.tsx';
+import { bootStore, fixtureDb } from '../../../tests/helpers/fixtures.ts';
 
 describe('ForecastView', () => {
   it('renders the cash-flow forecast heading and a by-horizon table', () => {

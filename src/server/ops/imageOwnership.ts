@@ -49,9 +49,9 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { HTTP_CHALLENGE_DISABLE_DIRECTIVE } from './caddyTemplate';
-import { PROXY_SERVICE, parseComposeSubset, type YamlMap } from './composeTemplate';
-import { PROBE_COMMAND_NAME } from './healthProbe';
+import { HTTP_CHALLENGE_DISABLE_DIRECTIVE } from './caddyTemplate.ts';
+import { PROXY_SERVICE, parseComposeSubset, type YamlMap } from './composeTemplate.ts';
+import { PROBE_COMMAND_NAME } from './healthProbe.ts';
 
 // ---------------------------------------------------------------------------------------------
 // The vocabulary

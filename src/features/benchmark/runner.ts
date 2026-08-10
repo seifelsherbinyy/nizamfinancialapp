@@ -16,10 +16,10 @@ import {
   type ModelResponse,
   type TokenUsage,
   BENCHMARK_CATEGORIES,
-} from './benchmark.types';
-import { scoreCase } from './scoring';
-import { evaluateEligibility, type ModelEligibility } from './eligibility';
-import { costOfUsage, projectMonthlyCost, WEEKLY_HOURS_FULL } from './cost';
+} from './benchmark.types.ts';
+import { scoreCase } from './scoring.ts';
+import { evaluateEligibility, type ModelEligibility } from './eligibility.ts';
+import { costOfUsage, projectMonthlyCost, WEEKLY_HOURS_FULL } from './cost.ts';
 import {
   frozenSnapshot,
   loadPricing,
@@ -27,7 +27,7 @@ import {
   PRICING_SNAPSHOT_ISO,
   type ModelPrice,
   type PricingSnapshot,
-} from './pricing';
+} from './pricing.ts';
 
 /** The injected port: given a case, produce a model response. The live adapter is module M6. */
 export type ModelCaller = (c: BenchmarkCase) => ModelResponse;

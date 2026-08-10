@@ -15,11 +15,11 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { createInvocationRecorder } from './invocationRecorder';
-import { createTelegramMock, type TelegramMockConfig } from './telegramMock';
-import { MockPortFailure } from './failure';
-import { inlineFixtureSource, loadRecordedInteractions, nodeFixtureSource } from './fixtures';
-import type { TelegramDelivery, TelegramTransportConfig } from '../ports/telegram';
+import { createInvocationRecorder } from './invocationRecorder.ts';
+import { createTelegramMock, type TelegramMockConfig } from './telegramMock.ts';
+import { MockPortFailure } from './failure.ts';
+import { inlineFixtureSource, loadRecordedInteractions, nodeFixtureSource } from './fixtures.ts';
+import type { TelegramDelivery, TelegramTransportConfig } from '../ports/telegram.ts';
 
 const FIXED_NOW = (): string => '2026-03-02T09:00:00Z';
 

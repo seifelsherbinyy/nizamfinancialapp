@@ -55,7 +55,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { scanForParticulars, type ComposeFinding } from './composeTemplate';
+import { scanForParticulars, type ComposeFinding } from './composeTemplate.ts';
 
 // ---------------------------------------------------------------------------------------------
 // The series, and what each artifact claims about itself

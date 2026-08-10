@@ -36,17 +36,17 @@
  * message count, correlation reference. Prompt and completion text are never recorded, and
  * {@link ModelCallTelemetry} cannot hold them because `Redacted` types those keys `never` (§6.4).
  */
-import type { PortFailureCode } from '../ports/errors';
+import type { PortFailureCode } from '../ports/errors.ts';
 import type {
   ModelCallTelemetry,
   ModelRequest,
   ModelResult,
   OpenRouterPort,
   OpenRouterPortConfig,
-} from '../ports/openrouter';
-import { COST_SOURCE_ACTUAL } from '../../features/routing/spendLedger';
-import { MockPortFailure } from './failure';
-import type { InvocationRecorder } from './invocationRecorder';
+} from '../ports/openrouter.ts';
+import { COST_SOURCE_ACTUAL } from '../../features/routing/spendLedger.ts';
+import { MockPortFailure } from './failure.ts';
+import type { InvocationRecorder } from './invocationRecorder.ts';
 
 /**
  * One recorded model exchange — the replay unit. Declared here because it is the mock's input;

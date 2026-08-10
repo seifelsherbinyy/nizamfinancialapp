@@ -31,19 +31,19 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import * as barrel from './index';
-import * as driveModule from './drive';
-import * as errorsModule from './errors';
-import * as openrouterModule from './openrouter';
-import * as shapeGuardsModule from './shapeGuards';
-import * as signalBusModule from './signalBus';
-import * as telegramModule from './telegram';
-import * as whoopModule from './whoop';
+import * as barrel from './index.ts';
+import * as driveModule from './drive.ts';
+import * as errorsModule from './errors.ts';
+import * as openrouterModule from './openrouter.ts';
+import * as shapeGuardsModule from './shapeGuards.ts';
+import * as signalBusModule from './signalBus.ts';
+import * as telegramModule from './telegram.ts';
+import * as whoopModule from './whoop.ts';
 
-import { SIGNAL_TIERS, type SignalPayload } from './signalBus';
-import type { EncryptedSnapshotArtifact } from './drive';
-import type { ModelRequest } from './openrouter';
-import type { Exact } from './shapeGuards';
+import { SIGNAL_TIERS, type SignalPayload } from './signalBus.ts';
+import type { EncryptedSnapshotArtifact } from './drive.ts';
+import type { ModelRequest } from './openrouter.ts';
+import type { Exact } from './shapeGuards.ts';
 
 const PORTS_ROOT = fileURLToPath(new URL('./', import.meta.url));
 

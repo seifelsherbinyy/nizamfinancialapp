@@ -29,9 +29,9 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { openFinanceStore } from './store';
-import type { StoreHandle } from './connection';
-import { SCHEMA_STATEMENTS, TABLES, TELEMETRY_FORBIDDEN_COLUMNS } from './schema';
+import { openFinanceStore } from './store.ts';
+import type { StoreHandle } from './connection.ts';
+import { SCHEMA_STATEMENTS, TABLES, TELEMETRY_FORBIDDEN_COLUMNS } from './schema.ts';
 import {
   contentBreaches,
   ESTIMATE_SOURCE_PREFLIGHT,
@@ -45,9 +45,9 @@ import {
   type ModelTelemetryErrorCode,
   type PreflightCostEstimate,
   type TelemetryRecord,
-} from './modelTelemetryRepo';
-import { COST_SOURCE_ACTUAL, type SpendAgent } from '../../features/routing/spendLedger';
-import type { ModelCallTelemetry } from '../ports/openrouter';
+} from './modelTelemetryRepo.ts';
+import { COST_SOURCE_ACTUAL, type SpendAgent } from '../../features/routing/spendLedger.ts';
+import type { ModelCallTelemetry } from '../ports/openrouter.ts';
 
 const SOURCE_PATH = fileURLToPath(new URL('./modelTelemetryRepo.ts', import.meta.url));
 

@@ -26,23 +26,23 @@
  * ids, timestamps, and monetary values are always explicit, because a repository that
  * invented an id or read the wall clock would make its own writes untestable.
  */
-import type { Money } from '../../../lib/money/money';
-import type { LedgerTransactionType } from '../../../lib/ledger/ledger.types';
-import type { AccountType } from '../../../features/accounts/accounts.types';
+import type { Money } from '../../../lib/money/money.ts';
+import type { LedgerTransactionType } from '../../../lib/ledger/ledger.types.ts';
+import type { AccountType } from '../../../features/accounts/accounts.types.ts';
 import {
   OBLIGATION_PRIORITIES,
   type ObligationFrequency,
   type ObligationPriority,
-} from '../../../features/obligations/obligation.types';
+} from '../../../features/obligations/obligation.types.ts';
 
 /**
  * The canonical vocabulary, re-exported so a consumer of this tier has one import site and
  * no reason to reach for a second declaration of the same idea.
  */
-export type { Money } from '../../../lib/money/money';
-export type { LedgerTransactionType } from '../../../lib/ledger/ledger.types';
-export type { AccountType } from '../../../features/accounts/accounts.types';
-export type { ObligationFrequency, ObligationPriority } from '../../../features/obligations/obligation.types';
+export type { Money } from '../../../lib/money/money.ts';
+export type { LedgerTransactionType } from '../../../lib/ledger/ledger.types.ts';
+export type { AccountType } from '../../../features/accounts/accounts.types.ts';
+export type { ObligationFrequency, ObligationPriority } from '../../../features/obligations/obligation.types.ts';
 
 /** Default currency of the store. The DDL carries the same default. */
 export const DEFAULT_CURRENCY = 'EGP';

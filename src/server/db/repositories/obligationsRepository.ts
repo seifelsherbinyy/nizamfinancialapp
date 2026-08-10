@@ -26,8 +26,8 @@
  * add columns (§5.3 permits additive change); until one does, this row type is the
  * persisted subset and says so.
  */
-import { assertMonetaryCoverage, assertMoneyField, assertOptionalMoneyField } from '../moneyBoundary';
-import { RepositoryStateError } from '../errors';
+import { assertMonetaryCoverage, assertMoneyField, assertOptionalMoneyField } from '../moneyBoundary.ts';
+import { RepositoryStateError } from '../errors.ts';
 import {
   DEFAULT_CURRENCY,
   priorityFromOrdinal,
@@ -37,8 +37,8 @@ import {
   type ObligationInsert,
   type ObligationRow,
   type ObligationStatus,
-} from './rows';
-import { recordAudit, toNullableText, withTransaction, type RepositoryContext } from './support';
+} from './rows.ts';
+import { recordAudit, toNullableText, withTransaction, type RepositoryContext } from './support.ts';
 
 const TABLE = 'obligations';
 

@@ -1,5 +1,7 @@
 /**
  * NIZAM · Spec 08 wave A1 — the live shape, grain and roster gates (tasks A1.1, A1.2, A1.3).
+ * Implemented by: PFOS Contract 06 / Phase 2.1 (spec 08-knowledge-ingestion, wave A1)
+ * Depends on: ledgerHeader.ts, ledger.types.ts, @/features/import/ledgerImport, @/lib/money/money
  *
  * ## What these gates run against, and why they may skip
  *
@@ -53,14 +55,28 @@ function findByPattern(pattern: RegExp): string[] {
 const masterCandidates = findByPattern(/master_ledger.*\.csv$/i);
 const limitsCandidates = findByPattern(/credit_limits\.csv$/i);
 const perAccountTables = findByPattern(/transactions__.*\.csv$/i);
-const cachePresent = masterCandidates.length === 1 && limitsCandidates.length === 1;
+
+/**
+ * The two tier-1 paths, resolved once and exactly once. `undefined` means either absent or ambiguous,
+ * and those two cases are deliberately not distinguished here: both mean "do not read", and a gate that
+ * guessed which of several candidates was canonical would be choosing its own input.
+ */
+const masterPath = masterCandidates.length === 1 ? masterCandidates[0] : undefined;
+const limitsPath = limitsCandidates.length === 1 ? limitsCandidates[0] : undefined;
+const cachePresent = masterPath !== undefined && limitsPath !== undefined;
+
+/** Read a resolved tier-1 path, or the empty string when the cache is absent. */
+function readCached(path: string | undefined): string {
+  return path === undefined ? '' : readFileSync(path, 'utf8');
+}
 
 /** The row count the tracked contract declares, so the live count is checked against a contract. */
 function declaredRowCount(): number {
   const doc = readFileSync(join(LEDGER_DIR, 'LEDGER_SCHEMA.md'), 'utf8');
   const m = doc.match(/([\d,]+)\s+rows/i);
-  if (!m) throw new Error('the schema document no longer declares a row count');
-  return Number(m[1].replace(/,/g, ''));
+  const declared = m?.[1];
+  if (declared === undefined) throw new Error('the schema document no longer declares a row count');
+  return Number(declared.replace(/,/g, ''));
 }
 
 /** Deterministic shuffle, so "the order changed" is reproducible rather than a one-off. */
@@ -75,7 +91,12 @@ function seededShuffle<T>(items: readonly T[], seed: number): T[] {
   const out = [...items];
   for (let i = out.length - 1; i > 0; i -= 1) {
     const j = Math.floor(next() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
+    // Both indices are in range by construction, so the reads are total; the assertions exist because
+    // an indexed read is typed as possibly-absent and swapping through `undefined` would drop a row.
+    const a = out[i] as T;
+    const b = out[j] as T;
+    out[i] = b;
+    out[j] = a;
   }
   return out;
 }
@@ -135,7 +156,7 @@ describe('wave A1 observability', () => {
 });
 
 describe.skipIf(!cachePresent)('A1.1 — the canonical file matches the contract exactly', () => {
-  const masterText = cachePresent ? readFileSync(masterCandidates[0], 'utf8') : '';
+  const masterText = cachePresent ? readCached(masterPath) : '';
 
   it('has a header identical to the canonical ordered name set', () => {
     const table = parseCsv(masterText);
@@ -173,7 +194,7 @@ describe.skipIf(!cachePresent)('A1.1 — the canonical file matches the contract
 });
 
 describe.skipIf(!cachePresent)('A1.2 — the grain, proved before anything is keyed', () => {
-  const masterText = cachePresent ? readFileSync(masterCandidates[0], 'utf8') : '';
+  const masterText = cachePresent ? readCached(masterPath) : '';
 
   it('names a candidate key that is unique, and reports the duplicate excess of each', () => {
     const parsed = parseLedgerCsv(masterText);
@@ -208,7 +229,7 @@ describe.skipIf(!cachePresent)('A1.2 — the grain, proved before anything is ke
     // The hard gate: at least one declared candidate must actually identify a row. If none does, the
     // load cannot key on the data and must carry a surrogate, which is a decision, not a default.
     const unique = report.filter((r) => r.duplicate_excess === 0);
-    evidence.grain_chosen = unique.length > 0 ? unique[0].key : null;
+    evidence.grain_chosen = unique[0]?.key ?? null;
     expect(
       unique.length,
       `no candidate key is unique. Duplicate excess by key: ${report.map((r) => `${r.key}=${r.duplicate_excess}`).join('; ')}`,
@@ -241,8 +262,8 @@ describe.skipIf(!cachePresent)('A1.2 — the grain, proved before anything is ke
 });
 
 describe.skipIf(!cachePresent)('A1.3 — the credit-limit table and the account roster', () => {
-  const limitsText = cachePresent ? readFileSync(limitsCandidates[0], 'utf8') : '';
-  const masterText = cachePresent ? readFileSync(masterCandidates[0], 'utf8') : '';
+  const limitsText = cachePresent ? readCached(limitsPath) : '';
+  const masterText = cachePresent ? readCached(masterPath) : '';
 
   it('declares exactly its three contracted columns, in order', () => {
     const table = parseCsv(limitsText);

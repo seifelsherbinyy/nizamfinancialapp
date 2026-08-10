@@ -44,11 +44,11 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { BACKUP_SCRIPT_PATH, RESTORE_ENTRIES, RESTORE_SCRIPT_PATH, RESTORE_SEQUENCE, parseShellScript } from './backupScripts';
-import { scanForParticulars, type ComposeFinding } from './composeTemplate';
-import { ENTRY_SPECS } from './envTemplates';
-import { EXPECTED_SCHEMA_VERSION, PROBE_COMMAND_NAME, parseProbeInvocation } from './healthProbe';
-import { TELEGRAM_TRANSPORT_MODES } from '../ports/telegram';
+import { BACKUP_SCRIPT_PATH, RESTORE_ENTRIES, RESTORE_SCRIPT_PATH, RESTORE_SEQUENCE, parseShellScript } from './backupScripts.ts';
+import { scanForParticulars, type ComposeFinding } from './composeTemplate.ts';
+import { ENTRY_SPECS } from './envTemplates.ts';
+import { EXPECTED_SCHEMA_VERSION, PROBE_COMMAND_NAME, parseProbeInvocation } from './healthProbe.ts';
+import { TELEGRAM_TRANSPORT_MODES } from '../ports/telegram.ts';
 
 // ---------------------------------------------------------------------------------------------
 // The parsed shape

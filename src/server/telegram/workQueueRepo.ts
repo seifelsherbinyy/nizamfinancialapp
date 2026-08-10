@@ -45,9 +45,9 @@
  * No bot identifier, sender, token, endpoint, or update identifier appears here as a literal, and
  * no backoff or retention number is hard-coded: every one is injected (R24, steering §0b).
  */
-import type { StoreHandle } from '../db/connection';
-import type { PortFailureCode } from '../ports/errors';
-import type { DedupKey, TelegramWorkItem, TelegramWorkOutcome } from '../ports/telegram';
+import type { StoreHandle } from '../db/connection.ts';
+import type { PortFailureCode } from '../ports/errors.ts';
+import type { DedupKey, TelegramWorkItem, TelegramWorkOutcome } from '../ports/telegram.ts';
 
 /** Discriminator for every refusal this module raises. A caller matches `code`, never prose. */
 export type WorkQueueErrorCode =

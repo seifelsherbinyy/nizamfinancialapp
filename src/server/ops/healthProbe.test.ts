@@ -52,10 +52,10 @@ import {
   type ReadinessCheck,
   type ReadinessFailure,
   type ReadinessReport,
-} from './healthProbe';
-import { MIGRATIONS, currentSchemaVersion, migrate } from '../db/migrations';
-import { openStore, type StoreHandle } from '../db/connection';
-import { openFinanceStore } from '../db/store';
+} from './healthProbe.ts';
+import { MIGRATIONS, currentSchemaVersion, migrate } from '../db/migrations.ts';
+import { openStore, type StoreHandle } from '../db/connection.ts';
+import { openFinanceStore } from '../db/store.ts';
 
 const RESTORE_PATH = fileURLToPath(new URL('../../../ops/restore/restore.sh', import.meta.url));
 const RESTORE = readFileSync(RESTORE_PATH, 'utf8').split('\r\n').join('\n');

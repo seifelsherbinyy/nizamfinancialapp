@@ -25,8 +25,8 @@ import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { openFinanceStore } from './store';
-import type { StoreHandle } from './connection';
+import { openFinanceStore } from './store.ts';
+import type { StoreHandle } from './connection.ts';
 import {
   agentBudgetFromStore,
   appendSpend,
@@ -34,13 +34,13 @@ import {
   readWeekRows,
   weeklySpendMicroUsd,
   type ProviderReportedSpend,
-} from './spendLedgerRepo';
+} from './spendLedgerRepo.ts';
 import {
   COST_SOURCE_ACTUAL,
   SpendLedgerError,
   type CostSourceActual,
   type SpendAgent,
-} from '../../features/routing/spendLedger';
+} from '../../features/routing/spendLedger.ts';
 
 const WEEK = 'W2026-03-02';
 /** A synthetic injected cap, integer micro-USD. Deliberately not the owner's real cap. */

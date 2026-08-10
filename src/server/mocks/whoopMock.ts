@@ -30,7 +30,7 @@
  * tier uses everywhere. An offset-bearing timestamp would not compare correctly and is refused as
  * uninterpretable rather than silently mis-ordered.
  */
-import type { PortFailureCode } from '../ports/errors';
+import type { PortFailureCode } from '../ports/errors.ts';
 import type {
   WhoopPort,
   WhoopPortConfig,
@@ -38,9 +38,9 @@ import type {
   WhoopRecoveryQuery,
   WhoopRecoveryState,
   WhoopUnavailableReason,
-} from '../ports/whoop';
-import { MockPortFailure } from './failure';
-import type { InvocationRecorder } from './invocationRecorder';
+} from '../ports/whoop.ts';
+import { MockPortFailure } from './failure.ts';
+import type { InvocationRecorder } from './invocationRecorder.ts';
 
 /** The UTC instant form this tier uses. Anything else cannot be ordered by comparison. */
 const UTC_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;

@@ -27,16 +27,16 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createDriveMock } from './driveMock';
-import { createInvocationRecorder, type InvocationRecorder } from './invocationRecorder';
-import { createOpenRouterMock } from './openrouterMock';
-import { createSignalBusMock } from './signalBusMock';
-import { createTelegramMock } from './telegramMock';
-import { createWhoopMock } from './whoopMock';
-import { loadRecordedInteractions, nodeFixtureSource, signalDraftFrom, snapshotArtifactFrom } from './fixtures';
-import type { ModelRequest } from '../ports/openrouter';
-import type { SnapshotUploadReceipt, SnapshotVerification } from '../ports/drive';
-import type { StoredSignalReceipt } from '../ports/signalBus';
+import { createDriveMock } from './driveMock.ts';
+import { createInvocationRecorder, type InvocationRecorder } from './invocationRecorder.ts';
+import { createOpenRouterMock } from './openrouterMock.ts';
+import { createSignalBusMock } from './signalBusMock.ts';
+import { createTelegramMock } from './telegramMock.ts';
+import { createWhoopMock } from './whoopMock.ts';
+import { loadRecordedInteractions, nodeFixtureSource, signalDraftFrom, snapshotArtifactFrom } from './fixtures.ts';
+import type { ModelRequest } from '../ports/openrouter.ts';
+import type { SnapshotUploadReceipt, SnapshotVerification } from '../ports/drive.ts';
+import type { StoredSignalReceipt } from '../ports/signalBus.ts';
 
 const MOCKS_ROOT = fileURLToPath(new URL('./', import.meta.url));
 const FIXED_NOW = (): string => '2026-03-02T09:00:00Z';

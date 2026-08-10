@@ -116,6 +116,86 @@ A reference in state `EXTERNAL` skips steps 3 and 4: the operator resolves it in
 the owning party published, and pulls it. A reference in state `OWNED_BUILD_PENDING` has no step at
 all yet, which is precisely why it carries a blocking task.
 
+## Why there is still no build step, and what had to change instead (F20, resolved)
+
+**The decision: every relative specifier under `src/` and `tests/` carries its real extension, and
+`allowImportingTsExtensions` is enabled. There is no compile step, no emitted output, and `src/` is
+still the artifact.** Recorded here because this document owns the build path, and the alternative
+would have changed it.
+
+### The defect
+
+Every relative import in this repository used to be written extensionless - `import { main } from './main'`.
+The project's own toolchain resolves that: `moduleResolution: "bundler"`, and Vite and Vitest search
+the same way. **Node's ESM resolver performs no extension search.** Every recipe above launches source
+directly with bare `node`, so:
+
+```
+node src/server/process/start.ts
+  → Error [ERR_MODULE_NOT_FOUND]: Cannot find module '…/src/server/process/main'
+```
+
+It failed on the first import, before any environment was read, on every host, in every mode - measured
+against Node v24.14.1, the major `.nvmrc` pins. It took down all three `ENTRYPOINT` lines, all four
+`--health` commands, the restore drill's `probe.ts`, and `npm start` / `npm run health`. That is finding
+**F20**, and its consequence is the same shape as **O1**'s, one layer in: with every gate G1 through G8
+observed, `docker compose up` still stood up nothing, because each container exited immediately.
+
+It hid behind a green suite. Tasks 10.7, 10.19, 10.20 and 10.21 proved these processes through Vitest,
+which imports them through the project's resolver rather than the container's. **2126 passing tests
+were evidence about the logic and no evidence at all about the launch.**
+
+### The two candidates, weighed on speed
+
+The owner's ranking criterion is **speed**: between two correct options, the one that is live sooner.
+
+| | **(a)** an extension on every relative specifier | **(b)** a build step emitting runnable modules |
+|---|---|---|
+| Artifacts that move | `tsconfig.json`, and 205 files under `src/`+`tests/` - mechanically, one token each | the three recipes above, this document, `package.json`, plus a new emitted tree |
+| This document's own claim | unchanged: `src/` stays the artifact | contradicted: every recipe's opening paragraph states there is no compiler step |
+| Steering §1's invariant | untouched | **at risk** - a compile output is a second copy of the money core, and §1 states the one invariant this repository never trades |
+| Browser build | unchanged; Vite resolves an explicit extension natively | a second output tree to keep out of the bundle (AC08b) |
+| Vitest | unchanged; it resolves an explicit extension natively | tests would run against source while images ran against output - two resolutions, one of them unobserved |
+| Can it regress silently? | **no**, and this is the deciding row | **yes**: a stale or partial emit produces an image that starts and is wrong |
+
+**(a)** was chosen. It moves more files and fewer *kinds* of thing, and the count is the wrong measure:
+205 single-token edits in one mechanical pass are cheaper and far less dangerous than four coupled
+artifacts plus a new output tree, and every audit already written against these recipes keeps holding
+without an edit. **Zero Dockerfile lines changed**, which is the clearest statement of why it was
+faster - the recipes were correct all along, and the source they copy was not.
+
+`allowImportingTsExtensions` is legal only alongside `noEmit`, which this project already sets, and the
+pairing is asserted. The permission is therefore not a loosening: it is the compiler agreeing with a
+runtime that emits nothing.
+
+### The check that holds it
+
+The lesson of F20 is that a suite passing through a different resolver proved nothing, so the guard
+asserts **the real launch path**, and it is reported under **AC16** rather than as a twenty-first check
+- the harness still runs twenty, and that count is asserted in several documents. AC16 already owned
+the claim *this repository runs on the runtime it pins*; `scripts/verify/launch-path.mjs` finishes it:
+
+- **Static.** No relative specifier in the repository's own content is extensionless. Catches a module
+  that is not reachable from an entrypoint *yet*, which is where the next instance would begin.
+- **Launch.** All four shims are spawned with bare `node` and an environment holding nothing of the
+  developer machine. Each must **reach the loader** - refuse the environment with the aggregate, or
+  answer not-ready - rather than die on module resolution.
+- **Vacuity.** A missing entrypoint, an empty case list, an exit code that is not the refusal, output on
+  a stream that must stay silent, and a specifier count below its floor are all findings. So is a
+  **dead detector**: the launch half ends by spawning a synthetic module with exactly the F20 shape and
+  requiring it to fail, because a guard that cannot fail is not a guard.
+
+`src/server/ops/launchPath.test.ts` holds the cross-artifact half at test time: each recipe's
+`ENTRYPOINT`, each installed `exec node …` line, and both npm scripts name a file that exists and is one
+of the four; the launch graph resolves with **no** search; and it contains no path alias, which the
+extension rule would accept and the runtime would still refuse.
+
+One workaround died with the finding. `scripts/ladder/ts-resolve.mjs` supplied exactly the one
+resolution Node lacked so rung **L0** could be observed at all; the runtime now performs that resolution
+itself, so the hook is deleted and `scripts/ladder/l0-config.mjs` launches the entrypoint with **bare
+`node`** - which is what turns L0's evidence into evidence about the real launch path rather than about
+a resolver no container has.
+
 ## The port posture this build path assumes (F12, resolved)
 
 **The certificate challenge is TLS-ALPN-01 on `<TLS_PORT>` alone. The cleartext challenge port is

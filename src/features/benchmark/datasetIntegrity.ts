@@ -20,8 +20,8 @@ import {
   type ExpectedAnswer,
   CATEGORY_TIER,
   SEVERITIES,
-} from './benchmark.types';
-import { egpAmountText } from './dataset';
+} from './benchmark.types.ts';
+import { egpAmountText } from './dataset.ts';
 
 // ---- pinned limits (steering §0b proxies; changing one must break a test) ---------------------
 

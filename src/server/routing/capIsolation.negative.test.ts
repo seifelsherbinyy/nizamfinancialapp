@@ -50,7 +50,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { MODEL_GLM, MODEL_MIMO } from '../../features/routing/modelPolicy';
+import { MODEL_GLM, MODEL_MIMO } from '../../features/routing/modelPolicy.ts';
 import {
   agentWeeklyBudget,
   COST_SOURCE_ACTUAL,
@@ -60,22 +60,22 @@ import {
   type AgentWeeklyBudget,
   type SpendAgent,
   type SpendLedgerRow,
-} from '../../features/routing/spendLedger';
-import { agentBudgetFromStore, appendSpend } from '../db/spendLedgerRepo';
-import { openTestStore } from '../db/repositories/testStore';
-import { createInvocationRecorder } from '../mocks/invocationRecorder';
-import { createOpenRouterMock, type OpenRouterMock } from '../mocks/openrouterMock';
-import { isMockPortFailure } from '../mocks/failure';
-import type { ModelRequest, OpenRouterPortConfig, ProviderPrivacyPolicy } from '../ports/openrouter';
+} from '../../features/routing/spendLedger.ts';
+import { agentBudgetFromStore, appendSpend } from '../db/spendLedgerRepo.ts';
+import { openTestStore } from '../db/repositories/testStore.ts';
+import { createInvocationRecorder } from '../mocks/invocationRecorder.ts';
+import { createOpenRouterMock, type OpenRouterMock } from '../mocks/openrouterMock.ts';
+import { isMockPortFailure } from '../mocks/failure.ts';
+import type { ModelRequest, OpenRouterPortConfig, ProviderPrivacyPolicy } from '../ports/openrouter.ts';
 import {
   admitEligibilityRegistry,
   ELIGIBILITY_REGISTRY_VERSION,
   type AdmittedRegistry,
   type EligibilityRegistryEntry,
   type LiveEligibilityRegistry,
-} from './eligibilityRegistry';
-import { ModelRoutingError, routeModel } from './modelRouter';
-import { classifyTurn, isModelBearing, type ModelInvocationGrant, type TurnFacts } from './turnClassifier';
+} from './eligibilityRegistry.ts';
+import { ModelRoutingError, routeModel } from './modelRouter.ts';
+import { classifyTurn, isModelBearing, type ModelInvocationGrant, type TurnFacts } from './turnClassifier.ts';
 
 const WEEK_KEY = weekKeyOf('2026-08-06');
 /** Synthetic per-agent cap, well above one nominal turn. Not the owner's cap. */

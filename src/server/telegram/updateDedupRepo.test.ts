@@ -22,14 +22,14 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { openFinanceStore } from '../db/store';
-import type { StoreHandle } from '../db/connection';
+import { openFinanceStore } from '../db/store.ts';
+import type { StoreHandle } from '../db/connection.ts';
 import {
   claimDelivery,
   pruneDedupBefore,
   UpdateDedupError,
   type UpdateDedupContext,
-} from './updateDedupRepo';
+} from './updateDedupRepo.ts';
 
 /** Synthetic bots. Two of them, because one bot cannot exhibit the collision R14 describes. */
 const BOT_ONE = 'bot-one';

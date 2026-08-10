@@ -6,10 +6,10 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ObligationsView } from './ObligationsView';
-import { bootStore, fixtureDb } from '../../../tests/helpers/fixtures';
+import { ObligationsView } from './ObligationsView.tsx';
+import { bootStore, fixtureDb } from '../../../tests/helpers/fixtures.ts';
 import { useNizamStore } from '@/state/store';
-import type { Obligation } from './obligation.types';
+import type { Obligation } from './obligation.types.ts';
 
 function mkOb(creditor: string, amount: number): Obligation {
   return {

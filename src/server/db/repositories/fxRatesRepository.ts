@@ -25,11 +25,11 @@
  * conversion already recorded against last week's rate must stay re-derivable (contract 03
  * §8.3). There is no update path and no delete path.
  */
-import type { FxRate } from '../../../features/netWorth/netWorth.types';
-import { assertRatePair } from '../moneyBoundary';
-import { RepositoryStateError } from '../errors';
-import type { FxRateInsert, FxRateRow } from './rows';
-import { recordAudit, withTransaction, type RepositoryContext } from './support';
+import type { FxRate } from '../../../features/netWorth/netWorth.types.ts';
+import { assertRatePair } from '../moneyBoundary.ts';
+import { RepositoryStateError } from '../errors.ts';
+import type { FxRateInsert, FxRateRow } from './rows.ts';
+import { recordAudit, withTransaction, type RepositoryContext } from './support.ts';
 
 const TABLE = 'fx_rates';
 

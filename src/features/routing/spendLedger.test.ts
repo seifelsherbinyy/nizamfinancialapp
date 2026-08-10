@@ -36,7 +36,7 @@ import {
   weekKeyOf,
   type SpendAgent,
   type SpendLedgerRow,
-} from './spendLedger';
+} from './spendLedger.ts';
 
 const SOURCE_PATH = fileURLToPath(new URL('./spendLedger.ts', import.meta.url));
 

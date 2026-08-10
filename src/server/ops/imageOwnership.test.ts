@@ -32,8 +32,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { HTTP_CHALLENGE_DISABLE_DIRECTIVE } from './caddyTemplate';
-import { PROBE_COMMAND_NAME } from './healthProbe';
+import { HTTP_CHALLENGE_DISABLE_DIRECTIVE } from './caddyTemplate.ts';
+import { PROBE_COMMAND_NAME } from './healthProbe.ts';
 import {
   ADMIN_PORT_PLACEHOLDER,
   CHALLENGE_NEEDING_CLEARTEXT_PORT,
@@ -59,7 +59,7 @@ import {
   type ImageOwnershipInput,
   type PortPostureInput,
   type RecipeInput,
-} from './imageOwnership';
+} from './imageOwnership.ts';
 
 const REPO = fileURLToPath(new URL('../../../', import.meta.url));
 

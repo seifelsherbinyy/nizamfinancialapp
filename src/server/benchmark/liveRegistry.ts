@@ -66,33 +66,33 @@
  * reported it and never converted or re-derived. Owner money (integer milliunits, `src/lib/money`) does
  * not appear. No `parseFloat`, no `.toFixed(`.
  */
-import { auditEvalSet, type IntegrityProblem } from '../../features/benchmark/datasetIntegrity';
-import { buildEvalSet, validateEvalSet } from '../../features/benchmark/dataset';
+import { auditEvalSet, type IntegrityProblem } from '../../features/benchmark/datasetIntegrity.ts';
+import { buildEvalSet, validateEvalSet } from '../../features/benchmark/dataset.ts';
 import {
   developerBuildPasses,
   unmeasuredDeveloperBuild,
   type UnmeasuredDeveloperBuild,
-} from '../../features/benchmark/developerBuild';
-import type { BenchmarkCase } from '../../features/benchmark/benchmark.types';
-import type { ModelEligibility } from '../../features/benchmark/eligibility';
-import { runBenchmark, serializeOutputs, type BenchmarkRun, type ModelCaller } from '../../features/benchmark/runner';
+} from '../../features/benchmark/developerBuild.ts';
+import type { BenchmarkCase } from '../../features/benchmark/benchmark.types.ts';
+import type { ModelEligibility } from '../../features/benchmark/eligibility.ts';
+import { runBenchmark, serializeOutputs, type BenchmarkRun, type ModelCaller } from '../../features/benchmark/runner.ts';
 // TYPE-ONLY, and deliberately so: these edges are erased at compile time, so this module holds no
 // runtime reference to the live adapter. The two capabilities it needs are injected instead.
 import type {
   LiveMeasurementWitness,
   LiveModelExchange,
   LiveModelRun,
-} from '../../features/benchmark/liveModelCaller';
+} from '../../features/benchmark/liveModelCaller.ts';
 import type {
   EligibilityRegistryEntry,
   LiveEligibilityRegistry,
-} from '../routing/eligibilityRegistry';
-import { ELIGIBILITY_REGISTRY_VERSION } from '../routing/eligibilityRegistry';
+} from '../routing/eligibilityRegistry.ts';
+import { ELIGIBILITY_REGISTRY_VERSION } from '../routing/eligibilityRegistry.ts';
 import {
   PER_MODEL_ARTIFACT_NAMES,
   PROVISIONAL_REGISTRY_FILE_NAME,
   artifactPrefixForModel,
-} from './provisionalRegistry';
+} from './provisionalRegistry.ts';
 
 /**
  * Contract 09 fixes this artifact name, and a MEASURED registry uses the same one: it is the file

@@ -32,7 +32,7 @@ import {
   SIGNAL_NOTE_MAX_LENGTH,
   SIGNAL_PRODUCERS,
   SIGNAL_TIERS,
-} from '../ports/signalBus';
+} from '../ports/signalBus.ts';
 import {
   DRAFT_ENVELOPE_KEYS,
   ENVELOPE_WIRE_NAMES,
@@ -41,7 +41,7 @@ import {
   SIGNAL_ENVELOPE_SCHEMA_ID,
   SIGNAL_ID_MAX_LENGTH,
   STORED_ENVELOPE_KEYS,
-} from './envelopeSchema';
+} from './envelopeSchema.ts';
 
 const SCHEMA_PATH = fileURLToPath(new URL(`./${SIGNAL_ENVELOPE_SCHEMA_FILE}`, import.meta.url));
 const RAW = readFileSync(SCHEMA_PATH, 'utf8');

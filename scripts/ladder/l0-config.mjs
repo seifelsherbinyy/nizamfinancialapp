@@ -23,6 +23,15 @@
  *      `store_opened` line on its own output stream — and must not emit an aggregate refusal. The
  *      child is then terminated, because under `longPoll` a booted agent runs until it is stopped.
  *
+ * THE ENTRYPOINT IS LAUNCHED THE WAY A CONTAINER LAUNCHES IT — bare `node`, no hook, no flag. That
+ * is the whole point of task 10.23, and it changes what this rung is evidence ABOUT. Until F20 was
+ * repaired the child below was spawned with `--import ./scripts/ladder/ts-resolve.mjs`, a hook that
+ * restored the one resolution the project's toolchain performs and Node's own resolver does not, so
+ * the observation was about the loader and said nothing about the launch. Every relative specifier
+ * under `src/` now carries its real extension, so the resolution the hook supplied is the resolution
+ * the runtime performs — the hook is gone, and this rung now observes the same command the three
+ * owned images' ENTRYPOINT lines carry.
+ *
  * NO SECRET, NO PARTICULAR, NO NETWORK (R24, steering §2). Every value below is a LADDER value: a
  * self-evident non-value chosen so that it cannot be a deployment particular and cannot be mistaken
  * for one. No token, key or identifier of the deployment is read, written or invented — the finance
@@ -31,11 +40,12 @@
  * makes case B safe to run under the phase-1 posture. The store is created in a temporary directory
  * outside the repository and removed at the end.
  *
- * FINDING F20, MET WHILE WRITING THIS. Bare `node src/server/process/start.ts` cannot start: every
- * relative import under `src/` is extensionless, which the project's toolchain resolves and Node's own
- * ESM resolver does not. The child below is therefore launched with `./scripts/ladder/ts-resolve.mjs`,
- * which restores exactly that one resolution and nothing else. Read that file: the defect is real, it
- * blocks rung L2 for all three owned images, and it is recorded rather than repaired here.
+ * FINDING F20, MET WHILE WRITING THIS AND REPAIRED BY TASK 10.23. Bare
+ * `node src/server/process/start.ts` used to answer `ERR_MODULE_NOT_FOUND` on its first import, so no
+ * owned image could start and rung L2 was unreachable with every gate observed. The repair gave every
+ * relative specifier its extension; the check that holds it is the launch half of **AC16**
+ * (`scripts/verify/launch-path.mjs`), which spawns all four shims with bare `node` on every harness
+ * run. This rung is the same observation taken end to end rather than the check that guards it.
  */
 import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -43,7 +53,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const ENTRYPOINT = 'src/server/process/start.ts';
-const RESOLVE_HOOK = './scripts/ladder/ts-resolve.mjs';
 const BOT_IDENTITY = 'ladder-bot';
 
 /** How long a case may take before it is reported as a failure rather than waited on for ever. */
@@ -108,7 +117,7 @@ function incompleteEnvironment(dataDir) {
  */
 function runEntrypoint(env, stopOn) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, ['--import', RESOLVE_HOOK, ENTRYPOINT, '--bot-id', BOT_IDENTITY], {
+    const child = spawn(process.execPath, [ENTRYPOINT, '--bot-id', BOT_IDENTITY], {
       // A CLEAN environment plus the ladder entries, so nothing on the developer machine can supply
       // an entry the case is meant to be missing. `PATH` and `SystemRoot` are the platform's own.
       env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, ...env },
@@ -151,8 +160,8 @@ const dataDir = mkdtempSync(join(tmpdir(), 'nizam-ladder-l0-'));
 
 try {
   console.log('NIZAM test ladder — rung L0 (config): the loader refuses an incomplete environment');
-  console.log(`entrypoint: node --import ${RESOLVE_HOOK} ${ENTRYPOINT} --bot-id ${BOT_IDENTITY}`);
-  console.log('           (the hook is finding F20, not a convenience — see ts-resolve.mjs)');
+  console.log(`entrypoint: node ${ENTRYPOINT} --bot-id ${BOT_IDENTITY}`);
+  console.log('           (bare node, exactly as the three owned images launch it — finding F20 repaired by task 10.23)');
   console.log('');
 
   // --- case A: four entries broken at once ---------------------------------------------------

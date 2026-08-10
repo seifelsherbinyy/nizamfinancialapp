@@ -3,10 +3,10 @@
  * Implemented by: KIRO Contract 2 / Phase 2.4
  */
 import { describe, it, expect } from 'vitest';
-import { merge3, pushDb } from './sync';
-import { ensureDb } from './driveDb';
+import { merge3, pushDb } from './sync.ts';
+import { ensureDb } from './driveDb.ts';
 import { createEmptyDb, type NizamDb } from '@/lib/db/schema';
-import { FakeDrive } from '../../../tests/helpers/fakeDriveClient';
+import { FakeDrive } from '../../../tests/helpers/fakeDriveClient.ts';
 
 const NOW = '2026-07-29T12:00:00.000Z';
 

@@ -33,15 +33,15 @@ import {
   SERVICE_ENTRY_NAMES,
   SHARED_ENTRIES,
   type EnvSource,
-} from '../config/environment';
-import { enqueueWork, workQueueDepth } from '../telegram/workQueueRepo';
-import { openFinanceStore } from '../db/store';
-import type { TelegramTransportMode, TelegramWorkItem, TelegramWorkOutcome } from '../ports/telegram';
-import type { SignalDraft, StoredSignalReceipt } from '../ports/signalBus';
-import type { ModelInvocationGrant } from '../routing/turnClassifier';
-import type { ModelRequest } from '../ports/openrouter';
-import type { TelegramFetchRequest, TelegramUpdateBatch } from '../telegram/liveTransport';
-import { HaltEngagedError } from './haltGate';
+} from '../config/environment.ts';
+import { enqueueWork, workQueueDepth } from '../telegram/workQueueRepo.ts';
+import { openFinanceStore } from '../db/store.ts';
+import type { TelegramTransportMode, TelegramWorkItem, TelegramWorkOutcome } from '../ports/telegram.ts';
+import type { SignalDraft, StoredSignalReceipt } from '../ports/signalBus.ts';
+import type { ModelInvocationGrant } from '../routing/turnClassifier.ts';
+import type { ModelRequest } from '../ports/openrouter.ts';
+import type { TelegramFetchRequest, TelegramUpdateBatch } from '../telegram/liveTransport.ts';
+import { HaltEngagedError } from './haltGate.ts';
 import {
   bootFinanceAgent,
   FINANCE_CONTAINER_PORT_ENTRY,
@@ -53,7 +53,7 @@ import {
   type HttpListenerHandle,
   type HttpListenerHost,
   type ProcessHost,
-} from './financeAgent';
+} from './financeAgent.ts';
 
 const SENTINEL_PATH = `${KILL_SENTINEL_MOUNT_TARGET}/halt`;
 const SYNTHETIC_BASE = 'https://provider.invalid';

@@ -6,8 +6,8 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { DecideView } from './DecideView';
-import { bootStore, fixtureDb } from '../../../tests/helpers/fixtures';
+import { DecideView } from './DecideView.tsx';
+import { bootStore, fixtureDb } from '../../../tests/helpers/fixtures.ts';
 import { useNizamStore } from '@/state/store';
 
 function seeded(cash: number) {

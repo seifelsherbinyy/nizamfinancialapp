@@ -63,7 +63,7 @@ import {
   TIER_PREMIUM_PICK,
   WEEKLY_BUDGET_USD,
   budgetPhase,
-} from './modelPolicy';
+} from './modelPolicy.ts';
 
 describe('owner decision K4 is pinned to its own numbers, so a constant cannot silently redefine it', () => {
   it('holds the weekly cap at the five dollars K4 states', () => {

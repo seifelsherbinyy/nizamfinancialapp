@@ -48,7 +48,7 @@ import {
   phaseOneServicesNamedIn,
   type ComposeFindingCode,
   type YamlMap,
-} from './composeTemplate';
+} from './composeTemplate.ts';
 
 const TEMPLATE_PATH = fileURLToPath(new URL('../../../ops/docker-compose.yml', import.meta.url));
 /** Line endings are normalized so the mutation anchors below do not depend on the checkout's setting.

@@ -21,8 +21,8 @@ import {
   BUS_HEARTBEAT_INTERVAL_MS,
   BUS_HEARTBEAT_MAX_AGE_MS,
   heartbeatIsFresh,
-} from './busServer';
-import { CLOCK_QUANTIZATION_MS, createFileLivenessRecord, LIVENESS_TOUCH_INTERVAL_MS, livenessIsFresh } from './liveness';
+} from './busServer.ts';
+import { CLOCK_QUANTIZATION_MS, createFileLivenessRecord, LIVENESS_TOUCH_INTERVAL_MS, livenessIsFresh } from './liveness.ts';
 
 const RECORD_NAME = 'service-liveness';
 const WINDOW_MS = 30_000;

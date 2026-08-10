@@ -3,8 +3,8 @@
  * Implemented by: KIRO Contract 2 / Phase 2.2
  */
 import { describe, it, expect } from 'vitest';
-import { FakeDrive } from '../../../tests/helpers/fakeDriveClient';
-import { ensureDb, loadDb, saveDb, pruneSnapshots, DB_FILE_NAME, SNAPSHOT_RETAIN } from './driveDb';
+import { FakeDrive } from '../../../tests/helpers/fakeDriveClient.ts';
+import { ensureDb, loadDb, saveDb, pruneSnapshots, DB_FILE_NAME, SNAPSHOT_RETAIN } from './driveDb.ts';
 import { createEmptyDb, SCHEMA_VERSION } from '@/lib/db/schema';
 
 const NOW = '2026-07-29T10:00:00.000Z';

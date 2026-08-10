@@ -25,7 +25,7 @@ import {
   killAllEngagedAtBoot,
   type HaltForm,
   type HaltedActivity,
-} from './haltGate';
+} from './haltGate.ts';
 
 function refusalOf(run: () => void): HaltEngagedError | null {
   try {

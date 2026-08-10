@@ -31,15 +31,15 @@
  * estimated or not yet been observed has no value — and an absent effect is never read as
  * a zero effect.
  */
-import { assertMonetaryCoverage, assertOptionalMoneyField } from '../moneyBoundary';
-import { RepositoryStateError } from '../errors';
+import { assertMonetaryCoverage, assertOptionalMoneyField } from '../moneyBoundary.ts';
+import { RepositoryStateError } from '../errors.ts';
 import {
   ASSIGNABLE_DECISION_OUTCOME_STATES,
   type DecisionInsert,
   type DecisionOutcomeState,
   type DecisionRow,
-} from './rows';
-import { recordAudit, toNullableText, withTransaction, type RepositoryContext } from './support';
+} from './rows.ts';
+import { recordAudit, toNullableText, withTransaction, type RepositoryContext } from './support.ts';
 
 const TABLE = 'decisions';
 

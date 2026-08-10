@@ -46,16 +46,16 @@
  * Every figure below is synthetic. The repository is public and holds no real amount.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { allocate, sum, type Money } from '../../lib/money/money';
-import type { Account } from '../../features/accounts/accounts.types';
-import type { Obligation } from '../../features/obligations/obligation.types';
-import { obligationFundingReport } from '../../features/obligations/obligations.logic';
-import type { Transaction } from '../../features/transactions/transaction.types';
-import type { FinancialPolicy } from '../../features/safeToSpend/policy.types';
-import { netWorth, realValue } from '../../features/netWorth/netWorth';
-import type { FxRate } from '../../features/netWorth/netWorth.types';
-import { createEmptyDb, type NizamDb } from '../../lib/db/schema';
-import { openTestStore, type TestStore } from './repositories/testStore';
+import { allocate, sum, type Money } from '../../lib/money/money.ts';
+import type { Account } from '../../features/accounts/accounts.types.ts';
+import type { Obligation } from '../../features/obligations/obligation.types.ts';
+import { obligationFundingReport } from '../../features/obligations/obligations.logic.ts';
+import type { Transaction } from '../../features/transactions/transaction.types.ts';
+import type { FinancialPolicy } from '../../features/safeToSpend/policy.types.ts';
+import { netWorth, realValue } from '../../features/netWorth/netWorth.ts';
+import type { FxRate } from '../../features/netWorth/netWorth.types.ts';
+import { createEmptyDb, type NizamDb } from '../../lib/db/schema.ts';
+import { openTestStore, type TestStore } from './repositories/testStore.ts';
 import {
   createAccountsRepository,
   createDecisionsRepository,
@@ -67,7 +67,7 @@ import {
   type FxRateRow,
   type ObligationRow,
   type TransactionRow,
-} from './repositories';
+} from './repositories/index.ts';
 
 const AS_OF = '2026-03-15';
 const REFERENCE = 'SYN'; // A synthetic currency code. No real market pair appears here.

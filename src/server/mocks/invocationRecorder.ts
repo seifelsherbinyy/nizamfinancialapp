@@ -25,7 +25,7 @@
  *   there is one definition of "this key carries content" rather than two that can drift.
  *   Recording `{ content: '…' }` is a compile error, not a review comment.
  */
-import type { ContentBearingKey } from '../ports/shapeGuards';
+import type { ContentBearingKey } from '../ports/shapeGuards.ts';
 
 /** The five boundaries this directory mocks. Enumerated, so a typo is a compile error. */
 export const MOCK_PORT_NAMES = ['telegram', 'openrouter', 'drive', 'whoop', 'signalBus'] as const;

@@ -79,29 +79,29 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
 
-import { auditEvalSet, type IntegrityProblem } from '../../features/benchmark/datasetIntegrity';
-import { buildEvalSet, validateEvalSet } from '../../features/benchmark/dataset';
+import { auditEvalSet, type IntegrityProblem } from '../../features/benchmark/datasetIntegrity.ts';
+import { buildEvalSet, validateEvalSet } from '../../features/benchmark/dataset.ts';
 import {
   DEVELOPER_BUILD_UNMEASURED_FIXTURE_BACKED,
   developerBuildPasses,
   unmeasuredDeveloperBuild,
   type UnmeasuredDeveloperBuild,
-} from '../../features/benchmark/developerBuild';
-import type { BenchmarkCase } from '../../features/benchmark/benchmark.types';
-import type { ModelEligibility } from '../../features/benchmark/eligibility';
-import { runBenchmark, serializeOutputs, type BenchmarkRun } from '../../features/benchmark/runner';
-import type { LoadedFixture } from '../mocks/fixtures';
+} from '../../features/benchmark/developerBuild.ts';
+import type { BenchmarkCase } from '../../features/benchmark/benchmark.types.ts';
+import type { ModelEligibility } from '../../features/benchmark/eligibility.ts';
+import { runBenchmark, serializeOutputs, type BenchmarkRun } from '../../features/benchmark/runner.ts';
+import type { LoadedFixture } from '../mocks/fixtures.ts';
 import {
   provisionalRegistryFromFixture,
   type EligibilityRegistryEntry,
   type ProvisionalEligibilityRegistry,
-} from '../routing/eligibilityRegistry';
+} from '../routing/eligibilityRegistry.ts';
 import {
   fixtureModelCaller,
   replayCoverage,
   resolveRecordings,
   type ModelReplayCoverage,
-} from './fixtureReplay';
+} from './fixtureReplay.ts';
 
 /** Contract 09 names this artifact. The name is fixed here so no caller invents a variant. */
 export const PROVISIONAL_REGISTRY_FILE_NAME = 'model_eligibility_registry.json';

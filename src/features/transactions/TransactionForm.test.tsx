@@ -5,8 +5,8 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { TransactionForm } from './TransactionForm';
-import { bootStore } from '../../../tests/helpers/fixtures';
+import { TransactionForm } from './TransactionForm.tsx';
+import { bootStore } from '../../../tests/helpers/fixtures.ts';
 import { useNizamStore } from '@/state/store';
 
 function openForm() {

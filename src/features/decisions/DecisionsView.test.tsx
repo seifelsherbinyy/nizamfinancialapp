@@ -6,10 +6,10 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { DecisionsView } from './DecisionsView';
-import { decidePurchase } from './decision.logic';
-import { recordDecision } from './decisionRegistry';
-import { bootStore, fixtureDb } from '../../../tests/helpers/fixtures';
+import { DecisionsView } from './DecisionsView.tsx';
+import { decidePurchase } from './decision.logic.ts';
+import { recordDecision } from './decisionRegistry.ts';
+import { bootStore, fixtureDb } from '../../../tests/helpers/fixtures.ts';
 import { useNizamStore } from '@/state/store';
 
 function seededWithDecision() {

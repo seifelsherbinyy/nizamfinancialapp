@@ -43,9 +43,9 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { StoreHandle } from '../db/connection';
-import { openFinanceStore } from '../db/store';
-import type { TelegramAcceptDecision, TelegramDelivery, TelegramTransportConfig } from '../ports/telegram';
+import type { StoreHandle } from '../db/connection.ts';
+import { openFinanceStore } from '../db/store.ts';
+import type { TelegramAcceptDecision, TelegramDelivery, TelegramTransportConfig } from '../ports/telegram.ts';
 import {
   authorizeDelivery as authorizeDeliveryInMode,
   secretTokenIsConfigured,
@@ -55,7 +55,7 @@ import {
   type TelegramAuthDecision,
   type TelegramAuthPolicy,
   type TelegramAuthSubject,
-} from './auth';
+} from './auth.ts';
 
 /**
  * Phase 4.4's pins are all `webhook` pins, and Phase 10.5's mode axis (R26) leaves every one of
@@ -75,7 +75,7 @@ import {
   TELEGRAM_ACCEPT_REJECTED,
   type TelegramAcceptAuditLine,
   type TelegramAcceptContext,
-} from './acceptHandler';
+} from './acceptHandler.ts';
 
 const BOT = 'bot-one';
 const SENDER = 'op-1';

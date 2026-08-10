@@ -51,8 +51,8 @@ import {
   parseEnvTemplate,
   type EnvAuditInput,
   type EnvFindingCode,
-} from './envTemplates';
-import { KILL_SENTINEL_CONSUMERS } from './composeTemplate';
+} from './envTemplates.ts';
+import { KILL_SENTINEL_CONSUMERS } from './composeTemplate.ts';
 
 const ENV_DIR = fileURLToPath(new URL('../../../ops/env', import.meta.url));
 const COMPOSE_PATH = fileURLToPath(new URL('../../../ops/docker-compose.yml', import.meta.url));

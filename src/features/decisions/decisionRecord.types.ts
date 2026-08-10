@@ -11,7 +11,7 @@
  */
 import type { Money } from '@/lib/money/money';
 import type { ConfidenceBand } from '@/features/safeToSpend/safeToSpend';
-import type { Recommendation } from './decision.types';
+import type { Recommendation } from './decision.types.ts';
 
 /** What the owner did with the recommendation. */
 export const DECISION_ACTIONS = ['pending', 'followed', 'overrode', 'ignored'] as const;

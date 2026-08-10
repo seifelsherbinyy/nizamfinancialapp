@@ -15,8 +15,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import type { SignalPayload } from '../ports/signalBus';
-import { SIGNAL_NOTE_MAX_LENGTH } from '../ports/signalBus';
+import type { SignalPayload } from '../ports/signalBus.ts';
+import { SIGNAL_NOTE_MAX_LENGTH } from '../ports/signalBus.ts';
 import {
   portFailureCodeFor,
   sealSignalEnvelope,
@@ -28,7 +28,7 @@ import {
   validateSignalDraft,
   validateSignalNote,
   type SignalRefusal,
-} from './envelopeValidation';
+} from './envelopeValidation.ts';
 
 /** A directional signal that breaks no rule. Every negative below is a mutation of this. */
 const VALID_DRAFT: Readonly<Record<string, unknown>> = {

@@ -12,10 +12,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { openStore, type StoreHandle } from './connection';
-import { MigrationChecksumError, MigrationFailedError, MigrationSeriesError } from './errors';
-import { currentSchemaVersion, migrate, migrationChecksum, MIGRATIONS, type Migration } from './migrations';
-import { TABLES } from './schema';
+import { openStore, type StoreHandle } from './connection.ts';
+import { MigrationChecksumError, MigrationFailedError, MigrationSeriesError } from './errors.ts';
+import { currentSchemaVersion, migrate, migrationChecksum, MIGRATIONS, type Migration } from './migrations.ts';
+import { TABLES } from './schema.ts';
 
 const FILE_NAME = 'finance.db';
 const FIXED_NOW = (): string => '2026-01-01T00:00:00.000Z';

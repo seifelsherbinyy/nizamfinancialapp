@@ -24,9 +24,9 @@
  * path can be corrupted. That is a deployment property (contract 12), not something
  * this process can verify, so it is stated here and enforced in ops.
  */
-import { PragmaAssertionError, PragmaValueError } from './errors';
-import { resolveStorePath } from './paths';
-import { sqlite, type SqliteDatabase } from './sqliteBinding';
+import { PragmaAssertionError, PragmaValueError } from './errors.ts';
+import { resolveStorePath } from './paths.ts';
+import { sqlite, type SqliteDatabase } from './sqliteBinding.ts';
 
 /** Injected configuration. Nothing here has a default that points at a real host. */
 export interface StoreConnectionConfig {

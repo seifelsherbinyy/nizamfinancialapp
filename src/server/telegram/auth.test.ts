@@ -30,8 +30,8 @@ import {
   type TelegramAuthDecision,
   type TelegramAuthPolicy,
   type TelegramAuthSubject,
-} from './auth';
-import type { TelegramTransportConfig } from '../ports/telegram';
+} from './auth.ts';
+import type { TelegramTransportConfig } from '../ports/telegram.ts';
 
 /**
  * **Every assertion in this file is a `webhook` assertion**, and Phase 10.5's mode axis (R26) does

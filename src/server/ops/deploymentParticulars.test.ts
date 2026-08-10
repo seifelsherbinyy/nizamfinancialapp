@@ -29,8 +29,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { scanForParticulars, type ComposeFinding } from './composeTemplate';
-import { DECLARED_DOTTED_TOKENS as PATCH_DECLARED_TOKENS } from './patchSeries';
+import { scanForParticulars, type ComposeFinding } from './composeTemplate.ts';
+import { DECLARED_DOTTED_TOKENS as PATCH_DECLARED_TOKENS } from './patchSeries.ts';
 import {
   DECLARED_DOTTED_TOKENS,
   FIXTURE_SHAPED_PATH,
@@ -47,7 +47,7 @@ import {
   type Artifact,
   type ParticularFindingCode,
   type ParticularScanInput,
-} from './deploymentParticulars';
+} from './deploymentParticulars.ts';
 
 const REPO = fileURLToPath(new URL('../../../', import.meta.url));
 

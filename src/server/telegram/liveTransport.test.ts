@@ -23,7 +23,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { openFinanceStore } from '../db/store';
+import { openFinanceStore } from '../db/store.ts';
 import type {
   TelegramOutboundMessage,
   TelegramSendReceipt,
@@ -31,8 +31,8 @@ import type {
   TelegramWorkItem,
   TelegramWorkerPort,
   TelegramWorkOutcome,
-} from '../ports/telegram';
-import type { TelegramAcceptAuditLine, TelegramAcceptContext } from './acceptHandler';
+} from '../ports/telegram.ts';
+import type { TelegramAcceptAuditLine, TelegramAcceptContext } from './acceptHandler.ts';
 import {
   createInMemoryOffsetStore,
   createLiveTelegramTransport,
@@ -46,8 +46,8 @@ import {
   type TelegramPolledUpdate,
   type TelegramTransportClient,
   type TelegramUpdateBatch,
-} from './liveTransport';
-import { workQueueDepth } from './workQueueRepo';
+} from './liveTransport.ts';
+import { workQueueDepth } from './workQueueRepo.ts';
 
 const BOT = 'bot-one';
 const OWNER = 'op-1';

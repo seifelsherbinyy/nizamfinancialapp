@@ -14,11 +14,11 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { MockPortFailure } from './failure';
-import { loadRecordedInteractions, nodeFixtureSource } from './fixtures';
-import { createInvocationRecorder } from './invocationRecorder';
-import { createWhoopMock, type WhoopMockConfig } from './whoopMock';
-import type { WhoopPortConfig, WhoopRecoveryState } from '../ports/whoop';
+import { MockPortFailure } from './failure.ts';
+import { loadRecordedInteractions, nodeFixtureSource } from './fixtures.ts';
+import { createInvocationRecorder } from './invocationRecorder.ts';
+import { createWhoopMock, type WhoopMockConfig } from './whoopMock.ts';
+import type { WhoopPortConfig, WhoopRecoveryState } from '../ports/whoop.ts';
 
 const CONFIG: WhoopPortConfig = {
   apiBaseUrlRef: 'RECOVERY_API_BASE_REF',

@@ -52,7 +52,7 @@ import {
   parseSpecification,
   statedApplyOrder,
   type PatchFindingCode,
-} from './patchSeries';
+} from './patchSeries.ts';
 
 const SERIES_DIR = fileURLToPath(new URL('../../../ops/nizamcore-patches/', import.meta.url));
 

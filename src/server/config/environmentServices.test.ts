@@ -31,7 +31,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { parseEnvTemplate } from '../ops/envTemplates';
+import { parseEnvTemplate } from '../ops/envTemplates.ts';
 import {
   ABSENCE_IS_A_DECISION,
   DEPLOYMENT_SERVICES,
@@ -59,7 +59,7 @@ import {
   type DeploymentService,
   type EnvByService,
   type EnvSource,
-} from './environment';
+} from './environment.ts';
 
 const LOADER_SOURCE_PATH = 'src/server/config/environment.ts';
 const TEMPLATE_DIR = 'ops/env';

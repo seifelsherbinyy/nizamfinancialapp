@@ -49,7 +49,7 @@
  */
 import { rmSync, statSync, writeFileSync } from 'node:fs';
 
-import { resolveStorePath } from '../db/paths';
+import { resolveStorePath } from '../db/paths.ts';
 
 /**
  * The shared fact a SECOND process can read: is the service that owns this record alive?

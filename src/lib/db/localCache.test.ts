@@ -13,8 +13,8 @@ import {
   isDirty,
   saveSyncPoint,
   readSyncPoint,
-} from './localCache';
-import { createEmptyDb, type NizamDb } from './schema';
+} from './localCache.ts';
+import { createEmptyDb, type NizamDb } from './schema.ts';
 
 let cache: NizamCache;
 let counter = 0;

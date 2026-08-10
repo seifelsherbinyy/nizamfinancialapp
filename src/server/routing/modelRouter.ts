@@ -101,17 +101,17 @@ import {
   selectModel,
   TIER_CAPABLE,
   type SelectionResult,
-} from '../../features/routing/modelPolicy';
-import { microUsdToUsd, type AgentWeeklyBudget } from '../../features/routing/spendLedger';
-import type { TokenUsage } from '../../features/benchmark/benchmark.types';
+} from '../../features/routing/modelPolicy.ts';
+import { microUsdToUsd, type AgentWeeklyBudget } from '../../features/routing/spendLedger.ts';
+import type { TokenUsage } from '../../features/benchmark/benchmark.types.ts';
 import {
   isAdmittedModel,
   TIER_REQUIRED_ELIGIBILITY,
   type AdmittedRegistry,
   type EligibilityRequirement,
   type EligibleModel,
-} from './eligibilityRegistry';
-import { isMintedGrant, type ModelBearingTier, type ModelInvocationGrant } from './turnClassifier';
+} from './eligibilityRegistry.ts';
+import { isMintedGrant, type ModelBearingTier, type ModelInvocationGrant } from './turnClassifier.ts';
 
 /** Discriminator for every refusal this router raises. A caller matches `code`, never a message. */
 export const MODEL_ROUTING_ERROR_CODES = [

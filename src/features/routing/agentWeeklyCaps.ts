@@ -65,7 +65,7 @@
  * `ops/GATE_REGISTER.md` was **not edited** — it outranks this module on gate verification. The
  * one-line change its G4 step needs is recorded as a recommendation for the owner in the build log.
  */
-import { WEEKLY_BUDGET_USD } from './modelPolicy';
+import { WEEKLY_BUDGET_USD } from './modelPolicy.ts';
 import {
   agentWeeklyBudget,
   isSpendAgent,
@@ -76,7 +76,7 @@ import {
   type AgentWeeklyBudget,
   type SpendAgent,
   type SpendLedgerRow,
-} from './spendLedger';
+} from './spendLedger.ts';
 
 // ---------------------------------------------------------------------------------------------
 // D-CAP: the total, the count, and the per-agent half derived from both

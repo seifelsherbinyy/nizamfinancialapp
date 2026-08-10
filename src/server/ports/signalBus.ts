@@ -32,7 +32,7 @@
  * there is no method that returns a quarantined invalid signal, because that would be exactly
  * the leak the schema prevents (§4.3.6).
  */
-import type { Exact, NoMagnitude } from './shapeGuards';
+import type { Exact, NoMagnitude } from './shapeGuards.ts';
 
 /** Who produced a signal. Enumerated; never free text (§4.2). */
 export const SIGNAL_PRODUCERS = ['life', 'finance'] as const;

@@ -14,15 +14,15 @@ import { describe, it, expect } from 'vitest';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { buildEvalSet } from '../../features/benchmark/dataset';
-import { loadRecordedInteractions, nodeFixtureSource, type LoadedFixture } from '../mocks/fixtures';
+import { buildEvalSet } from '../../features/benchmark/dataset.ts';
+import { loadRecordedInteractions, nodeFixtureSource, type LoadedFixture } from '../mocks/fixtures.ts';
 import {
   EligibilityRegistryError,
   admitEligibilityRegistry,
   parseEligibilityRegistry,
   parseEligibilityRegistryText,
   type LiveEligibilityRegistry,
-} from '../routing/eligibilityRegistry';
+} from '../routing/eligibilityRegistry.ts';
 import {
   PER_MODEL_ARTIFACT_NAMES,
   PROVISIONAL_ARTIFACT_DIRECTORY,
@@ -33,7 +33,7 @@ import {
   inlineRegistrySink,
   nodeRegistrySink,
   writeProvisionalRegistry,
-} from './provisionalRegistry';
+} from './provisionalRegistry.ts';
 
 const MODEL_A = 'xiaomi/mimo-v2.5';
 const MODEL_B = 'z-ai/glm-5.2';

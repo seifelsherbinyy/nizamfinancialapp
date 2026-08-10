@@ -23,8 +23,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { MODEL_GLM, MODEL_GROK, MODEL_KIMI, MODEL_MIMO } from '../../features/routing/modelPolicy';
-import { inlineFixtureSource, loadRecordedInteractions, type LoadedFixture } from '../mocks/fixtures';
+import { MODEL_GLM, MODEL_GROK, MODEL_KIMI, MODEL_MIMO } from '../../features/routing/modelPolicy.ts';
+import { inlineFixtureSource, loadRecordedInteractions, type LoadedFixture } from '../mocks/fixtures.ts';
 import {
   admitEligibilityRegistry,
   ELIGIBILITY_BANDS,
@@ -39,7 +39,7 @@ import {
   type EligibilityRegistryEntry,
   type EligibleModel,
   type LiveEligibilityRegistry,
-} from './eligibilityRegistry';
+} from './eligibilityRegistry.ts';
 
 /** A model graded for everything. Synthetic grades; no benchmark ran to produce these. */
 function graded(modelId: string, over: Partial<EligibilityRegistryEntry> = {}): EligibilityRegistryEntry {

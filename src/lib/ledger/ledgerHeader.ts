@@ -1,5 +1,7 @@
 /**
  * NIZAM · The canonical ledger header FINGERPRINT — spec 08 wave A1, task A1.1.
+ * Implemented by: PFOS Contract 06 / Phase 2.1 (spec 08-knowledge-ingestion, wave A1)
+ * Depends on: ledger.types.ts (the canonical column contract)
  *
  * ## Why a width check is not a shape check
  *

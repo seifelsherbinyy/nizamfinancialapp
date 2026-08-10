@@ -33,9 +33,9 @@
  * (contract 06 §6.1). This module introduces no arithmetic and no second money implementation.
  * No secret and no endpoint literal appears here — see {@link OpenRouterPortConfig}.
  */
-import type { Tier } from '../../features/routing/modelPolicy';
-import type { CostSourceActual, SpendAgent } from '../../features/routing/spendLedger';
-import type { Redacted } from './shapeGuards';
+import type { Tier } from '../../features/routing/modelPolicy.ts';
+import type { CostSourceActual, SpendAgent } from '../../features/routing/spendLedger.ts';
+import type { Redacted } from './shapeGuards.ts';
 
 /**
  * Zero-data-retention inference, required where the content class demands it (§6.4). There is no

@@ -9,8 +9,8 @@
  * parseFloat/toFixed (per the money-core invariant). When a model omits a cache-write price we fall
  * back to the (higher) prompt price so the projection is conservative, never under-stated.
  */
-import { type ModelPrice } from './pricing';
-import { type TokenUsage } from './benchmark.types';
+import { type ModelPrice } from './pricing.ts';
+import { type TokenUsage } from './benchmark.types.ts';
 
 /**
  * The 30-day reference token totals were captured from a representative full-time usage window

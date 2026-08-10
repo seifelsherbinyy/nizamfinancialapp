@@ -36,7 +36,7 @@ import {
   SIGNAL_NOTE_MAX_LENGTH,
   SIGNAL_PRODUCERS,
   SIGNAL_TIERS,
-} from '../ports/signalBus';
+} from '../ports/signalBus.ts';
 
 // One vocabulary, re-exported rather than restated. See rule 1 above.
 export { CONSENT_SCOPES, SIGNAL_DIRECTIONS, SIGNAL_KINDS, SIGNAL_LEVELS, SIGNAL_NOTE_MAX_LENGTH, SIGNAL_PRODUCERS, SIGNAL_TIERS };

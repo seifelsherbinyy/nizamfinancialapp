@@ -14,7 +14,7 @@
  * (§5.2, §6.4, §4.3), so neither does this. `correlationRef` points at a telemetry row; it is
  * a reference, never content.
  */
-import type { PortFailure, PortFailureCode } from '../ports/errors';
+import type { PortFailure, PortFailureCode } from '../ports/errors.ts';
 
 /**
  * The failure every mock rejects with. `message` is diagnostic prose for a developer reading

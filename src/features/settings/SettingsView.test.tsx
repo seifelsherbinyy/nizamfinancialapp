@@ -6,8 +6,8 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { SettingsView } from './SettingsView';
-import { bootStore, fixtureDb } from '../../../tests/helpers/fixtures';
+import { SettingsView } from './SettingsView.tsx';
+import { bootStore, fixtureDb } from '../../../tests/helpers/fixtures.ts';
 import { useNizamStore } from '@/state/store';
 
 function commitMoney(name: RegExp, value: string) {

@@ -30,24 +30,24 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { StoreHandle } from '../db/connection';
-import { openFinanceStore } from '../db/store';
+import type { StoreHandle } from '../db/connection.ts';
+import { openFinanceStore } from '../db/store.ts';
 import type {
   TelegramDelivery,
   TelegramTransportConfig,
   TelegramWorkItem,
   TelegramWorkOutcome,
   TelegramWorkerPort,
-} from '../ports/telegram';
-import { acceptDelivery, type TelegramAcceptContext } from './acceptHandler';
+} from '../ports/telegram.ts';
+import { acceptDelivery, type TelegramAcceptContext } from './acceptHandler.ts';
 import {
   claimNextWork,
   reclaimStalledWork,
   workQueueDepth,
   type WorkQueueContext,
   type WorkRetryPolicy,
-} from './workQueueRepo';
-import { createWorkerRunner, drainWorkQueue, type WorkerFailureLine } from './workerRunner';
+} from './workQueueRepo.ts';
+import { createWorkerRunner, drainWorkQueue, type WorkerFailureLine } from './workerRunner.ts';
 
 const BOT_ONE = 'bot-one';
 const SENDER = 'op-1';

@@ -49,35 +49,35 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import type { Account } from '../../features/accounts/accounts.types';
-import type { Obligation } from '../../features/obligations/obligation.types';
-import type { Transaction } from '../../features/transactions/transaction.types';
-import type { FinancialPolicy } from '../../features/safeToSpend/policy.types';
-import { obligationFundingReport, worstStatus } from '../../features/obligations/obligations.logic';
-import { safeToSpendAllHorizons } from '../../features/safeToSpend/safeToSpend';
-import { forecastAll } from '../../features/forecast/forecast';
-import { createEmptyDb, type NizamDb } from '../../lib/db/schema';
-import { MODEL_GLM, MODEL_MIMO } from '../../features/routing/modelPolicy';
+import type { Account } from '../../features/accounts/accounts.types.ts';
+import type { Obligation } from '../../features/obligations/obligation.types.ts';
+import type { Transaction } from '../../features/transactions/transaction.types.ts';
+import type { FinancialPolicy } from '../../features/safeToSpend/policy.types.ts';
+import { obligationFundingReport, worstStatus } from '../../features/obligations/obligations.logic.ts';
+import { safeToSpendAllHorizons } from '../../features/safeToSpend/safeToSpend.ts';
+import { forecastAll } from '../../features/forecast/forecast.ts';
+import { createEmptyDb, type NizamDb } from '../../lib/db/schema.ts';
+import { MODEL_GLM, MODEL_MIMO } from '../../features/routing/modelPolicy.ts';
 import {
   agentWeeklyBudget,
   COST_SOURCE_ACTUAL,
   weekKeyOf,
   type AgentWeeklyBudget,
   type SpendAgent,
-} from '../../features/routing/spendLedger';
-import { createInvocationRecorder } from '../mocks/invocationRecorder';
-import { createOpenRouterMock } from '../mocks/openrouterMock';
-import { isMockPortFailure } from '../mocks/failure';
-import type { ModelRequest, OpenRouterPortConfig, ProviderPrivacyPolicy } from '../ports/openrouter';
+} from '../../features/routing/spendLedger.ts';
+import { createInvocationRecorder } from '../mocks/invocationRecorder.ts';
+import { createOpenRouterMock } from '../mocks/openrouterMock.ts';
+import { isMockPortFailure } from '../mocks/failure.ts';
+import type { ModelRequest, OpenRouterPortConfig, ProviderPrivacyPolicy } from '../ports/openrouter.ts';
 import {
   admitEligibilityRegistry,
   ELIGIBILITY_REGISTRY_VERSION,
   type AdmittedRegistry,
   type LiveEligibilityRegistry,
-} from './eligibilityRegistry';
-import { ModelRoutingError, routeModel } from './modelRouter';
-import { createModelChannel, dispatchTurn, type TurnDispatchDependencies } from './turnDispatch';
-import { classifyTurn, isModelBearing, type ModelInvocationGrant, type TurnFacts } from './turnClassifier';
+} from './eligibilityRegistry.ts';
+import { ModelRoutingError, routeModel } from './modelRouter.ts';
+import { createModelChannel, dispatchTurn, type TurnDispatchDependencies } from './turnDispatch.ts';
+import { classifyTurn, isModelBearing, type ModelInvocationGrant, type TurnFacts } from './turnClassifier.ts';
 
 // ---------------------------------------------------------------------------------------------
 // Owner money: integer milliunits. Synthetic throughout.

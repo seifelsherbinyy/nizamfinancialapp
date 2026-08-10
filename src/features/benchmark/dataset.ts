@@ -17,7 +17,7 @@ import {
   CATEGORY_MINIMUMS,
   CATEGORY_TIER,
   BENCHMARK_MINIMUM_CASES,
-} from './benchmark.types';
+} from './benchmark.types.ts';
 
 function pad(n: number): string {
   return String(n).padStart(4, '0');

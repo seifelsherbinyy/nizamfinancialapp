@@ -9,7 +9,7 @@ import { spawnSync } from "node:child_process";
 const CONTINUE = process.argv.includes("--all");
 const node = process.execPath;
 const CHECKS = [
-  { id: "AC16", label: "toolchain pin and lockfile", cmd: [node, ["scripts/verify/toolchain-pin.mjs"]] },
+  { id: "AC16", label: "toolchain pin, lockfile and launch path", cmd: [node, ["scripts/verify/toolchain-pin.mjs"]] },
   { id: "AC10", label: "source files declare their contract and phase", cmd: [node, ["scripts/verify/headers.mjs"]] },
   { id: "AC01", label: "no placeholders remain in src", cmd: [node, ["scripts/verify/placeholders.mjs"]] },
   { id: "AC07", label: "money stays integral", cmd: [node, ["scripts/verify/money-invariant.mjs"]] },

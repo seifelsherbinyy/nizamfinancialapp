@@ -24,9 +24,9 @@
  * with a NEW migration.
  */
 import { createHash } from 'node:crypto';
-import type { StoreHandle } from './connection';
-import { MigrationChecksumError, MigrationFailedError, MigrationSeriesError } from './errors';
-import { BOOTSTRAP_DDL, SCHEMA_STATEMENTS } from './schema';
+import type { StoreHandle } from './connection.ts';
+import { MigrationChecksumError, MigrationFailedError, MigrationSeriesError } from './errors.ts';
+import { BOOTSTRAP_DDL, SCHEMA_STATEMENTS } from './schema.ts';
 
 /** One numbered, named, frozen step of the series. */
 export interface Migration {

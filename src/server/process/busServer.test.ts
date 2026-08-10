@@ -43,11 +43,11 @@ import {
   SERVICE_ENTRY_NAMES,
   SHARED_ENTRIES,
   type EnvSource,
-} from '../config/environment';
-import { BUS_SERVICE as BUS_COMPOSE_SERVICE, parseComposeSubset, type YamlMap } from '../ops/composeTemplate';
-import type { SignalDraft, StoredSignalReceipt } from '../ports/signalBus';
-import { readAudit, type SignalStoreContext } from '../signals';
-import { NARROW_TIERS_READABLE_BY_BOTH, WIDENED_KINDS } from '../signals';
+} from '../config/environment.ts';
+import { BUS_SERVICE as BUS_COMPOSE_SERVICE, parseComposeSubset, type YamlMap } from '../ops/composeTemplate.ts';
+import type { SignalDraft, StoredSignalReceipt } from '../ports/signalBus.ts';
+import { readAudit, type SignalStoreContext } from '../signals/index.ts';
+import { NARROW_TIERS_READABLE_BY_BOTH, WIDENED_KINDS } from '../signals/index.ts';
 import {
   bootFinanceAgent,
   FINANCE_CONTAINER_PORT_ENTRY,
@@ -56,9 +56,9 @@ import {
   type FinanceAgentDependencies,
   type HttpListenerHandle,
   type HttpListenerHost,
-} from './financeAgent';
-import { HaltEngagedError } from './haltGate';
-import { requestPathOf } from './busMain';
+} from './financeAgent.ts';
+import { HaltEngagedError } from './haltGate.ts';
+import { requestPathOf } from './busMain.ts';
 import {
   bootBusServer,
   BUS_ENDPOINT_REFUSALS,
@@ -84,7 +84,7 @@ import {
   type BusRequest,
   type BusServerDependencies,
   type BusServerProcess,
-} from './busServer';
+} from './busServer.ts';
 
 const REPO = fileURLToPath(new URL('../../../', import.meta.url));
 

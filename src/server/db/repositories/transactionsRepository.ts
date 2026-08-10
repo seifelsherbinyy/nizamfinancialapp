@@ -22,8 +22,8 @@
  * prepared (§4.2.3). `amount` is signed; `outflow` and `inflow` are non-negative magnitudes
  * (money-rules §4), which the DDL also checks.
  */
-import { assertMonetaryCoverage, assertMoneyField } from '../moneyBoundary';
-import { RepositoryStateError } from '../errors';
+import { assertMonetaryCoverage, assertMoneyField } from '../moneyBoundary.ts';
+import { RepositoryStateError } from '../errors.ts';
 import {
   DEFAULT_CURRENCY,
   type LedgerTransactionType,
@@ -35,8 +35,8 @@ import {
   type TransactionRow,
   type TransactionStatus,
   type VerificationLevel,
-} from './rows';
-import { recordAudit, toNullableText, withTransaction, type RepositoryContext } from './support';
+} from './rows.ts';
+import { recordAudit, toNullableText, withTransaction, type RepositoryContext } from './support.ts';
 
 const TABLE = 'transactions';
 const LINK_TABLE = 'transaction_links';

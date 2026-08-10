@@ -17,7 +17,7 @@
  * restart answers the whole question.
  */
 import nodeProcess from 'node:process';
-import { schedulerMain } from './schedulerMain';
+import { schedulerMain } from './schedulerMain.ts';
 
 const outcome = await schedulerMain(nodeProcess.argv.slice(2));
 nodeProcess.exitCode = outcome.exitCode;

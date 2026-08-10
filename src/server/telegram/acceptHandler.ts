@@ -49,23 +49,23 @@
  *
  * No literal here names a bot, a sender, a token, a host, or a path (R24).
  */
-import type { PortFailureCode } from '../ports/errors';
-import type { StoreHandle } from '../db/connection';
+import type { PortFailureCode } from '../ports/errors.ts';
+import type { StoreHandle } from '../db/connection.ts';
 import type {
   TelegramAcceptDecision,
   TelegramDelivery,
   TelegramInboundPort,
   TelegramTransportConfig,
-} from '../ports/telegram';
+} from '../ports/telegram.ts';
 import {
   authorizeDelivery,
   authPolicyFromTransport,
   TELEGRAM_AUTH_STAGES,
   type TelegramAuthAuditLine,
   type TelegramAuthStage,
-} from './auth';
-import { claimDelivery, type UpdateDedupContext } from './updateDedupRepo';
-import { enqueueWork, type WorkQueueContext } from './workQueueRepo';
+} from './auth.ts';
+import { claimDelivery, type UpdateDedupContext } from './updateDedupRepo.ts';
+import { enqueueWork, type WorkQueueContext } from './workQueueRepo.ts';
 
 /**
  * The stages a refusal can be audited at: auth's three, plus the durable enqueue.

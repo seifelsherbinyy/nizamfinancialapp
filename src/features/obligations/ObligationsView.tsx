@@ -21,7 +21,7 @@ import {
   type ObligationPriority,
   type ObligationFrequency,
   type VerificationSource,
-} from './obligation.types';
+} from './obligation.types.ts';
 import { MoneyInput } from '@/components/MoneyInput';
 import { MoneyCell } from '@/components/MoneyCell';
 import { Modal } from '@/components/Modal';

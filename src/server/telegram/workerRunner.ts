@@ -41,8 +41,8 @@
  * No prompt text, no completion text, and no message content is recorded by this module (§6.4, R19):
  * a failure line carries a code and a queue reference, both of which are pointers.
  */
-import type { PortFailureCode } from '../ports/errors';
-import type { TelegramWorkerPort, TelegramWorkItem, TelegramWorkOutcome } from '../ports/telegram';
+import type { PortFailureCode } from '../ports/errors.ts';
+import type { TelegramWorkerPort, TelegramWorkItem, TelegramWorkOutcome } from '../ports/telegram.ts';
 import {
   abandonExhaustedWork,
   claimNextWork,
@@ -53,7 +53,7 @@ import {
   type WorkAbandonReason,
   type WorkQueueContext,
   type WorkRetryPolicy,
-} from './workQueueRepo';
+} from './workQueueRepo.ts';
 
 /**
  * One recorded downstream failure. A code and a reference, never content (§6.4).

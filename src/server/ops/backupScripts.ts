@@ -43,8 +43,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { BACKUP_SERVICE, parseComposeSubset, scanForParticulars, type ComposeFinding } from './composeTemplate';
-import { BACKUP_TEMPLATE, ENTRY_SPECS } from './envTemplates';
+import { BACKUP_SERVICE, parseComposeSubset, scanForParticulars, type ComposeFinding } from './composeTemplate.ts';
+import { BACKUP_TEMPLATE, ENTRY_SPECS } from './envTemplates.ts';
 
 // ---------------------------------------------------------------------------------------------
 // The parsed shape

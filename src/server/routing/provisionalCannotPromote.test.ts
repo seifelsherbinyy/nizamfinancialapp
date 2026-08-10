@@ -39,19 +39,19 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { evaluateEligibility, type ModelEligibility } from '../../features/benchmark/eligibility';
-import type { BenchmarkCategory, CaseScore, Severity } from '../../features/benchmark/benchmark.types';
-import { MODEL_GLM, MODEL_MIMO } from '../../features/routing/modelPolicy';
+import { evaluateEligibility, type ModelEligibility } from '../../features/benchmark/eligibility.ts';
+import type { BenchmarkCategory, CaseScore, Severity } from '../../features/benchmark/benchmark.types.ts';
+import { MODEL_GLM, MODEL_MIMO } from '../../features/routing/modelPolicy.ts';
 import {
   agentWeeklyBudget,
   weekKeyOf,
   type AgentWeeklyBudget,
-} from '../../features/routing/spendLedger';
-import { inlineFixtureSource, loadRecordedInteractions, type LoadedFixture } from '../mocks/fixtures';
-import { createInvocationRecorder } from '../mocks/invocationRecorder';
-import { createOpenRouterMock } from '../mocks/openrouterMock';
-import { isMockPortFailure } from '../mocks/failure';
-import type { ModelRequest, OpenRouterPortConfig, ProviderPrivacyPolicy } from '../ports/openrouter';
+} from '../../features/routing/spendLedger.ts';
+import { inlineFixtureSource, loadRecordedInteractions, type LoadedFixture } from '../mocks/fixtures.ts';
+import { createInvocationRecorder } from '../mocks/invocationRecorder.ts';
+import { createOpenRouterMock } from '../mocks/openrouterMock.ts';
+import { isMockPortFailure } from '../mocks/failure.ts';
+import type { ModelRequest, OpenRouterPortConfig, ProviderPrivacyPolicy } from '../ports/openrouter.ts';
 import {
   admitEligibilityRegistry,
   ELIGIBILITY_REGISTRY_VERSION,
@@ -61,9 +61,9 @@ import {
   type EligibilityRegistryEntry,
   type LiveEligibilityRegistry,
   type ProvisionalEligibilityRegistry,
-} from './eligibilityRegistry';
-import { routeModel, routedModelId } from './modelRouter';
-import { classifyTurn, isModelBearing, type ModelInvocationGrant, type TurnFacts } from './turnClassifier';
+} from './eligibilityRegistry.ts';
+import { routeModel, routedModelId } from './modelRouter.ts';
+import { classifyTurn, isModelBearing, type ModelInvocationGrant, type TurnFacts } from './turnClassifier.ts';
 
 const WEEK_KEY = weekKeyOf('2026-08-06');
 /** Synthetic provider cap, ample, so a refusal below can only be about the registry. */

@@ -64,8 +64,8 @@
  * intent alone and is therefore never ambiguous. No literal here names a host, a bot, a sender, an
  * amount, or any other deployment particular (R24).
  */
-import { TIER_CAPABLE, type Tier } from '../../features/routing/modelPolicy';
-import type { Exact, NoMagnitude } from '../ports/shapeGuards';
+import { TIER_CAPABLE, type Tier } from '../../features/routing/modelPolicy.ts';
+import type { Exact, NoMagnitude } from '../ports/shapeGuards.ts';
 
 /**
  * The tiers that route to a model. `T0` is excluded by construction, which is the same statement

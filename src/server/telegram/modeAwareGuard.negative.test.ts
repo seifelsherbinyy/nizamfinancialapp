@@ -39,7 +39,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { openFinanceStore } from '../db/store';
+import { openFinanceStore } from '../db/store.ts';
 import {
   TELEGRAM_TRANSPORT_MODES,
   type TelegramAcceptDecision,
@@ -49,7 +49,7 @@ import {
   type TelegramWorkItem,
   type TelegramWorkerPort,
   type TelegramWorkOutcome,
-} from '../ports/telegram';
+} from '../ports/telegram.ts';
 import {
   applicableAuthStages,
   authorizeDelivery,
@@ -59,15 +59,15 @@ import {
   type TelegramAuthAuditLine,
   type TelegramAuthPolicy,
   type TelegramAuthSubject,
-} from './auth';
+} from './auth.ts';
 import {
   acceptDelivery,
   TELEGRAM_ACCEPT_REJECTED,
   type TelegramAcceptAuditLine,
   type TelegramAcceptContext,
-} from './acceptHandler';
-import { createLiveTelegramTransport, type TelegramFetchRequest, type TelegramUpdateBatch } from './liveTransport';
-import { workQueueDepth } from './workQueueRepo';
+} from './acceptHandler.ts';
+import { createLiveTelegramTransport, type TelegramFetchRequest, type TelegramUpdateBatch } from './liveTransport.ts';
+import { workQueueDepth } from './workQueueRepo.ts';
 
 const BOT = 'bot-one';
 const OWNER = 'op-1';

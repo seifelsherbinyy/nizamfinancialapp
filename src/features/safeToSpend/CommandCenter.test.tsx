@@ -6,8 +6,8 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { CommandCenter } from './CommandCenter';
-import { bootStore, fixtureDb } from '../../../tests/helpers/fixtures';
+import { CommandCenter } from './CommandCenter.tsx';
+import { bootStore, fixtureDb } from '../../../tests/helpers/fixtures.ts';
 import { createEmptyDb } from '@/lib/db/schema';
 import { addDays } from '@/features/obligations/obligations.logic';
 import type { Obligation } from '@/features/obligations/obligation.types';

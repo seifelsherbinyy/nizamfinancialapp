@@ -5,8 +5,8 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import { Register } from './Register';
-import { bootStore, fixtureDb, makeTxn } from '../../../tests/helpers/fixtures';
+import { Register } from './Register.tsx';
+import { bootStore, fixtureDb, makeTxn } from '../../../tests/helpers/fixtures.ts';
 import { useNizamStore } from '@/state/store';
 import { transactionsForAccount, runningBalances } from '@/lib/ledger/ledgerStore';
 

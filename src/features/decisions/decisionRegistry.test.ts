@@ -1,19 +1,20 @@
+// @vitest-environment node
 /**
  * NIZAM · Decision Outcome Registry tests — immutability + the prohibition guard.
  * Owning contract: PFOS contract 03 (Decision Engine) section 12.
  * Build phase: PFOS Stage 3, phase 3.1 — registry create/review/guard.
  */
 import { describe, it, expect } from 'vitest';
-import type { DecisionCard } from './decision.types';
-import type { LearningProposal, DecisionRecord } from './decisionRecord.types';
-import { PROHIBITED_PROPOSAL_KINDS, ALLOWED_PROPOSAL_KINDS } from './decisionRecord.types';
+import type { DecisionCard } from './decision.types.ts';
+import type { LearningProposal, DecisionRecord } from './decisionRecord.types.ts';
+import { PROHIBITED_PROPOSAL_KINDS, ALLOWED_PROPOSAL_KINDS } from './decisionRecord.types.ts';
 import {
   recordDecision,
   reviewDecision,
   guardLearningProposal,
   proposeLearning,
   matureDecisions,
-} from './decisionRegistry';
+} from './decisionRegistry.ts';
 
 const M = 1000;
 

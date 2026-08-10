@@ -18,12 +18,12 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { COST_SOURCE_ACTUAL } from '../../features/routing/spendLedger';
-import { MockPortFailure } from './failure';
-import { loadRecordedInteractions, nodeFixtureSource } from './fixtures';
-import { createInvocationRecorder } from './invocationRecorder';
-import { createOpenRouterMock, type OpenRouterMockConfig } from './openrouterMock';
-import type { ModelRequest, OpenRouterPortConfig, ProviderPrivacyPolicy } from '../ports/openrouter';
+import { COST_SOURCE_ACTUAL } from '../../features/routing/spendLedger.ts';
+import { MockPortFailure } from './failure.ts';
+import { loadRecordedInteractions, nodeFixtureSource } from './fixtures.ts';
+import { createInvocationRecorder } from './invocationRecorder.ts';
+import { createOpenRouterMock, type OpenRouterMockConfig } from './openrouterMock.ts';
+import type { ModelRequest, OpenRouterPortConfig, ProviderPrivacyPolicy } from '../ports/openrouter.ts';
 
 const ELIGIBLE_MODEL = 'fixture/model-a';
 

@@ -38,16 +38,16 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { MODEL_GLM } from '../../features/routing/modelPolicy';
+import { MODEL_GLM } from '../../features/routing/modelPolicy.ts';
 import {
   agentWeeklyBudget,
   COST_SOURCE_ACTUAL,
   weekKeyOf,
   type AgentWeeklyBudget,
-} from '../../features/routing/spendLedger';
-import { createInvocationRecorder, type InvocationRecorder } from '../mocks/invocationRecorder';
-import { createOpenRouterMock } from '../mocks/openrouterMock';
-import type { ModelRequest, OpenRouterPortConfig, ProviderPrivacyPolicy } from '../ports/openrouter';
+} from '../../features/routing/spendLedger.ts';
+import { createInvocationRecorder, type InvocationRecorder } from '../mocks/invocationRecorder.ts';
+import { createOpenRouterMock } from '../mocks/openrouterMock.ts';
+import type { ModelRequest, OpenRouterPortConfig, ProviderPrivacyPolicy } from '../ports/openrouter.ts';
 import {
   admitEligibilityRegistry,
   ELIGIBILITY_REGISTRY_VERSION,
@@ -56,9 +56,9 @@ import {
   provisionalRegistryFromFixture,
   type AdmittedRegistry,
   type LiveEligibilityRegistry,
-} from './eligibilityRegistry';
-import { ModelRoutingError, routeModel } from './modelRouter';
-import { createModelChannel, dispatchTurn, type TurnDispatchDependencies } from './turnDispatch';
+} from './eligibilityRegistry.ts';
+import { ModelRoutingError, routeModel } from './modelRouter.ts';
+import { createModelChannel, dispatchTurn, type TurnDispatchDependencies } from './turnDispatch.ts';
 import {
   INTENT_FAMILY,
   TURN_INTENTS,
@@ -67,7 +67,7 @@ import {
   type ModelInvocationGrant,
   type TurnFacts,
   type TurnIntent,
-} from './turnClassifier';
+} from './turnClassifier.ts';
 
 const WEEK_KEY = weekKeyOf('2026-08-06');
 /** Synthetic provider cap. Exhausted means spent >= this, and nothing here is the owner's cap. */

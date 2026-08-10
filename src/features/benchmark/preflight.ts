@@ -51,10 +51,10 @@
  * conversion and it rounds UP. No `parseFloat`, no `.toFixed(`, and no owner money - the owner's
  * ledger is integer milliunits behind `src/lib/money` and does not appear here (contract 06 §6.1).
  */
-import { DEFAULT_ALLOWED } from '../routing/modelPolicy';
-import type { BenchmarkCase, TokenUsage } from './benchmark.types';
-import { costOfUsage } from './cost';
-import { frozenSnapshot, priceFor, type ModelPrice, type PricingSnapshot } from './pricing';
+import { DEFAULT_ALLOWED } from '../routing/modelPolicy.ts';
+import type { BenchmarkCase, TokenUsage } from './benchmark.types.ts';
+import { costOfUsage } from './cost.ts';
+import { frozenSnapshot, priceFor, type ModelPrice, type PricingSnapshot } from './pricing.ts';
 
 /**
  * The dev key's stated periodic ceiling, in whole USD, from `docs/PFOS_SECRETS_PLAN.md` §4 and §7

@@ -28,8 +28,8 @@
  * posture for that category is exclusion, not filtering, so there is no code path for it and no
  * field that could point at one.
  */
-import type { SignalDirection, SignalLevel } from './signalBus';
-import type { NoMagnitude } from './shapeGuards';
+import type { SignalDirection, SignalLevel } from './signalBus.ts';
+import type { NoMagnitude } from './shapeGuards.ts';
 
 /** A band. Not a score (§4.3.1). Three members, mirroring the bus levels one-to-one. */
 export const WHOOP_RECOVERY_BANDS = ['low', 'moderate', 'high'] as const;

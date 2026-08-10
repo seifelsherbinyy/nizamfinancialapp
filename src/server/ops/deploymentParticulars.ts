@@ -46,7 +46,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { ComposeFinding } from './composeTemplate';
+import type { ComposeFinding } from './composeTemplate.ts';
 
 // ---------------------------------------------------------------------------------------------
 // What is scanned, and why exactly this
@@ -155,6 +155,14 @@ export const DECLARED_DOTTED_TOKENS: readonly string[] = [
   // the two files a build recipe copies, named by the recipe and by the build path that produces it
   'package.json',
   'package-lock.json',
+  // the launch path, named by ops/IMAGE_BUILD.md's F20 section (spec 06 task 10.23): the compiler
+  // setting the repair turns on, the checker that holds it, its test, the ladder rung that launches
+  // the entrypoint with bare `node`, and the resolve hook the repair retired
+  'tsconfig.json',
+  'launch-path.mjs',
+  'launchPath.test.ts',
+  'l0-config.mjs',
+  'ts-resolve.mjs',
   // store file names and environment file names the ops documents refer to by name
   'finance.db',
   'life.db',

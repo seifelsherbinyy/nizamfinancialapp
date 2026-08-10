@@ -13,9 +13,9 @@
  *  - the cap is injected. Every cap below is a synthetic argument; no figure is read from source.
  */
 import { describe, expect, it } from 'vitest';
-import { selectModelForAgent } from './agentBudget';
-import { COST_SOURCE_ACTUAL, type SpendAgent, type SpendLedgerRow } from './spendLedger';
-import { DEFAULT_ALLOWED } from './modelPolicy';
+import { selectModelForAgent } from './agentBudget.ts';
+import { COST_SOURCE_ACTUAL, type SpendAgent, type SpendLedgerRow } from './spendLedger.ts';
+import { DEFAULT_ALLOWED } from './modelPolicy.ts';
 
 const WEEK = 'W2026-03-02';
 /** Synthetic injected caps, integer micro-USD. Deliberately not the owner's real cap. */

@@ -5,10 +5,10 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { BudgetView } from './BudgetView';
-import { bootStore, fixtureDb, makeTxn } from '../../../tests/helpers/fixtures';
+import { BudgetView } from './BudgetView.tsx';
+import { bootStore, fixtureDb, makeTxn } from '../../../tests/helpers/fixtures.ts';
 import { useNizamStore } from '@/state/store';
-import { setAssigned, computeMonth, nextMonth } from './budget.logic';
+import { setAssigned, computeMonth, nextMonth } from './budget.logic.ts';
 
 const THIS_MONTH = new Date().toISOString().slice(0, 7);
 

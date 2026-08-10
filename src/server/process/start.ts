@@ -14,7 +14,7 @@
  * names every incomplete entry at once (R27), so one restart answers the whole question.
  */
 import nodeProcess from 'node:process';
-import { main } from './main';
+import { main } from './main.ts';
 
 const outcome = await main(nodeProcess.argv.slice(2));
 nodeProcess.exitCode = outcome.exitCode;

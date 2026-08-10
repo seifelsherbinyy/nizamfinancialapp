@@ -73,8 +73,8 @@ import type {
   SignalReadOutcome,
   SignalRefusalReason,
   SignalTier,
-} from '../ports/signalBus';
-import { SIGNAL_TIERS } from '../ports/signalBus';
+} from '../ports/signalBus.ts';
+import { SIGNAL_TIERS } from '../ports/signalBus.ts';
 import {
   DATE_SHAPED_VALUE,
   DIGIT_IN_TEXT,
@@ -85,8 +85,8 @@ import {
   SIGNAL_NOTE_MAX_LENGTH,
   STORED_ENVELOPE_KEYS,
   TEMPORAL_FIELD_TOKENS,
-} from './envelopeSchema';
-import { SignalValidationError, unwrapSignalValidation, validateForRead, type SignalValidationReason } from './envelopeValidation';
+} from './envelopeSchema.ts';
+import { SignalValidationError, unwrapSignalValidation, validateForRead, type SignalValidationReason } from './envelopeValidation.ts';
 
 declare const SERVED_BRAND: unique symbol;
 

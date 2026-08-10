@@ -32,7 +32,7 @@
  * its own beyond an integer sum performed by the shared pure function. No float. No prompt text and no
  * completion text touches any column here — the columns do not exist (§3.4).
  */
-import type { StoreHandle } from './connection';
+import type { StoreHandle } from './connection.ts';
 import {
   agentWeeklyBudget,
   assertSpendRowShape,
@@ -45,7 +45,7 @@ import {
   type CostSourceActual,
   type SpendAgent,
   type SpendLedgerRow,
-} from '../../features/routing/spendLedger';
+} from '../../features/routing/spendLedger.ts';
 
 /**
  * What the provider reported on a COMPLETED call. The `costSource` field is the type-level gate:

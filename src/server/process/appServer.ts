@@ -75,9 +75,9 @@
  */
 import { resolve as resolvePath } from 'node:path';
 
-import { probeReadiness, type ReadinessReport } from '../ops/healthProbe';
-import { resolveStorePath } from '../db/paths';
-import { LIVENESS_TOUCH_INTERVAL_MS, livenessIsFresh, type LivenessRecord } from './liveness';
+import { probeReadiness, type ReadinessReport } from '../ops/healthProbe.ts';
+import { resolveStorePath } from '../db/paths.ts';
+import { LIVENESS_TOUCH_INTERVAL_MS, livenessIsFresh, type LivenessRecord } from './liveness.ts';
 
 // ---------------------------------------------------------------------------------------------
 // The bind address, and the refusal of anywhere else

@@ -25,18 +25,18 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { MODEL_GLM } from '../../features/routing/modelPolicy';
-import { createInvocationRecorder, type InvocationRecorder } from '../mocks/invocationRecorder';
-import { createOpenRouterMock, type OpenRouterMock } from '../mocks/openrouterMock';
-import type { ModelRequest, OpenRouterPortConfig, ProviderPrivacyPolicy } from '../ports/openrouter';
-import { createModelChannel, TurnRoutingError, type ModelChannel } from './turnDispatch';
+import { MODEL_GLM } from '../../features/routing/modelPolicy.ts';
+import { createInvocationRecorder, type InvocationRecorder } from '../mocks/invocationRecorder.ts';
+import { createOpenRouterMock, type OpenRouterMock } from '../mocks/openrouterMock.ts';
+import type { ModelRequest, OpenRouterPortConfig, ProviderPrivacyPolicy } from '../ports/openrouter.ts';
+import { createModelChannel, TurnRoutingError, type ModelChannel } from './turnDispatch.ts';
 import {
   classifyTurn,
   isModelBearing,
   type ModelBearingTier,
   type ModelInvocationGrant,
   type TurnFacts,
-} from './turnClassifier';
+} from './turnClassifier.ts';
 
 const PORT_CONFIG: OpenRouterPortConfig = Object.freeze({
   agent: 'finance',

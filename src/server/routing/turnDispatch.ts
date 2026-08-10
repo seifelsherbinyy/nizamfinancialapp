@@ -38,8 +38,8 @@
  * a caller that wants telemetry uses the redacted {@link ModelCallTelemetry} projection the port
  * defines, which cannot hold prompt or completion text (§6.4, R19).
  */
-import type { ModelRequest, ModelResult, OpenRouterPort } from '../ports/openrouter';
-import type { Exact } from '../ports/shapeGuards';
+import type { ModelRequest, ModelResult, OpenRouterPort } from '../ports/openrouter.ts';
+import type { Exact } from '../ports/shapeGuards.ts';
 import {
   classifyTurn,
   DETERMINISTIC_TIER,
@@ -49,7 +49,7 @@ import {
   type ModelBearingTier,
   type ModelInvocationGrant,
   type TurnFacts,
-} from './turnClassifier';
+} from './turnClassifier.ts';
 
 /** Discriminator for every refusal on this path. A caller matches `code`, never a message. */
 export const TURN_ROUTING_ERROR_CODES = [

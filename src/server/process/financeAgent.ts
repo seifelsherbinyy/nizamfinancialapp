@@ -70,27 +70,27 @@ import {
   type AgentModelBinding,
   type DeploymentService,
   type EnvSource,
-} from '../config/environment';
-import type { StoreHandle } from '../db/connection';
-import { openFinanceStore, type StoreOpenConfig } from '../db/store';
-import type { SpendAgent } from '../../features/routing/spendLedger';
+} from '../config/environment.ts';
+import type { StoreHandle } from '../db/connection.ts';
+import { openFinanceStore, type StoreOpenConfig } from '../db/store.ts';
+import type { SpendAgent } from '../../features/routing/spendLedger.ts';
 import type {
   TelegramAcceptDecision,
   TelegramDelivery,
   TelegramTransportConfig,
   TelegramTransportMode,
   TelegramWorkerPort,
-} from '../ports/telegram';
-import type { ModelRequest, ModelResult } from '../ports/openrouter';
-import type { SignalDraft, StoredSignalReceipt } from '../ports/signalBus';
-import type { ModelInvocationGrant } from '../routing/turnClassifier';
-import type { ModelChannel } from '../routing/turnDispatch';
+} from '../ports/telegram.ts';
+import type { ModelRequest, ModelResult } from '../ports/openrouter.ts';
+import type { SignalDraft, StoredSignalReceipt } from '../ports/signalBus.ts';
+import type { ModelInvocationGrant } from '../routing/turnClassifier.ts';
+import type { ModelChannel } from '../routing/turnDispatch.ts';
 import {
   acceptDelivery,
   TELEGRAM_ACCEPT_REJECTED,
   type TelegramAcceptAuditLine,
   type TelegramAcceptContext,
-} from '../telegram/acceptHandler';
+} from '../telegram/acceptHandler.ts';
 import {
   createLiveTelegramTransport,
   type TelegramLiveTransport,
@@ -99,13 +99,13 @@ import {
   type TelegramPollReport,
   type TelegramSendRetryPolicy,
   type TelegramTransportClient,
-} from '../telegram/liveTransport';
-import { drainWorkQueue, type WorkerDrainReport } from '../telegram/workerRunner';
-import { reclaimStalledWork, workQueueDepth, type WorkQueueContext, type WorkRetryPolicy } from '../telegram/workQueueRepo';
-import { probeReadiness, type ProbeEnvironment, type ReadinessReport } from '../ops/healthProbe';
-import { createRedactedLogger, type LogSink, type RedactedLogger } from '../ops/redactedLogger';
-import { createHaltGate, killAllEngagedAtBoot, type HaltGate, type HaltedActivity } from './haltGate';
-import { livenessIsFresh, type LivenessRecord } from './liveness';
+} from '../telegram/liveTransport.ts';
+import { drainWorkQueue, type WorkerDrainReport } from '../telegram/workerRunner.ts';
+import { reclaimStalledWork, workQueueDepth, type WorkQueueContext, type WorkRetryPolicy } from '../telegram/workQueueRepo.ts';
+import { probeReadiness, type ProbeEnvironment, type ReadinessReport } from '../ops/healthProbe.ts';
+import { createRedactedLogger, type LogSink, type RedactedLogger } from '../ops/redactedLogger.ts';
+import { createHaltGate, killAllEngagedAtBoot, type HaltGate, type HaltedActivity } from './haltGate.ts';
+import { livenessIsFresh, type LivenessRecord } from './liveness.ts';
 
 // ---------------------------------------------------------------------------------------------
 // Identity, and the entries this process reads that no typed loader above owns

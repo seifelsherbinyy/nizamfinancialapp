@@ -37,8 +37,8 @@
  * No path, no host, no token and no figure appears here (R24), and a refusal carries an activity name
  * and a form name — both enumerated — so an error reaching a log discloses nothing (R19).
  */
-import { KILL_SENTINEL_ENTRY, KILL_SENTINEL_MOUNT_TARGET, type EnvSource } from '../config/environment';
-import type { PortFailureCode } from '../ports/errors';
+import { KILL_SENTINEL_ENTRY, KILL_SENTINEL_MOUNT_TARGET, type EnvSource } from '../config/environment.ts';
+import type { PortFailureCode } from '../ports/errors.ts';
 
 /** The two forms §8 gives the halt. `sentinel` is live; `env` is restart-scoped. */
 export const HALT_FORMS = ['sentinel', 'env'] as const;

@@ -1,5 +1,7 @@
 /**
  * NIZAM · Spec 08 wave A1, task A1.1 — the shape gate, and the proof it fires.
+ * Implemented by: PFOS Contract 06 / Phase 2.1 (spec 08-knowledge-ingestion, wave A1)
+ * Depends on: ledgerHeader.ts, ledger.types.ts, data/ledgers/LEDGER_SCHEMA.md (read as a contract)
  *
  * These cases need no financial data, so they run everywhere and forever: the contract they check is
  * two tracked files, and the tampers are synthetic. The task exists because a width check passes both
@@ -23,7 +25,11 @@ function columnsDeclaredInSchemaDoc(): string[] {
     if (cells.length < 4) continue;
     const ordinal = Number(cells[1]);
     if (!Number.isInteger(ordinal) || ordinal < 1) continue;
-    out.push(cells[2].toLowerCase());
+    const name = cells[2];
+    // A row with an ordinal but no name is a malformed contract, not a column. Skipping it silently
+    // would let the drift check below compare against a shorter list and still pass.
+    if (name === undefined) throw new Error(`schema document row ${ordinal} declares no column name`);
+    out.push(name.toLowerCase());
   }
   return out;
 }
@@ -63,7 +69,13 @@ describe('verifyCanonicalHeader refuses the failures a width check cannot see', 
     const h = [...CANONICAL];
     const a = h.indexOf('outflow');
     const b = h.indexOf('inflow');
-    [h[a], h[b]] = [h[b], h[a]];
+    const left = h[a];
+    const right = h[b];
+    // Both are declared columns, so an absent one means the contract itself moved and this tamper
+    // would silently become a no-op — which would leave the ORDER case asserting nothing.
+    if (left === undefined || right === undefined) throw new Error('the canonical contract no longer declares both money-direction columns');
+    h[a] = right;
+    h[b] = left;
     return h;
   })();
 

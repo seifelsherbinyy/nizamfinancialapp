@@ -17,8 +17,8 @@ import { inflowOf, outflowOf } from '@/features/transactions/transaction.types';
 import type { FinancialPolicy, ExpectedInflow } from '@/features/safeToSpend/policy.types';
 import type { Money } from '@/lib/money/money';
 import { add, sub, sum, cmp } from '@/lib/money/money';
-import type { Obligation } from './obligation.types';
-import { fundingSequence } from './obligation.types';
+import type { Obligation } from './obligation.types.ts';
+import { fundingSequence } from './obligation.types.ts';
 
 /**
  * The cash an obligation consumes to avoid ITS harm — the feasibility question the

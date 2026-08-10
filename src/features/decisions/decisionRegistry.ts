@@ -11,14 +11,14 @@
  */
 import type { Money } from '@/lib/money/money';
 import { sub } from '@/lib/money/money';
-import type { DecisionCard } from './decision.types';
+import type { DecisionCard } from './decision.types.ts';
 import type {
   DecisionRecord,
   DecisionOutcome,
   DecisionAction,
   LearningProposal,
-} from './decisionRecord.types';
-import { PROHIBITED_PROPOSAL_KINDS } from './decisionRecord.types';
+} from './decisionRecord.types.ts';
+import { PROHIBITED_PROPOSAL_KINDS } from './decisionRecord.types.ts';
 
 export interface RecordDecisionInput {
   id: string;

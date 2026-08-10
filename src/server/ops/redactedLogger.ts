@@ -75,9 +75,9 @@
  * DECIMAL number anywhere in the line, because a decimal is the shape of an owner figure and this
  * tier's every legitimate figure is an integer. This module imports no arithmetic at all.
  */
-import type { ContentBearingKey, Redacted } from '../ports/shapeGuards';
-import { SPEND_AGENTS, isSpendAgent, weekKeyOf, type SpendAgent } from '../../features/routing/spendLedger';
-import { scanForParticulars, type ComposeFinding } from './composeTemplate';
+import type { ContentBearingKey, Redacted } from '../ports/shapeGuards.ts';
+import { SPEND_AGENTS, isSpendAgent, weekKeyOf, type SpendAgent } from '../../features/routing/spendLedger.ts';
+import { scanForParticulars, type ComposeFinding } from './composeTemplate.ts';
 
 // ---------------------------------------------------------------------------------------------
 // Layer 1 — the shapes

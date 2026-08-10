@@ -9,11 +9,11 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import type { ModelRequest, ModelResult } from '../ports/openrouter';
-import type { TelegramWorkItem } from '../ports/telegram';
-import type { ModelChannel } from '../routing/turnDispatch';
-import { classifyTurn, type ModelInvocationGrant, type TurnFacts } from '../routing/turnClassifier';
-import { conservativeTurnFacts, CONSERVATIVE_INTENT, createTurnDispatchWorker, type TurnDispatchObservation } from './turnWorker';
+import type { ModelRequest, ModelResult } from '../ports/openrouter.ts';
+import type { TelegramWorkItem } from '../ports/telegram.ts';
+import type { ModelChannel } from '../routing/turnDispatch.ts';
+import { classifyTurn, type ModelInvocationGrant, type TurnFacts } from '../routing/turnClassifier.ts';
+import { conservativeTurnFacts, CONSERVATIVE_INTENT, createTurnDispatchWorker, type TurnDispatchObservation } from './turnWorker.ts';
 
 function item(queuedRef: string): TelegramWorkItem {
   return {

@@ -75,8 +75,8 @@ import {
   openStore,
   type StoreConnectionConfig,
   type StoreHandle,
-} from '../db/connection';
-import { MIGRATIONS } from '../db/migrations';
+} from '../db/connection.ts';
+import { MIGRATIONS } from '../db/migrations.ts';
 
 // ---------------------------------------------------------------------------------------------
 // The invocation grammar (the restore drill's contract)

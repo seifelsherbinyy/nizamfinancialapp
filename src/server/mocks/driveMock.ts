@@ -29,7 +29,7 @@
  *   - **a size mismatch** and **a digest mismatch**, kept as distinct outcomes so an operator
  *     learns which property disagreed rather than reading a bare boolean.
  */
-import type { PortFailureCode } from '../ports/errors';
+import type { PortFailureCode } from '../ports/errors.ts';
 import type {
   DrivePort,
   DrivePortConfig,
@@ -40,9 +40,9 @@ import type {
   SnapshotListing,
   SnapshotUploadReceipt,
   SnapshotVerification,
-} from '../ports/drive';
-import { MockPortFailure } from './failure';
-import type { InvocationRecorder } from './invocationRecorder';
+} from '../ports/drive.ts';
+import { MockPortFailure } from './failure.ts';
+import type { InvocationRecorder } from './invocationRecorder.ts';
 
 export interface DriveMockConfig {
   readonly config: DrivePortConfig;

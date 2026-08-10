@@ -44,7 +44,7 @@ import {
   parseComposeSubset,
   scanForParticulars,
   type ComposeFinding,
-} from './composeTemplate';
+} from './composeTemplate.ts';
 
 // ---------------------------------------------------------------------------------------------
 // The parsed shape

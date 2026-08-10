@@ -8,7 +8,7 @@
  * OFFLINE ONLY. Pure functions from (case, response) -> score. No model, no network. A case passes
  * only when its task metric is exact AND it commits zero hard-rule violations.
  */
-import { type BenchmarkCase, type CaseScore, type ModelResponse } from './benchmark.types';
+import { type BenchmarkCase, type CaseScore, type ModelResponse } from './benchmark.types.ts';
 
 /** Grade one model response against one case. */
 export function scoreCase(c: BenchmarkCase, r: ModelResponse): CaseScore {

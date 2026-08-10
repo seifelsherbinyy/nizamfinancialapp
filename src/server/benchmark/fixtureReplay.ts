@@ -55,9 +55,9 @@
  * or re-expressed anywhere in this file. Owner money (integer milliunits, `src/lib/money`) does not
  * appear at all.
  */
-import type { BenchmarkCase, ModelResponse } from '../../features/benchmark/benchmark.types';
-import { configurableCaller, type ModelCaller } from '../../features/benchmark/runner';
-import type { RecordedModelExchange } from '../mocks/fixtures';
+import type { BenchmarkCase, ModelResponse } from '../../features/benchmark/benchmark.types.ts';
+import { configurableCaller, type ModelCaller } from '../../features/benchmark/runner.ts';
+import type { RecordedModelExchange } from '../mocks/fixtures.ts';
 
 /** The reference form a benchmark recording uses: `bench:<modelId>:<caseId>`. */
 export const BENCHMARK_CORRELATION_PREFIX = 'bench:';

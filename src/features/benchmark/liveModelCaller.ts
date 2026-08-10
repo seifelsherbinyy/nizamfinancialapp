@@ -75,9 +75,9 @@
  * milliunits behind `src/lib/money` and does not appear here (contract 06 §6.1). No `parseFloat`, no
  * `.toFixed(`.
  */
-import type { BenchmarkCase, ModelResponse, TokenUsage } from './benchmark.types';
-import { assertScopedToDefaultAllowed } from './preflight';
-import type { ModelCaller } from './runner';
+import type { BenchmarkCase, ModelResponse, TokenUsage } from './benchmark.types.ts';
+import { assertScopedToDefaultAllowed } from './preflight.ts';
+import type { ModelCaller } from './runner.ts';
 
 // ---- the opaque credential holder -------------------------------------------------------------
 

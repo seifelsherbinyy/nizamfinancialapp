@@ -38,7 +38,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { ENTRY_SPECS, TRACKED_SUFFIX, parseEnvTemplate } from './envTemplates';
+import { ENTRY_SPECS, TRACKED_SUFFIX, parseEnvTemplate } from './envTemplates.ts';
 
 // ---------------------------------------------------------------------------------------------
 // The parsed shape

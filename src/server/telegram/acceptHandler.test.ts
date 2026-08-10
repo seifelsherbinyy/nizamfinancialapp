@@ -24,18 +24,18 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { StoreHandle } from '../db/connection';
-import { openFinanceStore } from '../db/store';
-import { createInvocationRecorder, createTelegramMock } from '../mocks';
-import type { TelegramDelivery, TelegramTransportConfig } from '../ports/telegram';
+import type { StoreHandle } from '../db/connection.ts';
+import { openFinanceStore } from '../db/store.ts';
+import { createInvocationRecorder, createTelegramMock } from '../mocks/index.ts';
+import type { TelegramDelivery, TelegramTransportConfig } from '../ports/telegram.ts';
 import {
   acceptDelivery,
   createInboundHandler,
   TELEGRAM_ACCEPT_STAGES,
   type TelegramAcceptAuditLine,
   type TelegramAcceptContext,
-} from './acceptHandler';
-import { workQueueDepth, type WorkQueueContext } from './workQueueRepo';
+} from './acceptHandler.ts';
+import { workQueueDepth, type WorkQueueContext } from './workQueueRepo.ts';
 
 /** Synthetic, and short enough that the §9.0 long-id scan has nothing to find (R24). */
 const BOT_ONE = 'bot-one';
