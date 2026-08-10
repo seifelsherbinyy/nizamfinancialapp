@@ -4295,3 +4295,118 @@ answered would be a fabricated financial answer.
   not even a plausible placeholder of the right shape.
 - **No gate attempted, no checkbox ticked in `ops/GATE_REGISTER.md`**, G7 still CLOSED - WONT-DO, no outbound
   call, no process started against a live provider, and the other repository untouched.
+
+## Task 10.10 - the per-agent cap companion, and the placeholder that could not serve two units (2026-08-10)
+
+**Owning requirement:** R17. **Decision:** **D-CAP**, as settled in `requirements.md`'s decision note - a hard
+weekly ceiling **in total**, met by **two keys at half each**. **Finding closed:** **F13**.
+
+### What was missing, precisely
+
+Not the isolation. `weeklySpend` already filters rows to one agent, so one agent's spend cannot reach the other's
+total, and `agentBudget.ts` already takes `capMicroUsd` injected per agent. What was missing was the **companion**:
+nothing in the code expressed that the injected per-agent figure is **half of a total**, nothing related the two
+halves to the total, and nothing refused a cap set that over-allocated it. `WEEKLY_BUDGET_USD = 5` was the total
+with no per-agent counterpart, so the relation lived only in a decision note.
+
+`src/features/routing/agentWeeklyCaps.ts` is the counterpart.
+
+### The total stays the total
+
+`WEEKLY_BUDGET_USD` was **not** re-scoped, and that is a deliberate refusal rather than an omission. Contract 11's
+governance thresholds - warn, restrict, disable-premium - are **fractions of that constant**. Halving it to make it
+per-agent would silently convert every one of those fractions into a per-agent fraction, changing behaviour nobody
+asked to change. So the total is expressed once, in the ledger's integer unit, by **deriving** it:
+
+```
+WEEKLY_CAP_TOTAL_MICRO_USD = microUsdFromUsd(WEEKLY_BUDGET_USD)
+PER_AGENT_WEEKLY_CAP_MICRO_USD = perAgentCapMicroUsd(WEEKLY_CAP_TOTAL_MICRO_USD, CAPPED_AGENTS.length)
+```
+
+Derived, not restated: a second literal would be a second place to disagree. The one USD-to-micro conversion is
+applied once, to a configuration value that is already a whole number of dollars, which is the boundary
+`spendLedger` already sanctions for exactly this.
+
+### Three refusals, all in the fail-closed direction
+
+- **An inexact split is refused**, not rounded. Rounding down strands budget the owner authorised; rounding up
+  hands out more than the total. A total that will not divide is a configuration to fix.
+- **A cap set summing above the total is refused**, not scaled to fit. A silent adjustment would mean the figure an
+  operator reads in a file is not the figure being enforced. And the total is **never raised** to accommodate the
+  caps - steering forbids raising, bypassing or temporarily lifting a cap under any circumstance.
+- **A cap set summing below the total is permitted** and is not a finding. Spending less than authorised is always
+  allowed, and refusing it would be a rule invented here.
+
+### R17, asserted as a differential rather than in isolation
+
+The isolation test puts **both** agents' rows in **one** array, drives one agent past its half, and reads the
+other's decision back. A test that exhausted an agent in isolation would pass even if the caps were pooled, which
+is the failure R17 exists to prevent. Asserted in both directions, plus the case that matters most: one agent
+spending its whole half is still refused **even though the pair is under the total**, because a cap decision is
+scoped to one agent and is never aggregated (§6.2.3).
+
+The deterministic half is a **typed field**, not a comment: `deterministicAlertsProduced: true`. A build that made
+exhaustion suppress an obligation alert would not compile. The differential test runs the same deterministic
+producer under an ample cap and an exhausted one and asserts the answers are equal - a cap is a spend guard, not a
+service outage.
+
+### F13 - the resolution, and why it is a naming problem rather than a unit problem
+
+Both sides of the collision were right, which is what made it a real finding:
+
+| Artifact | Reads | Unit | On a decimal |
+|---|---|---|---|
+| `loadAgentModelBinding` | `FINANCE_WEEKLY_CAP` | integer micro-USD | **refuses**, never rounds |
+| `ops/GATE_REGISTER.md` G4 step 2 | `<FINANCE_WEEKLY_CAP>` | decimal USD | requires one |
+
+A literal `2.50` typed into the environment entry is a startup refusal; the integer sent to the provider would be a
+limit a million times too large. **One placeholder cannot serve two units**, so it stops being one placeholder:
+
+```
+LEDGER_WEEKLY_CAP_ENTRY[agent]        -> the entry name the loader reads, integer micro-USD
+PROVIDER_KEY_LIMIT_PLACEHOLDER[agent] -> the gate placeholder the provider body takes, decimal USD text
+```
+
+The provider-facing form is **text**, deliberately. A decimal `number` in a variable named for a limit is precisely
+the shape AC07 forbids, and it would invite arithmetic on it. The rendering uses integer digits only - the whole
+part is the exact division, the fractional part is the remainder zero-padded to six places and trimmed to the
+shortest exact form of at least two - so there is no rounding step, because every micro-USD value has an exact
+six-place decimal. Reading back parses the two integer parts **separately** and combines them by integer
+arithmetic, so the value never passes through a float; more precision than micro-USD can hold is **refused rather
+than rounded**, which is the same rule the integer entry applies, and having one function each way is what stops
+the two artifacts drifting. **No `parseFloat`, no `.toFixed(`, no decimal literal assigned to a money-named field.**
+
+The provider-facing name is **not** an environment entry, and that is the second half of the resolution: it is
+interpolated into one gate command and never stored, so adding it to `ops/env/*.env.example` would create a
+seventh entry in a file set `DEPLOYMENT_VALUE_LEDGER.md` enumerates exactly, owned by no gate and tracked by no
+row - and would break the assertion holding `SERVICE_ENTRY_NAMES` equal to the six templates.
+
+### RECOMMENDATION FOR THE OWNER - the one line `ops/GATE_REGISTER.md` G4 needs
+
+**Not applied.** The register outranks this repository's modules on gate verification and was not edited. The change
+is one line in G4 step 2, replacing the ledger-facing name with the provider-facing one:
+
+```
+-     -d '{"name":"<FINANCE_KEY_NAME>","limit":<FINANCE_WEEKLY_CAP>,"limit_reset":"weekly"}'
++     -d '{"name":"<FINANCE_KEY_NAME>","limit":<FINANCE_KEY_LIMIT_USD>,"limit_reset":"weekly"}'
+```
+
+Two consequential lines follow from it if the owner takes the change: the identical line for the life key
+(`<LIFE_WEEKLY_CAP>` -> `<LIFE_KEY_LIMIT_USD>`), and the verification comment `# -> limit == <FINANCE_WEEKLY_CAP>`
+-> `# -> limit == <FINANCE_KEY_LIMIT_USD>`. **Step 5 is already correct and must not change**: it records
+`FINANCE_WEEKLY_CAP=<FINANCE_WEEKLY_CAP>` in the environment file, which is the integer the ledger reads. With the
+change, step 2's sentence "must equal the value already encoded in the offline policy module" becomes true as
+written - the two names hold the same figure in their own unit, and `providerKeyLimitUsdText` is the conversion
+that proves it.
+
+### Gate result
+
+- `npm run verify:all -- --all` - **20 of 20 executed checks passed**, run after the commit because AC14 and AC15
+  require a clean tree.
+- Tests **1906 -> 1929** passing, and the AC04 `--min` floor ratcheted **1906 -> 1929**. Up only. Nothing lowered,
+  allowlisted, skipped or exempted.
+- **AC07 holds**, and the new module is the reason to say so out loud: no `parseFloat`, no `.toFixed(`, no decimal
+  literal assigned to a money-named field, and the one decimal that has to exist for the provider is a **string**.
+- **No cap was raised, bypassed or lifted.** Every refusal added here refuses; none of them permits.
+- **`ops/GATE_REGISTER.md` untouched**, no checkbox ticked, G7 still CLOSED - WONT-DO, no outbound call, and the
+  other repository untouched.

@@ -261,3 +261,24 @@ and neither was taken, because `acceptHandler` is typed synchronous and single-r
 the process supplies the conservative reader that classifies every turn `T0` - fail-closed, and it spends nothing;
 and **F19**, the bot identity is a process **argument** rather than an environment entry, because no template,
 `SERVICE_ENTRY_NAMES` row or value-ledger row declares it.
+
+**R17's per-agent half is now mechanical, and F13 is resolved, 2026-08-10 (task 10.10).** Contract 06 §6.2.3's
+"a cap decision is scoped to one agent and never aggregated" was held by `weeklySpend`'s row filter, but the
+**companion** was missing: nothing in code expressed **D-CAP** - a hard weekly ceiling **in total**, met by two
+per-agent halves - nor the relation between the halves and the total. `src/features/routing/agentWeeklyCaps.ts`
+adds it. `WEEKLY_BUDGET_USD` in `modelPolicy` **stays as the total** and is not re-scoped, because it is what
+contract 11's governance fractions are measured against and halving it would silently turn each of them into a
+per-agent fraction; the total is expressed once in the ledger's integer micro-USD by **deriving** it from that
+constant, so the two can never disagree. The per-agent half is derived from the total and the agent count, and an
+**inexact** split is refused rather than rounded in either direction - rounding down strands authorised budget,
+rounding up hands out more than the total. `assertCapsWithinTotal` refuses a cap set that sums above the total
+rather than scaling it to fit, and never raises the total to accommodate it. `decideAgentCaps` returns one decision
+per agent with **no field spanning both**, and `deterministicAlertsProduced` is typed `true`, so a build that made
+exhaustion suppress an obligation alert would not compile. **F13 is resolved on this side of the boundary**: the
+ledger-facing integer (`LEDGER_WEEKLY_CAP_ENTRY`) and the provider-facing decimal
+(`PROVIDER_KEY_LIMIT_PLACEHOLDER`) now have **distinct names**, the provider form is decimal **text** rather than a
+number so no limit-named field holds a decimal (AC07), and one tested function each way carries the value between
+them with no `parseFloat`, no `.toFixed(` and no rounding - more precision than micro-USD can hold is refused.
+**`ops/GATE_REGISTER.md` was not edited** - it outranks this module on gate verification - and the one-line change
+its G4 step would need is recorded in the build log as a recommendation for the owner. **No contract file was
+edited and no owning requirement range moved.**

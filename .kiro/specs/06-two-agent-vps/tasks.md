@@ -229,8 +229,19 @@
       firewall and the port bindings must agree. (R28, R30)
 - [ ] 10.9 Wire the **existing** `ops/backup/backup.sh` and `ops/restore/restore.sh`. Do not write a
       second backup mechanism; if they need a change, change them. (§6.5)
-- [ ] 10.10 Add the per-agent weekly cap companion the code lacks: **D-CAP** is a hard USD 5.00 per
+- [x] 10.10 Add the per-agent weekly cap companion the code lacks: **D-CAP** is a hard USD 5.00 per
       week **in total**, two keys at **2.50** each. `WEEKLY_BUDGET_USD = 5` stays as the total.
+      **Done 2026-08-10.** `src/features/routing/agentWeeklyCaps.ts`: the total expressed in the
+      ledger's integer unit and **derived** from `WEEKLY_BUDGET_USD` rather than restated, the
+      per-agent half derived from the total with an inexact split **refused** rather than rounded,
+      and `assertCapsWithinTotal` refusing an over-allocated set rather than scaling it - the total is
+      never raised. `decideAgentCaps` returns one decision per agent with no field spanning both, and
+      `deterministicAlertsProduced` is typed `true` so exhaustion cannot suppress an alert (R17).
+      **F13 resolved on this side:** `LEDGER_WEEKLY_CAP_ENTRY` (integer micro-USD) and
+      `PROVIDER_KEY_LIMIT_PLACEHOLDER` (decimal USD **text**) are distinct names, related by one
+      tested conversion each way with no `parseFloat`, no `.toFixed(` and no decimal literal.
+      `ops/GATE_REGISTER.md` was **not** edited; the one-line G4 change is a recommendation in the
+      build log. 23 tests; floor 1906 -> 1929.
 - [ ] 10.11 Tell the owner exactly which gate steps to perform, with the command for each: **G1**
       hardening plus `/etc/<CONFIG_DIR>`; **G4** two keys at 2.50 with training opt-out; **G5** with
       the consent screen published to production (**D-G5**); **G8** the `age` keypair.
