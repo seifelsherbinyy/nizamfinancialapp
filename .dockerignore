@@ -1,0 +1,41 @@
+# NIZAM - what never enters an image build context.
+#
+# Owning contract: PFOS 12 - Two-Agent VPS Deployment & Operations. Spec task 10.8, requirement R24.
+# Companion: ops/IMAGE_BUILD.md, and the two image recipes under ops/images/.
+#
+# THE FIRST BLOCK IS THE ONE THAT MATTERS. A build context is a copy of this directory handed to the
+# builder, so a broad COPY can put a private key inside a layer that is then tagged, pushed, and
+# unreadable-once-shipped. Nothing below is a size optimization; the untracked secret material and
+# the local environment files are excluded first, by name and by directory, so a future COPY of a
+# whole subtree cannot pick one up by accident. Being gitignored does not help here - the builder
+# does not read .gitignore.
+.secrets/
+.env
+.env.local
+.env.*.local
+ops/env/*.env
+**/*.pem
+**/*.key
+**/id_ed25519*
+**/id_rsa*
+
+# Version control and editor state. A .git directory in a context is both large and a full history
+# of every file that was ever in it, including one that was removed for a reason.
+.git/
+.gitignore
+.gitattributes
+.vscode/
+.kiro/
+
+# Installed and generated trees. Dependencies are resolved inside the build from the lockfile so the
+# result does not depend on this machine, and dist/ is the browser bundle, which no server image runs.
+node_modules/
+dist/
+coverage/
+.loop/
+.vite/
+
+# Local data and research. Real ledgers are gitignored and must never reach an image either.
+data/ledgers/*.json
+docs/research/
+outputs/

@@ -200,6 +200,25 @@ export const EXPECTED_SERVICES: readonly string[] = [
 
 export const AGENT_SERVICES: readonly string[] = [LIFE_SERVICE, FINANCE_SERVICE];
 
+/**
+ * The profile that gates the public entry point (task 10.8, R30).
+ *
+ * Phase 1 publishes no host port at all - requirements.md's phasing note states it, and R26's trap
+ * note names it as the compensating control for the mode-scoped guard. Until this task that was an
+ * OPERATOR CONVENTION: the proxy was to be left down, and nothing verified it, so a bare
+ * `docker compose up` started it and bound a host port phase 1 forbids.
+ *
+ * A profile turns the convention into a property of the file. A service carrying one is not started
+ * unless the profile is named explicitly, so the absence of a published port in phase 1 follows from
+ * the template rather than from remembering a flag. Both directions are asserted below, because they
+ * fail differently: a port-publishing service that is NOT gated publishes in phase 1, and a service
+ * phase 1 needs that IS gated silently does not start at all.
+ */
+export const PHASE_TWO_PROFILE = 'phase2';
+
+/** Every profile name the template may use. Enumerated, so a typo is a finding and not a new profile. */
+export const EXPECTED_PROFILES: readonly string[] = [PHASE_TWO_PROFILE];
+
 export const BUS_NETWORK = 'bus-internal';
 
 /** BUS_NETWORK_BINDING item 4: the agents are the bus's only legitimate clients. Nothing else joins. */
@@ -287,6 +306,10 @@ export const COMPOSE_FINDING_CODES = [
   'BUS_PUBLISHES_PORT',
   'PORT_PUBLISHED_BY_NON_PROXY',
   'PUBLISHED_PORT_NOT_PLACEHOLDER',
+  'PORT_PUBLISHING_SERVICE_NOT_PROFILE_GATED',
+  'PHASE_ONE_SERVICE_IS_PROFILE_GATED',
+  'PROFILE_LIST_UNREADABLE',
+  'PROFILE_NAME_UNEXPECTED',
   'AGENT_NOT_ON_BUS_NETWORK',
   'AGENT_HAS_NO_PROXY_FACING_NETWORK',
   'BUS_NETWORK_MEMBERSHIP_UNEXPECTED',
@@ -423,6 +446,9 @@ export function auditComposeTemplate(source: string): readonly ComposeFinding[] 
   const networksOf = new Map<string, readonly string[]>();
   const mountsOf = new Map<string, readonly Mount[]>();
   const envFileOf = new Map<string, readonly string[]>();
+  /** Task 10.8: which services publish a host port, and which are gated behind a profile. */
+  const publishesPort = new Set<string>();
+  const profilesOf = new Map<string, readonly string[]>();
   let reservedCpus = 0;
   let reservedMemory = 0;
   /** Task 7.5: the bounded total of every declared cap, in MiB (§2.2.9). */
@@ -572,9 +598,31 @@ export function auditComposeTemplate(source: string): readonly ComposeFinding[] 
     }
     mountsOf.set(name, mounts);
 
+    // profiles: read here, asserted after the loop against which services publish a port (task 10.8)
+    if (svc.profiles === undefined) {
+      profilesOf.set(name, []);
+    } else {
+      const profiles = asScalarList(svc.profiles);
+      if (profiles === null) {
+        note('PROFILE_LIST_UNREADABLE', `service "${name}" declares a profiles key that is not a list of names, so which profile gates it is a guess`);
+        profilesOf.set(name, []);
+      } else {
+        profilesOf.set(name, profiles);
+        for (const profile of profiles) {
+          if (!EXPECTED_PROFILES.includes(profile)) {
+            note(
+              'PROFILE_NAME_UNEXPECTED',
+              `service "${name}" declares profile "${profile}"; the template uses [${EXPECTED_PROFILES.join(', ')}] and nothing else, because a profile nobody enables is a service that never starts and a typo produces exactly that`,
+            );
+          }
+        }
+      }
+    }
+
     // published ports: the proxy only, and every value a placeholder (§2.2.1, R24)
     const ports = asScalarList(svc.ports);
     if (ports !== null) {
+      publishesPort.add(name);
       if (name === BUS_SERVICE) {
         note('BUS_PUBLISHES_PORT', 'the bus declares a ports entry; BUS_NETWORK_BINDING item 3 permits none, not even bound to a loopback address');
       } else if (name !== PROXY_SERVICE) {
@@ -586,6 +634,27 @@ export function auditComposeTemplate(source: string): readonly ComposeFinding[] 
           note('PUBLISHED_PORT_NOT_PLACEHOLDER', `service "${name}" publishes "${entry}"; every port segment must be an <ANGLE_BRACKET> placeholder`);
         }
       }
+    }
+  }
+
+  // --- phase 1 publishes no host port, by construction (task 10.8, R30) --------------------------
+  // Both directions, because they fail differently. A service that publishes a port and carries no
+  // profile is started by a bare `docker compose up`, which is the phase-1 breach this asserts
+  // against. A service phase 1 actually needs that DOES carry a profile silently does not start, and
+  // that failure presents as a deployment which came up clean and answers nothing.
+  for (const [name, profiles] of profilesOf) {
+    if (publishesPort.has(name)) {
+      if (profiles.length === 0) {
+        note(
+          'PORT_PUBLISHING_SERVICE_NOT_PROFILE_GATED',
+          `service "${name}" publishes a host port and carries no profiles key, so a bare start binds it; phase 1 publishes no host port at all, and that must be a property of this file rather than an operator convention`,
+        );
+      }
+    } else if (profiles.length > 0) {
+      note(
+        'PHASE_ONE_SERVICE_IS_PROFILE_GATED',
+        `service "${name}" publishes no host port yet is gated behind profile(s) ${profiles.join(', ')}; phase 1 needs it, so gating it means a bare start brings up a deployment that is missing a service and reports nothing`,
+      );
     }
   }
 

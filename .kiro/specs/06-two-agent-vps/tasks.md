@@ -222,11 +222,36 @@
       framework added:** the accept path is synchronous and single-route, so `node:http` covers it.
       The `longPoll` absence is asserted against the process's own `listeningPorts` and the injected
       host's own request record, in both directions (D6). 34 tests; floor 1872 -> 1906.
-- [ ] 10.8 A Dockerfile per image this repository owns, plus a build path producing the tags compose
+- [x] 10.8 A Dockerfile per image this repository owns, plus a build path producing the tags compose
       references (six `<*_IMAGE_REF>` placeholders today build nothing - **O1**). Decide and record
       the **F12** resolution: publish 80 as a second port on `caddy`, **or** rely on TLS-ALPN-01 on
       `<TLS_PORT>` alone and state in `ops/GATE_REGISTER.md` that 80 is then not required. The
       firewall and the port bindings must agree. (R28, R30)
+      **Done 2026-08-10.** `ops/images/finance-agent/Dockerfile` (the one image this repository owns:
+      pinned to the `.nvmrc` major, ending unprivileged, installing the two readiness commands, with
+      no `EXPOSE`, no `HEALTHCHECK` and no configuration default), a root `.dockerignore` that keeps
+      the untracked secret material out of the build context, and `ops/IMAGE_BUILD.md` - the ownership
+      record and the build path. **O1 is recorded rather than papered over:** one reference is
+      `BUILT_HERE`, two are `EXTERNAL` (the life agent is the other repository's and is downstream of
+      the three unapplied change specifications; the proxy is an upstream release), and three are
+      `OWNED_BUILD_PENDING` - a state R28 did not anticipate, for images owned here in library form
+      with no process to package. A row in that state must name its blocker. `src/server/process/probe.ts`
+      installs the restore drill's readiness command. **F12 resolved on TLS-ALPN-01 on `<TLS_PORT>`
+      alone** - the criterion was speed, and every artifact except one line of the register was
+      already in that posture, so the alternative cost four coordinated edits and a permanently wider
+      public surface for a challenge nothing needs. **`ops/GATE_REGISTER.md` WAS edited, once**, at
+      the certificate-challenge line inside G1: R30 requires the resolution recorded in that file, and
+      this resolution makes the advice that line carried wrong. No gate was renumbered, removed,
+      reopened or restated, no `Status:` moved and no box was ticked. Unlike 10.10, the register edit
+      here is required by the requirement rather than merely recommended.
+      **The phase-1 posture is now a property of the file:** `caddy` - the only service with a
+      `ports:` key - carries a `profiles:` entry, so a bare start binds nothing, and
+      `src/server/ops/composeTemplate.ts` asserts both directions (a port-publishing service must be
+      gated; a service phase 1 needs must not be). `src/server/ops/imageOwnership.ts` holds the R28
+      record audit and the R30 cross-artifact assertion, the latter **neutral about which resolution
+      was chosen** - it reads the challenge the register names and requires the bindings and the proxy
+      configuration to match that one, and a test drives the rejected resolution through it to show it
+      would have been held just as tightly. 47 tests; floor 1929 -> 1982.
 - [ ] 10.9 Wire the **existing** `ops/backup/backup.sh` and `ops/restore/restore.sh`. Do not write a
       second backup mechanism; if they need a change, change them. (§6.5)
 - [x] 10.10 Add the per-agent weekly cap companion the code lacks: **D-CAP** is a hard USD 5.00 per
@@ -338,15 +363,19 @@ Everything else is buildable now behind the existing port and mock boundary.
 - [x] `npm run verify:all -- --all` passes all checks after every phase
       `HARNESS PASSED`, **20 of 20 executed checks passed**, at the close of this increment.
 - [x] Test floor ratcheted up, never down
-      The AC04 `--min` in `scripts/verify/all.mjs` is **1757**. Read from that file's history, every
+      The AC04 `--min` in `scripts/verify/all.mjs` is **1982**. Read from that file's history, every
       transition is an increase: 110 → 185 → 200 → 220 → 235 → 245 → 253 → 258 → 261 → 266 → 269 →
-      317 → 331 → 1757. Fourteen values, thirteen transitions, all upward, none down.
+      317 → 331 → 1757 → 1790 → 1829 → 1872 → 1906 → 1929 → 1982. Twenty values, nineteen
+      transitions, all upward, none down. **Corrected in task 10.8:** this note claimed **1757** and
+      ended its list there, six transitions after that had already landed. The claim it makes - up
+      only, never down - was true throughout; the number it made the claim about was stale, which is
+      the more embarrassing of the two ways a ratchet note can be wrong, because it reads as evidence.
 - [x] No secret in any tracked file; `ops/` holds placeholders only
       Three checks, one clause each. **AC09** (`secret-scan.mjs`) covers *no secret in any tracked
       file*: five secret-shaped content patterns and five forbidden tracked paths over every tracked
       file. **AC11** (`generic-only.mjs`) covers *no organization-specific term in any tracked file*.
-      **AC18** (`no-deployment-particular.mjs`) covers *`ops/` holds placeholders only*: 21 artifacts
-      across `ops/**` and `src/server/mocks/fixtures/**`, plus the two store-isolation bans over 123
+      **AC18** (`no-deployment-particular.mjs`) covers *`ops/` holds placeholders only*: 23 artifacts
+      across `ops/**` and `src/server/mocks/fixtures/**`, plus the two store-isolation bans over 143
       files under `src/server/**`. All three pass, and none was allowlisted or exempted.
 
 ## Waiting on user input (do NOT attempt - steering §2)

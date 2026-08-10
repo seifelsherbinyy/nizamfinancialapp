@@ -31,9 +31,11 @@ import {
   BUS_SERVICE,
   BUS_VOLUME,
   COMPOSE_FINDING_CODES,
+  EXPECTED_PROFILES,
   EXPECTED_SERVICES,
   HOST_BUDGET,
   LOG_FOOTPRINT_BUDGET_MIB,
+  PHASE_TWO_PROFILE,
   PROXY_SERVICE,
   ROTATING_LOG_DRIVERS,
   auditComposeTemplate,
@@ -200,6 +202,29 @@ const NEGATIVE_CASES: readonly NegativeCase[] = [
     code: 'PUBLISHED_PORT_NOT_PLACEHOLDER',
     why: 'a resolved port assignment is a deployment particular (R24)',
     apply: swap('"<TLS_PORT>:<PROXY_TLS_CONTAINER_PORT>"', '"8443:8443"'),
+  },
+  {
+    code: 'PORT_PUBLISHING_SERVICE_NOT_PROFILE_GATED',
+    why: 'task 10.8 - a bare start must not bind a host port, so the only service that publishes one is gated behind a profile',
+    apply: swap('    profiles:\n      - phase2\n', ''),
+  },
+  {
+    code: 'PHASE_ONE_SERVICE_IS_PROFILE_GATED',
+    why: 'gating a service phase 1 needs makes a bare start come up clean while missing a service',
+    apply: swap(
+      '    image: "<BUS_IMAGE_REF>"\n    restart: unless-stopped\n',
+      '    image: "<BUS_IMAGE_REF>"\n    restart: unless-stopped\n    profiles:\n      - phase2\n',
+    ),
+  },
+  {
+    code: 'PROFILE_LIST_UNREADABLE',
+    why: 'a profiles key that is not a list of names leaves which profile gates the service a guess',
+    apply: swap('    profiles:\n      - phase2\n', '    profiles:\n      when: phase2\n'),
+  },
+  {
+    code: 'PROFILE_NAME_UNEXPECTED',
+    why: 'a profile nobody enables is a service that never starts, and a typo produces exactly that',
+    apply: swap('      - phase2\n', '      - phase-two\n'),
   },
   {
     code: 'AGENT_NOT_ON_BUS_NETWORK',
@@ -369,6 +394,36 @@ describe('the template on disk is the shape contract 12 requires', () => {
       const health = (services[name] as YamlMap).healthcheck as YamlMap;
       expect(Object.keys(health).sort(), `${name} healthcheck`).toEqual(['interval', 'retries', 'start_period', 'test', 'timeout']);
     }
+  });
+
+  it('makes the phase-1 no-published-port posture a property of the file, not a convention (task 10.8)', () => {
+    // Requirements.md's phasing note says phase 1 publishes no host port at all, and R26's trap note
+    // names that absence as the compensating control for the mode-scoped guard. Before task 10.8 the
+    // template carried zero profiles keys, so the posture rested on an operator remembering not to
+    // start the proxy: a bare start bound the port and nothing observed it. Asserted in both
+    // directions here, off the parse tree, because each direction fails differently.
+    const services = parseComposeSubset(TEMPLATE).services as YamlMap;
+    const publishing = Object.keys(services).filter((s) => (services[s] as YamlMap).ports !== undefined);
+    const gated = Object.keys(services).filter((s) => (services[s] as YamlMap).profiles !== undefined);
+
+    expect(publishing).toEqual([PROXY_SERVICE]);
+    expect(gated).toEqual([PROXY_SERVICE]);
+    expect((services[PROXY_SERVICE] as YamlMap).profiles).toEqual([PHASE_TWO_PROFILE]);
+    for (const profile of (services[PROXY_SERVICE] as YamlMap).profiles as readonly string[]) {
+      expect(EXPECTED_PROFILES).toContain(profile);
+    }
+  });
+
+  it('publishes exactly one host port, so F12 is closed on TLS-ALPN-01 rather than on a second binding', () => {
+    // Task 10.8 resolved F12 by keeping one published port and relying on the challenge that needs
+    // only it. The evidence that the two artifacts agree is here and in caddyTemplate.test.ts: this
+    // file binds one port, and the proxy configuration disables the challenge that would need the
+    // cleartext one. A second entry appearing below would break that agreement silently, so the
+    // count is asserted rather than described.
+    const services = parseComposeSubset(TEMPLATE).services as YamlMap;
+    const ports = (services[PROXY_SERVICE] as YamlMap).ports as readonly string[];
+    expect(ports).toHaveLength(1);
+    expect(ports[0]).toBe('<TLS_PORT>:<PROXY_TLS_CONTAINER_PORT>');
   });
 
   it('caps every log stream with a rotating driver and positive figures that total inside a budget (§2.2.9)', () => {

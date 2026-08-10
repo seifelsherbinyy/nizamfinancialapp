@@ -174,6 +174,17 @@ export const SITE_UPSTREAM: Readonly<Record<string, string>> = {
 
 /** The path prefix the webhook lives under. The segment after it is the secret and is a
  *  placeholder; §2.2.4 keeps it independent of the bot token. */
+/**
+ * The issuer directive that switches off the certificate challenge needing the cleartext port.
+ *
+ * Exported rather than inlined because a second module reads the same fact: `./imageOwnership`
+ * holds the R30 cross-artifact assertion, which asks whether the challenge posture this file
+ * asserts agrees with the resolution the gate register records and with the ports the topology
+ * binds. Two spellings of one directive name is how those two checks would come to disagree while
+ * both passed.
+ */
+export const HTTP_CHALLENGE_DISABLE_DIRECTIVE = 'disable_http_challenge';
+
 export const WEBHOOK_PATH_PREFIX = '/tg/';
 
 /** The only method the provider uses for a webhook delivery. Narrowing means a read of the secret
@@ -444,7 +455,7 @@ function auditSite(
     note('TLS_BLOCK_MISSING', `site "${label}" declares no tls block, so the issuance path is whatever the default happens to be (§2.2.2)`);
   } else {
     const issuers = blocksNamed(tls.body ?? [], 'issuer');
-    const disabled = issuers.some((issuer) => hasLeaf(issuer.body ?? [], 'disable_http_challenge'));
+    const disabled = issuers.some((issuer) => hasLeaf(issuer.body ?? [], HTTP_CHALLENGE_DISABLE_DIRECTIVE));
     if (!disabled) {
       note('TLS_HTTP_CHALLENGE_NOT_DISABLED', `site "${label}" does not disable the challenge that needs the cleartext port; §2.2.1 publishes the TLS port and no other, so that challenge can never complete`);
     }

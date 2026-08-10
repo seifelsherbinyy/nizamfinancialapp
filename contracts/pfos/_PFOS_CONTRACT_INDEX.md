@@ -282,3 +282,36 @@ them with no `parseFloat`, no `.toFixed(` and no rounding - more precision than 
 **`ops/GATE_REGISTER.md` was not edited** - it outranks this module on gate verification - and the one-line change
 its G4 step would need is recorded in the build log as a recommendation for the owner. **No contract file was
 edited and no owning requirement range moved.**
+
+**R28 and R30 are now mechanical, O1 is recorded rather than closed by pretence, and F12 is resolved,
+2026-08-10 (task 10.8).** Contract 12 §2.1 names six services and §10.1 injects every image reference, and
+the tree held **zero** build recipes - finding **O1**, whose consequence is that after all eight gates clear
+`docker compose up` still could not run. R28 is met by an honest **record** rather than by six recipes:
+`ops/IMAGE_BUILD.md` accounts for every reference in one of three states, and `src/server/ops/imageOwnership.ts`
+reads that record against the topology, against `.nvmrc` and against the recipes on disk on every test run,
+in **both** directions - a reference with no row, a row for a reference nothing runs, a recipe a row names and
+the tree lacks, and a recipe the tree holds and no row claims are each a finding. `ops/images/finance-agent/Dockerfile`
+is the one image this repository owns: pinned to the runtime major `.nvmrc` names, ending on an unprivileged
+`USER`, installing the readiness command `healthProbe.ts` exports so **R22**'s healthcheck names something
+that exists, and carrying no `EXPOSE`, no `HEALTHCHECK` and no configuration default - the last because a
+default in an image turns **R27**'s refused boot into a guessed one. A root `.dockerignore` keeps the untracked
+secret material, the local environment files and the browser bundle out of the build context, which
+`.gitignore` cannot do because a builder does not read it. **`OWNED_BUILD_PENDING` is a state R28 did not
+anticipate** and it is recorded rather than avoided: R28's ownership axis is binary, and three references are
+owned here **in library form** with no process to package, so a row in that state must name the task or
+finding that closes it. **F12 is resolved on TLS-ALPN-01 on `<TLS_PORT>` alone**, on the owner's speed
+criterion: every artifact except one line of the register was already in that posture, so the alternative cost
+four coordinated edits and a permanently wider public surface for a challenge nothing needs.
+**`ops/GATE_REGISTER.md` WAS edited, once and only at the certificate-challenge line inside G1**, because R30
+requires the resolution recorded in that file and this resolution makes the advice that line carried wrong -
+no gate was renumbered, removed, reopened or restated, no verification line softened, no `Status:` moved and
+no box ticked. The R30 cross-artifact assertion is **neutral about which resolution was chosen**: it reads the
+challenge the register names and requires the bindings and the proxy configuration to match **that** one, and
+a test drives the rejected resolution through it to show it would have been held just as tightly. It also
+compares the firewall allowance the register records against the host ports the topology publishes, excluding
+the administrative port, which is R30's literal assertion. Separately, the phase-1 posture task 10.0 found
+resting on an operator convention is now a **property of `ops/docker-compose.yml`**: `caddy`, the only service
+with a `ports:` key, carries a `profiles:` entry, and `src/server/ops/composeTemplate.ts` asserts both
+directions of it. **No contract file was edited and no owning requirement range moved** - R28 and R30 were
+already in contract 12's `R6-R30` range. **The other repository was not touched**, no image was built, no tag
+resolved, no registry contacted and no outbound call made.

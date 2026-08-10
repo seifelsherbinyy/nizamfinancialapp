@@ -103,10 +103,30 @@ services:
   # caddy - the single public entry point. Terminates TLS, routes by hostname AND secret path
   # segment (contract 12 §2.2.1-§2.2.4). The only service with a published port.
   # It is on neither internal network, so it has no route to the bus (BUS_NETWORK_BINDING item 2).
+  #
+  # PHASE 1 KEEPS THIS SERVICE DOWN, AND THE `profiles:` KEY BELOW IS WHY (task 10.8).
+  # That used to be an operator convention - remember not to start the proxy - and nothing verified
+  # it, so a bare `docker compose up` brought it up and bound a host port that phase 1 forbids. A
+  # service carrying a profile is not started unless that profile is named on the command line, and
+  # this is the ONLY service with a `ports:` key, so "phase 1 publishes no host port" is now a
+  # property of this file rather than something to remember. Phase 2 names the profile deliberately,
+  # which is the point at which publishing a port becomes a decision somebody made.
+  #
+  # THE CERTIFICATE CHALLENGE IS TLS-ALPN-01 ON <TLS_PORT> ALONE (finding F12, resolved; R28, R30).
+  # There is exactly one published port below, and there is deliberately no second one for the
+  # cleartext challenge: ops/Caddyfile disables that challenge on both sites and turns off the
+  # redirect hosts that would otherwise stand up on the cleartext port. The firewall posture and
+  # these bindings therefore agree - one port, opened in one place. The decision, its criterion and
+  # the rejected alternative are recorded in ops/IMAGE_BUILD.md; the resolution itself is recorded
+  # in G1 of ops/GATE_REGISTER.md, which is what R30 requires and which is the one edit R30 obliges.
+  # src/server/ops/imageOwnership.ts re-reads all three on every test run and reports a finding if
+  # any one of them stops agreeing with the other two, in either direction.
   # ---------------------------------------------------------------------------------------------
   caddy:
     image: "<PROXY_IMAGE_REF>"
     restart: unless-stopped
+    profiles:
+      - phase2
     env_file:
       - "<PROXY_ENV_PATH>"
     ports:

@@ -4410,3 +4410,194 @@ that proves it.
 - **No cap was raised, bypassed or lifted.** Every refusal added here refuses; none of them permits.
 - **`ops/GATE_REGISTER.md` untouched**, no checkbox ticked, G7 still CLOSED - WONT-DO, no outbound call, and the
   other repository untouched.
+
+## Task 10.8 - the images this repository owns, and the port nobody was binding (2026-08-10)
+
+**Spec:** `.kiro/specs/06-two-agent-vps/` phase 10, task 10.8. **Owning requirements:** R28 (a Dockerfile
+for every image this repository owns, and a documented build path producing the exact tag the topology
+references), R30 (the firewall posture and the port bindings agree, and the certificate-challenge
+resolution is recorded). **Findings addressed:** **O1** (six image references, zero recipes) and **F12**
+(the certificate-challenge port). **Contract 12** §2.1, §2.2.1, §7.3, §10.1.
+
+### What was actually missing, stated without hedging
+
+`ops/docker-compose.yml` names six image references. The tree held zero build recipes. So after every one
+of the gates G1 through G8 clears, `docker compose up` still could not run, because nothing in either
+repository produced the six artifacts the topology names. That is O1, and it is a build gap rather than a
+human gate, which is why it was never in the register.
+
+Separately, two individually true statements were together insufficient. The topology publishes exactly one
+host port. The register's G1 correction advised opening a second one for a cleartext certificate challenge.
+Opening a port in the firewall reaches nothing if the topology never binds it, so the challenge would have
+failed **while the firewall looked correct** - the artifact an operator checks to diagnose it is the one
+that is right. That is F12.
+
+### R28's answer is a record, not six recipes
+
+Writing six recipes would have been the wrong shape and a worse defect than the absence: an image that
+builds and then fails at its first real step is harder to diagnose than one that was never there. Four of
+the six are not this repository's to write, or are not writable yet. So `ops/IMAGE_BUILD.md` accounts for
+**every** reference in exactly one of three states, and `src/server/ops/imageOwnership.ts` checks the
+record rather than trusting it.
+
+| Reference | State | Why |
+|---|---|---|
+| `<FINANCE_IMAGE_REF>` | `BUILT_HERE` | This repository is the finance agent (steering §1); task 10.7 built the process it runs. |
+| `<LIFE_IMAGE_REF>` | `EXTERNAL` | Python, in the other repository, downstream of the three unapplied change specifications. Steering §6 forbids this session from touching it, and it could not build a correct one if it were permitted to try. |
+| `<PROXY_IMAGE_REF>` | `EXTERNAL` | An upstream release, configured entirely by the file the topology mounts read-only. A wrapper recipe would add a build step, a supply-chain surface and a second place the version is pinned, for nothing. |
+| `<BUS_IMAGE_REF>` | `OWNED_BUILD_PENDING` | The envelope schema, the validation, the consent gate and the signal store are all here. What does not exist is a bus **server process**, so there is no entry point for a recipe to name. Blocked by **O2**. |
+| `<SCHEDULER_IMAGE_REF>` | `OWNED_BUILD_PENDING` | Same shape, same reason. Its recipe is absent because its process is, not because it is hard. Blocked by **O2**. |
+| `<BACKUP_IMAGE_REF>` | `OWNED_BUILD_PENDING` | `ops/backup/backup.sh` fixes the tool set exactly, but its fourth step calls an uploader that does not exist - the live storage adapter is gated on G5. An image whose entrypoint fails at step four **after** writing a plaintext snapshot is a new failure mode, not a partial backup. Blocked by **task 10.9**. |
+
+**`OWNED_BUILD_PENDING` is a state R28 did not anticipate**, and it is recorded rather than avoided. R28's
+ownership axis is binary - the repository owns an image or it does not - and three references sit in
+neither box, being owned here in library form with no process to package. Calling them `EXTERNAL` would
+hand them to a repository that does not hold their code; calling them `BUILT_HERE` would need an entry
+point nobody has written. The third state is the honest shape, and the audit makes it strictly stronger
+than silence, because a row in it **must** name the task or finding that closes it.
+
+### The recipe, and the four properties that are checked rather than described
+
+`ops/images/finance-agent/Dockerfile` is two stages: production dependencies resolved from the lockfile
+(`npm ci --omit=dev --ignore-scripts`, so no install hook runs during the build), then the runtime. There
+is no compile step, because the pinned runtime strips types natively - and that is deliberate rather than
+lazy, since a build step would produce a second copy of the money core and steering §1 permits exactly one.
+
+1. **The base is pinned to the `.nvmrc` major.** Both stages name it, the audit reads `.nvmrc` and reports
+   a finding if they disagree. A major and not a patch: a patch this repository invented would be a version
+   nobody verified exists, and the immutable identity of the bytes is the digest, which belongs in the
+   operator's own build receipt.
+2. **It ends unprivileged.** The last directive names the unprivileged account the base image provides.
+   Everything needing root - installing the entry points, preparing the store directory with the right
+   ownership so an empty named volume inherits it - happens before that line, and nothing after it needs
+   root. The alternative, an entrypoint that starts as root and drops privilege, reintroduces the root the
+   directive exists to remove.
+3. **No secret and no deployment particular.** No `ENV`, no `ARG` carrying a value, no endpoint, no default
+   for anything the environment supplies. A default would turn R27's refused boot into a guessed one. The
+   audit distinguishes `ARG NAME` (an input the builder supplies, leaving nothing in the image) from
+   `ARG NAME=value` (a default), and refuses only the second.
+4. **The healthcheck command exists inside it.** Two commands, because two callers ask different questions:
+   `nizam-finance-health` takes no arguments and derives the store from the service's own environment,
+   which is why the topology's healthcheck is a single-element `CMD` needing no port; and
+   `nizam-health-probe --store … --throwaway`, the grammar the restore drill invokes. That second name is
+   **not invented in the recipe** - `healthProbe.ts` exports it as `PROBE_COMMAND_NAME`, the drill quotes
+   it, and the audit fails if the recipe does not install it. `src/server/process/probe.ts` is the one
+   statement that turns the probe's answer into an exit status, the same split as `start.ts` and for the
+   same reason: a module that ends the process cannot be tested.
+
+Three things are **deliberately absent** and each is a finding if it appears: no `EXPOSE` (phase 1 binds
+nothing, and in webhook mode the proxy reaches the container over the agent's own network), no
+`HEALTHCHECK` (the topology declares one per service with its interval, timeout, retries and grace period,
+and two policies drift), and no development dependency.
+
+### The build context, and why `.gitignore` was not enough
+
+A build context is a copy of the directory handed to the builder, and **the builder does not read
+`.gitignore`**. So a broad `COPY` could place a private key inside a layer that is then tagged, pushed and
+unreadable-once-shipped. The root `.dockerignore` excludes the untracked secret material, the local
+environment files, key-shaped files by pattern, the version-control directory and the browser bundle -
+first block first, by name and by directory, so a future widening of a `COPY` cannot pick one up.
+
+### The build path: one value resolved once
+
+The property is not "a convention that the build tag and the topology's `image:` entry should match".
+There is nothing to match, because there is only one string: the operator resolves the reference once, in
+the untracked file that already holds every other particular, and both the build invocation and the
+topology receive that same value. `ops/IMAGE_BUILD.md` documents the invocation from the repository root
+with the recipe named explicitly. The tag is derived from something that cannot be reused - a moving tag
+turns `ops/runbook/ROLLBACK.md`'s revert-to-the-previous-tag into a coin flip - and the digest is recorded
+in the operator's build receipt, never here, because a digest is a particular in the same sense a tag is.
+The audit's `BUILD_PATH_UNDOCUMENTED` requires the recipe and the reference **on one invocation**, matched
+on the two flags rather than on proximity; the first draft matched any line holding both and was silently
+satisfied by the record's own table row, which is exactly the shape of check that passes without checking.
+
+### THE F12 DECISION: TLS-ALPN-01 on `<TLS_PORT>` alone
+
+**Chosen.** R30 set out two admissible resolutions and deliberately did not pick; design delta D5 said the
+same and named this task as the one that decides. The criterion is the owner's: **speed**.
+
+- The rejected alternative - publishing the cleartext port as a second port on the proxy service - costs
+  four edits that must land together: a second `ports:` entry, removal of the challenge-disabling directive
+  from **both** sites in `ops/Caddyfile`, a widened firewall allowance, and a relaxation of the assertion
+  that exactly one host port is published. Each is small; together they widen the public surface of the
+  deployment from one port to two, permanently, for a challenge that is not needed.
+- The chosen resolution costs **one** edit, because every other artifact was already in this posture and
+  nothing had noticed: the topology publishes one host port, and `ops/Caddyfile` already disables the
+  cleartext challenge on both sites and turns off the redirect hosts that would stand up on that port. The
+  option that requires no artifact to move is the fast one, and here it is also the narrower one - unusual
+  enough to be worth saying rather than assuming.
+
+**`ops/GATE_REGISTER.md` WAS edited, and this is the deliberate difference from task 10.10.** R30 does not
+merely permit the record, it requires it: "the resolution chosen for the certificate-challenge port SHALL
+be **recorded** in `ops/GATE_REGISTER.md` rather than left to be inferred from either artifact alone", and
+R30's finding note says option 2 "makes the firewall advice wrong as written and obliges the correction".
+So one paragraph inside G1 changed: the observation advising a second firewall port is replaced by the
+recorded resolution, stating that step 4 is correct as written and no cleartext challenge port is required.
+**Nothing else in that file moved** - no gate renumbered, removed, reopened or restated, no verification
+line softened, no `Status:` changed, no checkbox ticked, G7 still CLOSED - WONT-DO.
+
+**The assertion is neutral about the choice.** `auditPortPosture` reads which challenge the register names
+and then requires the ports the topology binds and the directive the proxy configuration carries to match
+**that** choice. Naming neither is a finding; naming both is a different finding, because a document naming
+both records a discussion rather than a decision. A test drives the **rejected** resolution through the
+same checker, coherently (it passes) and incoherently (it fires four codes), because a cross-artifact check
+that only holds for the choice its author made is not a check about agreement. The module also compares the
+firewall allowance the register records against the host ports the topology publishes, excluding
+`<ADMIN_PORT>` by name - it admits the operator's own session, which no container serves - and that
+comparison is R30's literal assertion in both directions.
+
+### The phase-1 posture, which task 10.0 found and which belonged here
+
+`ops/docker-compose.yml` had **zero** `profiles` keys, so "the `caddy` service stays down in phase 1" was
+an operator convention that no file asserted: a bare `docker compose up` brought it up and bound
+`<TLS_PORT>`, which is exactly what phase 1 forbids, and which R26's trap note names as the compensating
+control for the mode-scoped guard. `caddy` - the only service with a `ports:` key - now carries a
+`profiles:` entry, so it does not start unless that profile is named explicitly. `composeTemplate.ts`
+asserts **both** directions, because they fail differently: a port-publishing service that is not gated
+publishes in phase 1, and a service phase 1 needs that **is** gated silently does not start, which presents
+as a deployment that came up clean and answers nothing. A profile was chosen over a second compose file
+because an override file is another artifact to keep in step, and over a comment because a comment is what
+this replaced.
+
+### What the previous pass had already done, and what was kept
+
+The uncommitted tree held the compose `profiles:` key and its `composeTemplate.ts` assertions, the
+`.dockerignore`, `ops/IMAGE_BUILD.md`, the recipe, and `src/server/process/probe.ts`. All of it was kept.
+Three things were wrong and were fixed rather than rewritten: the record and two comments cited a design
+delta **D7** that does not exist (the design's Phase 10 delta ends at D6), so the citations were repointed
+at the register and at the record itself; the record claimed `src/server/ops/imageOwnership.ts` audits it
+on every test run and that module did not exist, so it was written; and the new `ops/` text left **AC18**
+red with sixteen findings, all undeclared dotted tokens plus two file names the shared scan read as
+hostnames, so nine tokens were added to `DECLARED_DOTTED_TOKENS` in `deploymentParticulars.ts` - which is
+the list that keeps that scan honest in both directions, since a declared token absent from the tree is
+itself a finding. The previous pass's stated reason for not editing the register - "a session may not edit
+that file" - is right as a default and wrong for this task specifically, because R30 names that file as
+where the resolution is recorded.
+
+### Findings recorded rather than resolved
+
+- **O1 is closed on the image half only for the one image this repository owns.** Three references remain
+  `OWNED_BUILD_PENDING`. That is not a partial pass being reported as a full one: it is the state the audit
+  requires each of them to declare, with a named blocker, so the gap has an owner instead of a hope.
+- **A recipe cannot be verified without building it, and building is gated (steering §2).** Everything
+  asserted here is a property of the recipe's **text**: the base's major, the final `USER`, the command
+  names installed, the absence of a port, a healthcheck and a default. Whether the image runs is observed
+  after G1, on the host, by the operator. Nothing here claims otherwise.
+- **`<PROXY_HEALTH_PROBE>` must resolve to a command the upstream release already ships**, since this
+  repository guarantees nothing about the inside of an `EXTERNAL` image. Recorded in `ops/IMAGE_BUILD.md`
+  because it is the kind of assumption discovered at first start, in the one place where nothing else is
+  working either.
+
+### Gate result
+
+- `npm run verify:all -- --all` - **20 of 20 executed checks passed**, run after the commit because AC14
+  and AC15 require a clean tree.
+- Tests **1929 -> 1982** passing across 110 files, and the AC04 `--min` floor ratcheted **1929 -> 1982**.
+  Up only. Nothing lowered, allowlisted, skipped or exempted. The `tasks.md` Gate note claiming a floor of
+  1757 was corrected to 1982 with the full transition list; its "up only, never down" claim was true
+  throughout, and only the number it made the claim about was stale.
+- **AC18 passes** over 23 `ops/**` and fixture artifacts. No placeholder was resolved, no port literal
+  written, and the register's edit removed a numeric port rather than adding one.
+- **No image was built, no tag resolved, no registry contacted, no outbound call made, no host port
+  published, no `setWebhook`, no DNS record, no `docker compose up`.** This task authored text and code.
+- **The other repository was not touched.** G7 still CLOSED - WONT-DO.

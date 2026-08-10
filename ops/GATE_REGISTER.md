@@ -322,11 +322,25 @@ the root-owned `/etc/<CONFIG_DIR>` that four other gates write into) has not bee
 credential - is written here or in any tracked file (R24); those are recorded in an untracked operator
 file outside the tracked tree, and the operator resolves them from there when running the steps.
 
-One correction to step 4 the operator should apply before running it: the firewall must also allow the
-plain-HTTP ACME challenge port (80), not only `<TLS_PORT>` and `<ADMIN_PORT>`. Automatic certificate
-issuance - which G2 unblocks and G6 depends on - performs an HTTP-01 challenge on that port, so a
-firewall that opens only the TLS and administrative ports leaves the proxy unable to obtain its own
-certificate. Opening it is the operator's decision to record, not a change an agent may make.
+**The certificate-challenge port, settled (spec task 10.8, finding F12, owning requirement R30).** Step
+4 above is correct as written and needs no correction: the firewall allows `<TLS_PORT>` and
+`<ADMIN_PORT>`, and **no cleartext challenge port is required**. The resolution chosen is
+**TLS-ALPN-01 on `<TLS_PORT>` alone**, and it is recorded here because R30 requires the resolution to
+be recorded in this file rather than inferred from either artifact on its own.
+
+An earlier observation in this section advised opening a second port for the cleartext challenge. That
+advice was wrong in a way worth naming, because it is the reason R30 exists: `ops/docker-compose.yml`
+binds exactly one host port, so a firewall opened for a challenge the topology never binds fails
+**while the firewall looks correct** - the artifact an operator would check to diagnose it is the one
+that is right. The two artifacts now agree in both directions, and `ops/Caddyfile` already switches
+that challenge off on both sites, so issuance is deterministic on the TLS port instead of resting on a
+failed attempt and a retry. The reasoning, the criterion it was decided on and the alternative that
+was rejected are in `ops/IMAGE_BUILD.md`; `src/server/ops/imageOwnership.ts` re-reads all three
+artifacts on every test run and reports a finding if any one of them stops agreeing.
+
+Nothing in phase 1 depends on this: it ships on long polling, publishes no host port and needs no
+certificate at all. The resolution binds phase 2, which is why R30 asks for it to be closed **before**
+phase 2 begins rather than during it.
 
 A second observation, recorded so it is not mistaken for the backup guarantee: the provider offers its
 own snapshot and automated backup, and both may be left enabled for host rebuild. Neither satisfies G8.
