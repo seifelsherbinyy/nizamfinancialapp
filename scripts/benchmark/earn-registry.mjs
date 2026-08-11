@@ -116,8 +116,37 @@ export const SERVER_RUNTIME_MARKER_ENTRY = 'NIZAM_SERVER_RUNTIME';
 /** The path appended to the resolved base. A path is not a deployment particular. */
 export const COMPLETIONS_PATH = '/chat/completions';
 
-/** The output allowance requested per case, and the allowance the estimate charges in full. */
-export const MAX_OUTPUT_TOKENS = 512;
+/**
+ * The output allowance requested per case, and the allowance the estimate charges in full.
+ *
+ * ## Why 1536 and not 512
+ *
+ * 512 was sized against the SHORTEST expectation kind. It is not enough. A run on 2026-08-11 read 16
+ * consecutive cases correctly and then refused `LIVE_PROVIDER_ANSWER_TRUNCATED` on `sms_0017` with
+ * `choices[0].finish_reason: "length"` — a genuine truncation, not a mapping defect. Two facts size
+ * the replacement:
+ *
+ *  1. **The longest legitimate answer is an `explanation`.** 73 of the 219 cases (`sts`, `pd`, `fc`)
+ *     expect prose that cites three named evidence keys and, for `pd`, restates a binding
+ *     recommendation without overriding it. That is several hundred tokens, not the ~40 a structured
+ *     extraction answer needs.
+ *  2. **The observed truncation was NOT an explanation case.** `sms_0017` is an `extraction` case
+ *     whose answer is one small object, and it still saturated 512. So the binding cost is not answer
+ *     prose at all — it is the reasoning preamble a reasoning model emits, which the provider bills and
+ *     bounds as completion tokens. An allowance sized only to the visible answer will truncate again.
+ *
+ * 1536 is 3x, which covers a verbose explanation AND a reasoning preamble ahead of it. It is also the
+ * largest value that keeps the pre-flight estimate comfortably below the ceiling: 219 cases x 2 models
+ * estimates 816,068 micro-USD against `DEV_WEEKLY_CEILING_MICRO_USD`, leaving 183,932 of headroom.
+ * 1792 would fit too, but buys 17% more allowance for 67% less headroom, and the estimate is what
+ * refuses — so the trade is the wrong way round. 1920 exceeds the ceiling outright.
+ *
+ * The estimate charges this in FULL for every case and then doubles it, so actual spend lands far
+ * below: the truncated run's 16 answered cases cost 2,762 micro-USD (~173 each), and that spend is
+ * forfeited — a partial run produced no measurement, so it is charged against the weekly cap without
+ * having bought anything. It is counted as consumed when judging what remains.
+ */
+export const MAX_OUTPUT_TOKENS = 1536;
 
 /** Per-request wall clock bound, whole milliseconds. */
 export const REQUEST_TIMEOUT_MS = 60_000;
