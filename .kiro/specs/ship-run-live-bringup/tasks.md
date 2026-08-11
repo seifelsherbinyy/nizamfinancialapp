@@ -132,8 +132,8 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
     - Report a timestamp at completion of STEP 4
     - _Requirements: 5.5, 5.6, 5.7, 16.6, 21.4_
 
-- [ ] 6. RUNG 1 — the transport proves itself offline **[HARD GATE: halts the ladder]**
-  - [~] 6.1 Write `tests/smoke/rung1.transportOffline.smoke.test.ts` against a Fake_Responder
+- [x] 6. RUNG 1 — the transport proves itself offline **[HARD GATE: halts the ladder]**
+  - [x] 6.1 Write `tests/smoke/rung1.transportOffline.smoke.test.ts` against a Fake_Responder
     - The **only** new test for this rung. Fake at exactly one seam: the injected `ProviderRequestFn`
       — `providerRequest.ts` declares its whole outside world as that one parameter, so the socket is
       a parameter and not a global. No loopback listener, no port, no DNS, no recorded transcript
@@ -145,7 +145,7 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
       at the time these offline proofs execute
     - _Requirements: 8.1, 8.2, 8.9, 17.7, 18.1_
 
-  - [~] 6.2 Proof (a) + (b): request composition, auth applied, credential absent
+  - [x] 6.2 Proof (a) + (b): request composition, auth applied, credential absent
     - (a) Quote the `ProviderHttpRequest` the fake responder receives as Evidence_Of_Record
     - (b) Assert **both halves**: `composeDialledAddress` is reached with a `ProviderCredential`, and
       the credential value appears nowhere in the request object. `ProviderHttpRequest` has **no
@@ -156,7 +156,7 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
     - **Property 3: Authentication is applied while the credential stays out of the request**
     - **Validates: Requirements 8.3, 8.4, 7.2, 7.3**
 
-  - [~] 6.3 Proof (c): five response shapes, discriminated on `code`
+  - [x] 6.3 Proof (c): five response shapes, discriminated on `code`
     - Success body; non-success status; rate-limit carrying a retry hint
       (`retryAfterSecondsFromHeaders` reads the advertised interval, `TelegramRateLimitRefusal` is
       what waits on it); malformed body; body over `MAX_PROVIDER_RESPONSE_BYTES` refused with
@@ -166,20 +166,20 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
     - **Property 4: Response reading is total — a validated response or an enumerated refusal**
     - **Validates: Requirements 8.5**
 
-  - [~] 6.4 Proof (d): exactly one structured telemetry line per request, and four absences
+  - [x] 6.4 Proof (d): exactly one structured telemetry line per request, and four absences
     - Assert the line count is exactly one per request
     - Assert **absence** of the credential, the request body, the sender identity and the provider
       base address. Each has a structural reason it cannot be there; assert absence anyway
     - **Property 2: No renderer emits a credential value or a deployment particular**
     - **Validates: Requirements 8.6**
 
-  - [~] 6.5 Proof (e): the store write lands, read back through the repository
+  - [x] 6.5 Proof (e): the store write lands, read back through the repository
     - Read the written row back **through the repository** — not from the write's return value. A
       write returning is not a write landing, by the same logic as R22.2
     - **Property 5: A store write round-trips**
     - **Validates: Requirements 8.7**
 
-  - [~] 6.6 Report RUNG 1 independently, and halt the ladder on any failed proof
+  - [x] 6.6 Report RUNG 1 independently, and halt the ladder on any failed proof
     - OBSERVED with quoted Evidence_Of_Record, or BLOCKED with a one-line reason naming the single
       blocked step. Not merged with any other rung; not claimed on another rung's evidence
     - **If any of the five proofs fails: halt the ladder at RUNG 1 and report that no credential can
