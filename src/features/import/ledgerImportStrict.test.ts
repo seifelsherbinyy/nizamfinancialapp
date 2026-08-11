@@ -22,7 +22,7 @@ import {
   parseLedgerCsvStrict,
   EXTRACTION_VOCABULARY,
   TRANSACTION_TYPE_VOCABULARY,
-} from './ledgerImport';
+} from './ledgerImport.ts';
 import { LEDGER_COLUMNS } from '@/lib/ledger/ledger.types';
 
 /** A synthetic row, in canonical column order. Overrides are applied by column name. */
