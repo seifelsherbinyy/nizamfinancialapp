@@ -19,6 +19,7 @@ import { describe, it, expect } from 'vitest';
 import { buildEvalSet } from './dataset.ts';
 import { MODEL_GLM, MODEL_GROK, MODEL_MIMO } from '../routing/modelPolicy.ts';
 import type { BenchmarkCase } from './benchmark.types.ts';
+import { decimalUsdToMicroUsd } from './providerResponseReader.ts';
 import {
   assertsFabricatedNumber,
   DEVELOPER_MACHINE_INVOCATION,
@@ -413,6 +414,126 @@ describe('reading a provider response fails closed', () => {
       }),
     });
     expect(exchange.confidenceBps).toBe(0);
+  });
+});
+
+// ---- the provider's ACTUAL usage shape ---------------------------------------------------------
+
+/**
+ * The provider reports `usage.cost` as a DECIMAL USD number beside snake_case token counts, and emits
+ * no `usage.costMicroUsd` at all — measured against its own documentation (Usage Accounting: `"cost":
+ * 0.95`, `prompt_tokens`, `completion_tokens`, `prompt_tokens_details.cached_tokens`,
+ * `completion_tokens_details.reasoning_tokens`). Before this mapping existed the reader refused every
+ * real answer at `usage.costMicroUsd`, so nothing downstream could run.
+ *
+ * The conversion is the money rule applied at the boundary, not excepted from: decimal in, integer
+ * micro-USD out, once, with integer arithmetic and no float intermediate.
+ */
+describe('the provider reports decimal USD, and it becomes integer micro-USD at the boundary', () => {
+  const [first] = CASES;
+  if (first === undefined) throw new Error('the eval set slice is empty');
+  const subject: BenchmarkCase = first;
+
+  /** A response in the provider's OWN shape: decimal cost, snake_case counts, nested detail objects. */
+  function providerShaped(usage: Record<string, unknown>): LiveHttpResponse {
+    return {
+      status: 200,
+      latencyMs: 7,
+      bodyText: JSON.stringify({ model: MODEL_MIMO, text: '', parsed: {}, schemaValid: true, usage }),
+    };
+  }
+
+  function read(usage: Record<string, unknown>): LiveModelExchange {
+    return readLiveResponse({
+      benchmarkCase: subject,
+      modelIdRequested: MODEL_MIMO,
+      response: providerShaped(usage),
+    });
+  }
+
+  function refusalCode(usage: Record<string, unknown>): string {
+    try {
+      read(usage);
+      throw new Error('expected a refusal');
+    } catch (error) {
+      return (error as LiveRunError).code;
+    }
+  }
+
+  it('maps a decimal cost to the right integer micro-USD', () => {
+    // 0.95 USD is 950000 micro-USD, exactly.
+    expect(read({ cost: 0.95 }).costMicroUsd).toBe(950_000);
+    expect(read({ cost: 0.000321 }).costMicroUsd).toBe(321);
+  });
+
+  it('maps a whole-number cost', () => {
+    expect(read({ cost: 2 }).costMicroUsd).toBe(2_000_000);
+    expect(read({ cost: 0 }).costMicroUsd).toBe(0);
+  });
+
+  it('rounds UP a cost finer than one micro-USD, so a figure is never understated', () => {
+    // Seven fractional digits: the seventh cannot be represented, so the figure rounds up.
+    expect(read({ cost: 0.0000001 }).costMicroUsd).toBe(1);
+    expect(read({ cost: 0.00000191 }).costMicroUsd).toBe(2);
+    // Exponential notation is what `String(number)` yields below 1e-6, so this branch is real.
+    expect(decimalUsdToMicroUsd(1.2e-7)).toBe(1);
+    expect(decimalUsdToMicroUsd('1.9e-6')).toBe(2);
+  });
+
+  it('reads the snake_case token fields the provider actually sends', () => {
+    const exchange = read({
+      cost: 0.000042,
+      prompt_tokens: 194,
+      completion_tokens: 2,
+      total_tokens: 196,
+      prompt_tokens_details: { cached_tokens: 17, cache_write_tokens: 100 },
+      completion_tokens_details: { reasoning_tokens: 5 },
+    });
+    expect(exchange.promptTokens).toBe(194);
+    expect(exchange.completionTokens).toBe(2);
+    expect(exchange.cachedTokens).toBe(17);
+    expect(exchange.reasoningTokens).toBe(5);
+    expect(exchange.costMicroUsd).toBe(42);
+  });
+
+  it('still accepts the integer spelling this reader already accepted', () => {
+    const exchange = read({ costMicroUsd: 42, promptTokens: 11, completionTokens: 7 });
+    expect(exchange.costMicroUsd).toBe(42);
+    expect(exchange.promptTokens).toBe(11);
+    expect(exchange.completionTokens).toBe(7);
+  });
+
+  it('REFUSES an absent cost rather than defaulting it to zero', () => {
+    // A usage block with counts but no cost of any spelling. A zero here would silently claim a free
+    // measurement, which is exactly the false statement contract 09's precedence forbids.
+    expect(refusalCode({ prompt_tokens: 194, completion_tokens: 2 })).toBe('LIVE_PROVIDER_USAGE_ABSENT');
+    expect(refusalCode({ cost: null })).toBe('LIVE_PROVIDER_USAGE_ABSENT');
+  });
+
+  it('REFUSES a negative, non-finite or unparseable cost', () => {
+    for (const cost of [-0.5, -1, Number.NaN, Number.POSITIVE_INFINITY, 'free', '', {}, []]) {
+      expect(refusalCode({ cost })).toBe('LIVE_PROVIDER_USAGE_ABSENT');
+    }
+  });
+
+  it('names the field it refused on, and nothing else', () => {
+    try {
+      read({ prompt_tokens: 1 });
+      throw new Error('expected a refusal');
+    } catch (error) {
+      expect((error as LiveRunError).detail.at).toBe('usage.cost');
+      expect((error as LiveRunError).detail.caseId).toBe(first.id);
+    }
+  });
+
+  it('converts with integer arithmetic: the result is always a safe integer', () => {
+    for (const cost of [0, 1, 0.95, 0.000001, 0.0000004, 123.456789, '0.1', '1e-7']) {
+      const microUsd = decimalUsdToMicroUsd(cost);
+      expect(microUsd).not.toBeNull();
+      expect(Number.isSafeInteger(microUsd)).toBe(true);
+    }
+    // A figure too large to be a safe integer of micro-USD refuses rather than losing precision.
+    expect(decimalUsdToMicroUsd('1e30')).toBeNull();
   });
 });
 
