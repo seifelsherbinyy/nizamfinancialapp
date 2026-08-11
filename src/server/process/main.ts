@@ -66,6 +66,7 @@ import { TELEGRAM_SECRET_TOKEN_HEADER } from '../telegram/auth.ts';
 import {
   createProviderTransportClient,
   gatedProviderRequest,
+  readConversationRef,
   readUpdateKeyFields,
   type ProviderRequestFn,
 } from '../telegram/providerRequest.ts';
@@ -111,7 +112,7 @@ import {
   type AppResponse,
   type AppServerProcess,
 } from './appServer.ts';
-import { createTurnDispatchWorker } from './turnWorker.ts';
+import { createBindableReplySender, createTurnDispatchWorker, type TurnReplyTarget } from './turnWorker.ts';
 import { answerDeterministically } from './deterministicAnswer.ts';
 import { readInboundTurn, refuseUnplannedTurn, turnRequestPlanner } from './turnIntake.ts';
 
@@ -178,6 +179,25 @@ export function readDeliveryIdentifiers(rawBody: string): { readonly updateId: n
   const keys = readUpdateKeyFields(parsed);
   if (keys === null || keys.senderId === null) return null;
   return { updateId: keys.updateId, senderId: keys.senderId };
+}
+
+/**
+ * Where a reply to this update goes, or `null` when the update names no conversation (task A-G4).
+ *
+ * The raw body is parsed here and the conversation is read by the module that owns every other
+ * defensive read of a provider shape, so there is ONE implementation of "which field is the
+ * conversation" in this tree — the same arrangement `readDeliveryIdentifiers` already has with
+ * `readUpdateKeyFields`. Nothing else is read: not the sender, not the text.
+ */
+export function readReplyDestination(rawBody: string): TurnReplyTarget | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawBody);
+  } catch {
+    return null;
+  }
+  const chatRef = readConversationRef(parsed);
+  return chatRef === null ? null : { chatRef };
 }
 
 /** Read a bounded request body. A body over the bound is refused rather than buffered. */
@@ -372,6 +392,10 @@ export function financeAgentDependenciesFromHost(botId: string): FinanceAgentDep
   // and the port must exist before it. See the `openStore` hook below: it is the one place in this
   // process that has both the handle and the sink in scope.
   const telemetry = createBindableTelemetrySink();
+  // Task A-G4 (the reply): the worker is assembled before the boot builds the transport, so the sender
+  // it is given resolves the outbound port per call and is bound by `bindOutboundSend` below. Unbound,
+  // it refuses — an answer with nowhere to go leaves the turn on the queue rather than settling done.
+  const replies = createBindableReplySender();
   const channel = createModelChannel(
     createModelProviderPort({
       agent: FINANCE_AGENT,
@@ -412,7 +436,22 @@ export function financeAgentDependenciesFromHost(botId: string): FinanceAgentDep
       now: wallClock,
       log: createRedactedLogger(FINANCE_AGENT, logSink, wallClock),
     }),
+    // Task A-G4: the reply. The worker composes an answer and now sends it; the capability is bound
+    // below, once `bootFinanceAgent` has built the transport that owns the socket.
+    bindOutboundSend: (send) => {
+      replies.bind(async (reply) => {
+        // The bot identity and the address are added HERE, in the composition root that already holds
+        // them, so the worker names neither (R24). The conversation is the one the message arrived on.
+        await send({ botId, chatRef: reply.target.chatRef, text: reply.text });
+      });
+    },
     worker: createTurnDispatchWorker({
+      sendReply: replies.send,
+      // The destination is READ off the update, never configured: a reply belongs on the conversation
+      // the message came from, and no environment entry declares one.
+      readReplyTarget: (item) => readReplyDestination(item.rawBody),
+      // `answerDeterministically` returns the sentence itself, so the rendering is the identity.
+      renderAnswer: (answer: string) => answer,
       dispatch: {
         channel,
         // Task B7 (seam S6): the deterministic route answers in a human sentence over a small, named

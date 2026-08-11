@@ -345,6 +345,34 @@ export function readUpdateKeyFields(parsed: unknown): { readonly updateId: numbe
   return { updateId: updateId as number, senderId: readable ? String(senderId) : null };
 }
 
+/**
+ * The conversation one update arrived on, read off an already-parsed value, or `null`.
+ *
+ * **This is the reply's destination, and it is read rather than configured.** A reply belongs on the
+ * conversation the message came from, so the only honest source for it is the update itself: no entry
+ * declares a conversation, and one that did would be a deployment particular in the environment file
+ * set (R24). Both of the provider's ordinary carriers are read — a message and an edited message —
+ * because a turn may arrive as either, and `readTurnText` already reads the words out of both.
+ *
+ * Defensive throughout, for the same reason every other reader on this boundary is: the body is
+ * fully attacker-controlled, so an unparseable shape, an absent carrier and a non-scalar identifier
+ * are all `null`. `null` means "there is nowhere to reply", which the caller settles as a failure to
+ * deliver rather than as a delivered answer — an answer with no destination must not be recorded as
+ * one that reached the owner.
+ */
+export function readConversationRef(parsed: unknown): string | null {
+  if (!isRecord(parsed)) return null;
+  for (const carrier of ['message', 'edited_message']) {
+    const envelope = parsed[carrier];
+    if (!isRecord(envelope)) continue;
+    const chat = envelope['chat'];
+    if (!isRecord(chat)) continue;
+    const chatId = chat['id'];
+    if (typeof chatId === 'number' || typeof chatId === 'string') return String(chatId);
+  }
+  return null;
+}
+
 /** The provider's envelope: a success flag and a result. Anything else is refused. */
 function readEnvelopeResult(bodyText: string, operation: ProviderOperation): unknown {
   let parsed: unknown;

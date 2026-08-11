@@ -77,6 +77,8 @@ import type { SpendAgent } from '../../features/routing/spendLedger.ts';
 import type {
   TelegramAcceptDecision,
   TelegramDelivery,
+  TelegramOutboundMessage,
+  TelegramSendReceipt,
   TelegramTransportConfig,
   TelegramTransportMode,
   TelegramWorkerPort,
@@ -211,6 +213,15 @@ export interface FinanceAgentDependencies {
   readonly transportClient: TelegramTransportClient;
   /** The slow side. Injected whole: a mock now, a live adapter after G3/G6. */
   readonly worker: TelegramWorkerPort;
+  /**
+   * Hand the outbound send to whoever composed the worker, once the transport exists (task A-G4).
+   *
+   * Optional, and its absence opens no door: a worker whose sender is never bound refuses to deliver
+   * and the turn is retried rather than marked done — see `turnWorker.ts`'s bindable sender. It is
+   * a hand-off rather than a construction, so this module still opens nothing and the worker still
+   * holds no socket, no bot identity and no address.
+   */
+  readonly bindOutboundSend?: (send: (message: TelegramOutboundMessage) => Promise<TelegramSendReceipt>) => void;
   readonly listenerHost: HttpListenerHost;
   /** Does the halt sentinel exist right now? Consulted per activity, never cached. */
   readonly sentinelExists: () => boolean;
@@ -405,6 +416,13 @@ export async function bootFinanceAgent(deps: FinanceAgentDependencies): Promise<
     sleep: deps.sleep,
     ...(deps.offsets === undefined ? {} : { offsets: deps.offsets }),
   });
+
+  // The outbound port exists now, and this is the earliest point at which it does: the worker is an
+  // ARGUMENT to this boot, so at the moment it was assembled there was no transport to hand it. This
+  // hand-off is what lets the slow side reply at all (task A-G4) and it adds nothing to the send —
+  // the bounded rate-limit retry, the credential resolution and the redacted telemetry all stay where
+  // they already were. The port is not stored anywhere else and nothing else is handed over with it.
+  deps.bindOutboundSend?.((message: TelegramOutboundMessage) => live.port.outbound.send(message));
 
   const queue = queueContextOf(handle, deps.now, deps.newId);
   let shuttingDown = false;
