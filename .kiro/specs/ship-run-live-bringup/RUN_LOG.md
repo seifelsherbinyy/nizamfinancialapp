@@ -650,3 +650,181 @@ not disturbed by this, and it does not substitute for this one.
 **Untouched by STEP 2:** the money, credential and isolation invariants. No credential was read into
 any output, no host was contacted, no store was opened, no network call was made, no value was
 printed. Nothing was committed and nothing was pushed. All scratch output stayed under `.loop/tmp/`.
+
+## STEP 2 — remediation and re-run
+
+Append-only, as the rest of this file: nothing above this heading was rewritten. Observation 22 stands
+as the record of the **first** harness run and its 16 of 20. This section records the remediation and
+the **second** run, and supersedes Observation 22's verdict without editing it.
+
+### Observation 23 — the deviation from "one full suite per run", stated rather than left implicit (2026-08-11)
+
+R3.5 and R18.4 budget the full suite at **once per run** to protect the time box, and the first run
+already spent that budget. They do **not** cap remediation at one attempt. The loop protocol
+(`.kiro/steering/loop-protocol.md` step 4) requires diagnose → fix → re-verify until green and
+forbids advancing with a red gate, and `pfos-current.md`'s per-increment loop ends on 20/20.
+
+**The deviation, named:** the full suite executed **twice** this session — once at the first STEP 2 run
+and once at the re-run recorded below. The alternative was advancing on a red gate, which R3.4 forbids
+outright. Between the two runs, verification was **narrow**: `npm run typecheck`, `npm run lint`, and
+vitest on the touched files only. The full suite was not run between fixes.
+
+### Observation 24 — the four failures, their root causes, and the fixes (2026-08-11)
+
+**Nothing was weakened to close any of them.** No `eslint-disable` was added anywhere. The AC04 floor
+was not lowered and not raised — `scripts/verify/all.mjs:23` still reads `--min 2301`. No guard's
+allowlist and no scan root was widened, AC16's and AC18's included. No test was skipped, marked
+`.skip`/`.todo`, deleted or loosened. No check was edited to stop it detecting what it detects.
+
+**1. AC16 — the extensionless relative specifier (F20 class).**
+
+- **Finding:** `src/features/import/ledgerImportStrict.test.ts:25` imported `./ledgerImport` with no
+  extension.
+- **Root cause:** `package.json` declares `"type": "module"` with `engines.node >=24 <25` and native
+  type stripping. Node's ESM resolver performs **no extension search**, so bare `node` cannot start any
+  module graph that reaches this file. The project's own convention — explicit relative specifiers
+  carrying `.ts` — was not followed on this one line. Vitest resolves it, which is why 2385 other tests
+  were green while it was true: a different resolver from the one a container has.
+- **Fix:** the specifier now names its file — `./ledgerImport.ts`. One character class of change, in
+  the code, not in the check.
+- **Confirmed sole occurrence:** the tree was re-scanned with AC16's own rule after the fix —
+  **872 relative specifiers across 305 source files, 0 extensionless.** The 872 figure reproduces
+  AC16's own count exactly, so the scan is the same scan.
+
+**2. AC04 — `launchPath.test.ts`, "carries an extension in every file under src and tests".**
+
+- **Root cause:** the same single specifier. This test asserts specifier SHAPE over the tree, so it was
+  reporting the same defect AC16 reported, from inside the suite.
+- **Fix:** none of its own. It went green on the AC16 fix, which is the correct outcome for a test that
+  reads the tree rather than a module.
+
+**3. AC04 — `runbookTemplate.test.ts`, three failures with one root cause.**
+
+The three were: "produces no finding at all"; "records the migration version the series is at"
+(`expected … to contain 'version:** 008'`); and "the file entry point agrees with the text entry point
+on the real documents". All three reported the **same** audit finding:
+
+```
+MIGRATION_VERSION_STALE: ROLLBACK.md records version 7 as the latest applied migration; the
+migration series is at 8, and a rollback that targets the wrong version targets the wrong store
+```
+
+- **Root cause:** `src/server/db/migrations.ts` is the system of record for the series and ends at
+  `{ version: 8, name: 'ingestion_provenance_and_document_sets' }` — added for spec 08 wave A2/A4.
+  `ops/runbook/ROLLBACK.md` still recorded `**Latest applied migration version:** 007`. The runbook had
+  gone stale behind the migrations, exactly as the audit's own comment says it would.
+- **Fix, in the direction that keeps the authoritative artifact authoritative:** the **document** was
+  updated to 008. The test's expectation was **not** changed to match the stale document — it was
+  already derived from `EXPECTED_SCHEMA_VERSION`, which reads the head of `MIGRATIONS`.
+- **Second, smaller cause, fixed too:** the test held the version as a **literal** in its negative-case
+  anchor (`RECORDED_VERSION = '… 007'`). That literal is what let the rot happen quietly — a fixture
+  quoting a document, going stale with it. It now reads the number from `EXPECTED_SCHEMA_VERSION`, and
+  the stale negative case is derived one version **behind** the head rather than pinned at `006`. Both
+  negative cases still fire `MIGRATION_VERSION_STALE`; the rule is untouched and no assertion was
+  relaxed.
+
+**4. AC14, and AC15 as its cascade — the uncommitted spec documents.**
+
+- **Root cause:** the structural ordering finding of Observation 21. The five documents under
+  `.kiro/specs/ship-run-live-bringup/` were the only entries dirtying the tree, and the step that would
+  commit them sat behind the gate that requires them committed.
+- **Fix:** the Operator authorised the commit. The five paths were staged **specifically** — no
+  `git add .` — and `git status` was read before committing to confirm only those five were staged.
+  Nothing under `.loop/`, `.secrets/`, `artifacts/` or any filled env file was staged; `.loop/` is
+  gitignored and `git status --porcelain` confirmed it never appeared.
+- **What the commit publishes is what STEP 1 already measured:** shape (a) 0, shape (b) 0, shape (d) 0,
+  and shape (c) 0 for four of the five, with `design.md` carrying exactly one hit — the hosting
+  provider's brand name, adjudicated a false positive against steering §0b's six-item ban list, which
+  does not list a provider's brand. The re-run after `RUN_LOG.md` was written reproduced every figure.
+
+### Observation 25 — the commits (2026-08-11)
+
+Three commits, in this order. The two fixes were kept separate from the documents so a later reader can
+revert one without the other.
+
+```
+d08a136  fix(import): Name the file in the last extensionless specifier
+67b90f0  fix(runbook): Record migration 008 as the latest applied version
+177238a  docs(spec): Add ship-run-live-bringup spec and run log
+```
+
+`177238a` is the commit the harness was then run against. Its full object identifier:
+
+```
+177238aa0eae2a16e809e0cfb56dcdc6ff0e1fa6
+```
+
+It contains **exactly five paths**, all additions, all under this spec's directory:
+
+```
+.kiro/specs/ship-run-live-bringup/.config.kiro
+.kiro/specs/ship-run-live-bringup/RUN_LOG.md
+.kiro/specs/ship-run-live-bringup/design.md
+.kiro/specs/ship-run-live-bringup/requirements.md
+.kiro/specs/ship-run-live-bringup/tasks.md
+```
+
+**Nothing was pushed.** STEP 3 is task 4 and was not executed here.
+
+### Observation 26 — the re-run, verbatim (2026-08-11)
+
+`npm run verify:all -- --all`, once, captured to `.loop/tmp/verify-step2-rerun.out`. The harness's two
+summary lines, verbatim:
+
+```
+verification harness: 20 of 20 executed checks passed
+HARNESS PASSED: every acceptance check is green.
+```
+
+All twenty checks reported PASS, the four that had failed among them: AC16, AC04, AC14, AC15.
+
+### Observation 27 — the test count against the Test_Floor (2026-08-11)
+
+```
+observed total tests    2389
+observed passed         2389
+observed failed            0
+Test_Floor (AC04 --min) 2301
+margin, total vs floor   +88
+margin, passed vs floor  +88
+```
+
+The total is **unchanged** at 2389: no test was added and none removed, so the same 2389 tests the first
+run measured now all pass. The passed count closed the gap of 4, and the passed-vs-floor margin closed
+from +84 to +88. A passing AC04 prints no counts, so the total is carried from the first run's measured
+`2389 total` together with the observation that no test file gained or lost a case — `launchPath` 19,
+`ledgerImportStrict` 24, `runbookTemplate` 69, before and after. **The floor was neither raised nor
+lowered** (R17.1, R17.2, R24.3).
+
+### Observation 28 — STEP 2 verdict, revised, and completion timestamp (2026-08-11)
+
+```
+STEP 2 re-run completed at  2026-08-11T08:04:50Z   (UTC)
+local clock read            2026-08-11T11:04:50+03:00
+```
+
+**STEP 2 gate: PASSED.** R3.2 is satisfied — 20 of 20 executed checks passed. R3.4 no longer applies.
+This **supersedes Observation 22's CLOSED verdict**, which recorded the first run and stays in the file
+unedited, as this file's convention requires. Task 3.1 and its parent task 3 are ticked. **STEP 3
+(task 4, the push) is cleared** by this gate; it is a separate task and was not executed.
+
+The STEP 1 gate is untouched by this and is not substituted for by it (Observation 17 stands).
+
+### Observation 29 — the tree is deliberately dirty again, and why (2026-08-11)
+
+Recorded so a later reader does not read it as a regression. The harness ran against a **clean** tree at
+`177238a`, which is what AC14 and AC15 measured. Writing this section, and ticking tasks 3 and 3.1,
+modifies two tracked documents **after** that measurement:
+
+```
+ M .kiro/specs/ship-run-live-bringup/RUN_LOG.md
+ M .kiro/specs/ship-run-live-bringup/tasks.md
+```
+
+This is unavoidable in the order the plan specifies: the run log records the re-run, so it cannot be
+written before it. The two entries are documents only — no source file, no template, no credential, no
+env file. They are STEP 3's to commit ahead of the push, and AC14 will measure the tree again there.
+
+**Untouched by this remediation:** the money, credential and isolation invariants. No credential was
+read into any output, no host was contacted, no store was opened, no network call was made, no value was
+printed. Nothing was pushed. All scratch output stayed under `.loop/tmp/`.

@@ -83,8 +83,8 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
     - Report a timestamp at completion of STEP 1
     - _Requirements: 2.6, 2.7, 2.8_
 
-- [ ] 3. STEP 2 — one full harness run, immediately before the push **[HARD GATE: blocks STEP 3]**
-  - [~] 3.1 Invoke `npm run verify:all -- --all` exactly once and require 20 of 20
+- [x] 3. STEP 2 — one full harness run, immediately before the push **[HARD GATE: blocks STEP 3]**
+  - [x] 3.1 Invoke `npm run verify:all -- --all` exactly once and require 20 of 20
     - The 20/20 line has not been observed this session, so it is a real gate rather than a formality
     - Capture the harness's two summary lines verbatim for the Final_Report
     - **If fewer than 20/20 pass: report the failing check identifiers and do NOT execute STEP 3**
