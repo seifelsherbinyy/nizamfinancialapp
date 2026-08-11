@@ -189,8 +189,8 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
     - Verify with `npm run typecheck`, `npm run lint`, and vitest **on the touched files only**
     - _Requirements: 8.8, 13.1, 13.2, 13.3, 13.4, 18.3_
 
-- [ ] 7. The ONE build — `scripts/benchmark/earn-registry.mjs` and its npm script
-  - [~] 7.1 Create the module with its header, constants and `explicitEnvironment(entries)`
+- [x] 7. The ONE build — `scripts/benchmark/earn-registry.mjs` and its npm script
+  - [x] 7.1 Create the module with its header, constants and `explicitEnvironment(entries)`
     - It lives in `scripts/` and **not** `src/server/`, because
       `liveModelCaller.isolation.test.ts` asserts mechanically that no file under `src/server/**`
       imports `src/features/benchmark/liveModelCaller.ts`. Do not break that assertion
@@ -205,11 +205,11 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
     - Writing this module needs no credential, which is why it sits ahead of the credential ask
     - _Requirements: 10.1, 17.9_
 
-  - [~] 7.2 Implement `httpsTransport({ requestTimeoutMs })`
+  - [x] 7.2 Implement `httpsTransport({ requestTimeoutMs })`
     - Returns a `LiveTransport`. This is the **ONE** `revealSecret` call site on the model side
     - _Requirements: 7.1, 7.2, 7.3_
 
-  - [~] 7.3 Implement `preflightEstimateMicroUsd({ cases, modelIds, maxOutputTokens })`
+  - [x] 7.3 Implement `preflightEstimateMicroUsd({ cases, modelIds, maxOutputTokens })`
     - Integer micro-USD from the tracked frozen pricing snapshot
       (`src/features/benchmark/pricing.ts`). Integer arithmetic only — **no `parseFloat`, no
       `.toFixed(`** anywhere outside `src/lib/money/`
@@ -217,7 +217,7 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
       The two units are never joined
     - _Requirements: 10.6, 20.6, 20.8_
 
-  - [~] 7.4 Implement `earnRegistry({ grant, transport, environment, config, modelIds, evalSet })`
+  - [x] 7.4 Implement `earnRegistry({ grant, transport, environment, config, modelIds, evalSet })`
     - Phases 1-8 in this exact order, because the ordering is not cosmetic:
       `grantDeveloperMachineRun({ invocation, serverRuntimeMarker })` → `buildEvalSet()` →
       `validateEvalSet(cases)` → `auditEvalSet(cases)` → **pre-flight estimate reported before any
@@ -240,7 +240,7 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
       cache, because a `WeakSet`-backed witness cannot survive a process boundary
     - _Requirements: 10.2, 10.3, 10.4, 10.5, 10.12, 11.1, 11.3_
 
-  - [~] 7.5 Implement `writeEmitted(sink, emitted)` and guard `main()`
+  - [x] 7.5 Implement `writeEmitted(sink, emitted)` and guard `main()`
     - Phase 9: write every entry of `emitted.artifacts` **verbatim** through the injected sink — the
       map is already keyed by final relative path, including the top-level registry
     - Leave `LIVE_REGISTRY_FILE_NAME === PROVISIONAL_REGISTRY_FILE_NAME` alone. One name means a
@@ -250,7 +250,7 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
     - Guard `main()` behind a direct-invocation check so **importing the module dials nothing**
     - _Requirements: 10.2, 10.8, 11.2_
 
-  - [~] 7.6 Add the npm script `"benchmark:earn-registry": "node scripts/benchmark/earn-registry.mjs"`
+  - [x] 7.6 Add the npm script `"benchmark:earn-registry": "node scripts/benchmark/earn-registry.mjs"`
     - `package.json` has no benchmark-related script, so there is no convention to match and no name
       to collide with. `namespace:verb` matches the existing `verify:ledger` / `verify:all` pair
     - The verb is **`earn`** rather than `run` or `generate` because the registry is earned downstream
@@ -259,7 +259,7 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
       constants, so the default invocation is the audited one
     - _Requirements: 10.1_
 
-  - [~] 7.7 Verify the build without breaking the isolation assertion
+  - [x] 7.7 Verify the build without breaking the isolation assertion
     - Run `npm run typecheck`, `npm run lint`, and vitest on the touched files only
     - Confirm `liveModelCaller.isolation.test.ts` still passes and that
       `src/features/benchmark/` and `src/features/routing/` stay out of the application bundle

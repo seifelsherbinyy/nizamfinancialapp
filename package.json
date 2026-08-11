@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
     "typecheck": "tsc --noEmit",
+    "benchmark:earn-registry": "node scripts/benchmark/earn-registry.mjs",
     "test:loop": "node --test scripts/loop/ledger.test.mjs",
     "verify:ledger": "node scripts/loop/verify-ledger.mjs",
     "verify:all": "node scripts/verify/all.mjs"
