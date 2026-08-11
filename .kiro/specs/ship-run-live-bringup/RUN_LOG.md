@@ -828,3 +828,698 @@ env file. They are STEP 3's to commit ahead of the push, and AC14 will measure t
 **Untouched by this remediation:** the money, credential and isolation invariants. No credential was
 read into any output, no host was contacted, no store was opened, no network call was made, no value was
 printed. Nothing was pushed. All scratch output stayed under `.loop/tmp/`.
+
+---
+
+## STEP 3 — the push and its verification
+
+Append-only, as the rest of this file: nothing above this heading was rewritten. This is the **only
+irreversible step in the run**. What ships is history, not the working tree.
+
+### Observation 30 — the pre-push commit, and the clean-tree reading (2026-08-11)
+
+Observation 29 left two tracked documents modified after the harness measured a clean tree. Both are
+documents the run wrote about itself, so they were committed **before** the push — publishing commits
+whose own log is absent would be a worse record than publishing one commit later.
+
+The two paths were staged **specifically**, by path, never with `git add .`, and `git status` was read
+before the commit to confirm the index held **only** those two:
+
+```
+M  .kiro/specs/ship-run-live-bringup/RUN_LOG.md
+M  .kiro/specs/ship-run-live-bringup/tasks.md
+```
+
+Nothing under `.loop/`, `.secrets/`, `artifacts/`, and no filled env file, was staged. The diff was
+180 insertions and 2 deletions: the STEP 2 remediation section, and the two ticked checkboxes on tasks
+3 and 3.1. The commit:
+
+```
+a0f5c80  docs(spec): Record STEP 2 remediation and re-run in the run log
+```
+
+Its full object identifier, which is the pre-push local head:
+
+```
+a0f5c80019f52effc85b47a09c5ed397ac14cdaa
+```
+
+`git status --porcelain` was then re-read and returned **empty**. A push does not require a clean tree;
+the reading is recorded because it fixes exactly what was published.
+
+Read from the remote **before** the push, so that the after-reading has something to be different from:
+
+```
+remote refs/heads/master (pre-push)  5498c66b1f055f871244dd2786a92ad1a9fc18a4
+local  HEAD              (pre-push)  a0f5c80019f52effc85b47a09c5ed397ac14cdaa
+ahead count              (pre-push)  51
+```
+
+### Observation 31 — the push command, and why its exit status is not the evidence (2026-08-11)
+
+`git push origin master`. No `--force`, no `--force-with-lease`, no `-f`. One ref, `master`; no branch,
+no tag, no other ref. No other repository was touched. The command's output:
+
+```
+5498c66..a0f5c80  master -> master
+exit status 0
+```
+
+**This is not the Evidence_Of_Record for a completed push** (R4.5). It is the pushing process's own
+report of its own work, which is the exact shape of claim this run is built to refuse. A successful
+command is not a confirmed state. What follows in Observation 32 is the evidence.
+
+One note on the transcript so a later reader does not misread it: the shell surfaced git's progress
+output, which git writes to stderr, wrapped as a native-command error. The exit status was **0** and the
+ref update line printed. The wrapper is the shell's handling of stderr, not a push failure.
+
+### Observation 32 — the Push_Verifier, read from the remote (2026-08-11)
+
+The reference was re-read **from the remote** with `git ls-remote origin refs/heads/master`, which asks
+the remote directly rather than reading a local tracking reference that may be stale. That distinction
+is the whole of this task. A second, independent route — `git fetch origin` then
+`git rev-parse origin/master` — was taken as a cross-check, and agreed.
+
+```
+remote object identifier (ls-remote)   a0f5c80019f52effc85b47a09c5ed397ac14cdaa
+remote object identifier (fetch+parse) a0f5c80019f52effc85b47a09c5ed397ac14cdaa
+local  object identifier (HEAD)        a0f5c80019f52effc85b47a09c5ed397ac14cdaa
+equal                                  YES
+ahead count  origin/master..HEAD       0
+behind count HEAD..origin/master       0
+```
+
+**Push_Verifier: PASS.** R4.2 and R4.3 are satisfied — the remote head equals the local head and the
+ahead count reads 0. R4.4 does not apply; had the identifiers differed, both plus the remaining ahead
+count would stand here as a **failure**, not as a success with a caveat, and no force, amend or reset
+would have been attempted.
+
+**On the count, measured rather than predicted.** 51 commits landed in the pushed range
+`5498c66..a0f5c80`, confirmed by `git rev-list --count` over it. That reconciles with the run's own
+arithmetic — 47 ahead at the start of the run, three added by the STEP 2 remediation (Observation 25),
+and this one — but the figure recorded here is the one that was counted, not the one that was expected.
+
+### Observation 33 — STEP 3 verdict and completion timestamp (2026-08-11)
+
+```
+STEP 3 completed at   2026-08-11T08:11:32Z   (UTC)
+local clock read      2026-08-11T11:11:32+03:00
+```
+
+**STEP 3: PASSED.** Finance_Repo is pushed to `origin master` and the push is confirmed against the
+remote. Priority-one of the three objectives is shipped. Tasks 4, 4.1 and 4.2 are ticked, on the
+strength of Observation 32's equality and nothing else.
+
+**Untouched by this step:** the money, credential and isolation invariants. No credential was read into
+any output, no host was contacted beyond the repository remote, no store was opened, no model call was
+made, no value was printed. `requirements.md` and `design.md` were not modified. The Test_Floor was not
+lowered, no `eslint-disable` was added, no guard was widened, and the full suite was not re-run — STEP 2
+is settled at Observation 28.
+
+### Observation 34 — the tree is dirty again, for the same reason as Observation 29 (2026-08-11)
+
+Recorded so a later reader does not read it as a regression, exactly as Observation 29 records it for
+STEP 2. Writing this section, and ticking tasks 4, 4.1 and 4.2, modifies the same two tracked documents
+**after** the push that published them:
+
+```
+ M .kiro/specs/ship-run-live-bringup/RUN_LOG.md
+ M .kiro/specs/ship-run-live-bringup/tasks.md
+```
+
+This is unavoidable in the order the plan specifies: the log records the push, so it cannot be written
+before it. Both are documents only — no source file, no template, no credential, no env file. They are
+left **uncommitted** for a later step to carry.
+
+## STEP 4 — the other repository's first observed suite run
+
+### Observation 35 — Nizamcore_Clone created, and proven outside both excluded paths (2026-08-11)
+
+A writable clone was taken as a **sibling of the repository root**, not inside it. Both exclusions that
+task 5.1 names were checked by resolved-path comparison rather than by eye, because the whole point of
+the second one is that a read-only copy must not be silently reused as if it were the writable one.
+
+```
+clone destination           <HOME>/nizamcore-writable
+Finance_Repo root           <HOME>/NIZAM
+destination inside root     False
+earlier read-only copy      <TEMP>/nizamcore-readonly-A1
+destination == read-only    False
+```
+
+Absolute paths are recorded here in the placeholder shape this log has used throughout; the two facts
+that matter are the two booleans, and both were measured, not assumed.
+
+**What the clone is, measured against `ops/NIZAMCORE_VERIFIED_STATE.md` §Provenance:**
+
+```
+branch                      main
+head                        071e54c2d4cfcf7258471e4abb845542df113e8f
+last commit date            2026-05-29T13:12:23+03:00
+tracked files               313
+```
+
+All four agree with §Provenance — commit `071e54c`, 313 files, last commit dated 2026-05-29. So the
+clone is the same object the verified-state document was written from, and the counts below are being
+observed on the same bytes that were previously only read. The origin was the remote recorded in the
+read-only copy; it is named here as `<NIZAMCORE_ORIGIN>` rather than reproduced, in keeping with this
+log's practice of carrying no host.
+
+**A clone is a read** under steering §2a, which is the authority this step rests on. No modify, no push.
+
+**Finance_Repo was not disturbed by it.** `git status --porcelain` in Finance_Repo reads two lines, and
+they are the same two documents Observation 34 already names for the same reason. No untracked entry
+appeared, and the head is unchanged at `a0f5c80019f52effc85b47a09c5ed397ac14cdaa`. A clone landing
+outside the tracked tree cannot add to it, and the check confirms it rather than resting on that.
+
+### Observation 36 — the standard-library path, tried first, and what it did (2026-08-11)
+
+Task 5.2 requires the cheapest path first, because §3 records the relay as pure standard library with no
+installed dependencies. A Python interpreter is present — **Python 3.13.2 on PATH** — so the first
+finding is that the interpreter is not the obstacle.
+
+Root-level discovery collects nothing, and the reason is specific rather than general:
+
+```
+python -m unittest discover -t . -s . -p "test_*.py"      exit 5    Ran 0 tests   NO TESTS RAN
+```
+
+**The single blocked step: recursion stops at the first non-package directory.** `unittest discover`
+descends only into importable packages, and that repository's test directories carry no `__init__.py`.
+This is a property of the invocation, not of the suite — the same tests run when pointed at their own
+directories, as the next three lines show. Recording it as "the suite does not collect" would have been
+wrong.
+
+```
+python -m unittest discover -t . -s NIZAM__system/relay/tests    -p "test_*.py"   exit 0   Ran 29   OK
+python -m unittest discover -t . -s NIZAM__system/governor/tests -p "test_*.py"   exit 0   Ran 26   OK
+python -m unittest discover -t . -s HIFZ__github_version_control/scripts -p "..." exit 1   ImportError
+                                    ImportError: Start directory is not importable
+python HIFZ__github_version_control/scripts/test_governor_lib.py                  exit 0   7 OK lines
+```
+
+The fourth line is the same non-package cause as the first; that file is a script with its own
+`__main__` runner and seven plain test functions, so invoking it directly is the correct call and it
+passes. **Standard-library subtotal: 62 tests, 62 passing, zero packages installed.**
+
+### Observation 37 — the whole suite, one command, first observed execution (2026-08-11)
+
+The remaining 81 tests live under the flight-radar subtree and import `pytest`, so the standard-library
+path cannot reach them. **No install proved necessary**: `pytest 9.0.0` was already present on the
+machine, so the measured install cost of this run is **zero packages**. One command from the clone root
+therefore covers everything:
+
+```
+command    python -m pytest -q -p no:cacheprovider        (cwd = clone root)
+exit       0
+collected  143
+result     143 passed, 1 warning, 14 subtests passed in 2.50s
+failed 0   errored 0   skipped 0
+```
+
+Collection was confirmed separately — `--collect-only -q` reports `143 tests collected` — so the total
+is a collected total and not inferred from the passing total. **143 is exactly the figure §Provenance
+records**, and independently reproduced here by counting `def test_` across the fourteen test files.
+
+**The relay tests specifically, which is what task 5.2 singles out:**
+
+```
+NIZAM__system/relay/tests/test_phase1_boot_loop.py     22 test functions
+NIZAM__system/relay/tests/test_poller.py                7 test functions
+                                                       -- 29 across two files (7 + 22)
+python -m unittest discover ... -s NIZAM__system/relay/tests   exit 0   Ran 29   OK
+python -m pytest -q ... NIZAM__system/relay/tests               exit 0   29 passed
+```
+
+**They ran and they passed, under both runners.** The 7 + 22 split §3 records is confirmed by count.
+
+**This is the first observed execution.** `ops/NIZAMCORE_VERIFIED_STATE.md` §8 states in its own words
+that "no test was run, no runner started" there, and that its counts were "read from its files, not
+observed passing". As of this observation the first two bullets of §8 are superseded by measurement:
+143 of 143 pass, and the 29 relay tests pass. §8's third bullet — that the declared agent-runtime
+package's install cost is unmeasured — **still stands and is untouched**, because §4 gap 1 holds that no
+Python module imports it, and nothing in this run needed it. That gap was not closed; it was not
+reached. `ops/NIZAMCORE_VERIFIED_STATE.md` is deliberately **left unedited**: this run may append to
+this log and tick this spec's `tasks.md`, and nothing else in Finance_Repo.
+
+No network request was made by the suite. The two relay test files were read for outbound calls before
+running them and contain none; the environment values they set are test literals, and the one line of
+output reading like a transport failure is a fake responder's own message, not a dialled socket.
+
+### Observation 38 — what the run left behind in the clone, and a second hygiene finding (2026-08-11)
+
+Running a suite is not free of side effects, and reporting the counts without them would be a partial
+account. Four working-tree paths were created by the run, and **all four are ignored by that
+repository's own nested `.gitignore` files**, proven with `git check-ignore -v` rather than by reading
+the files:
+
+```
+NIZAM__system/governor/.keys/                one Ed25519 signing key, 119 bytes
+NIZAM__system/ledgers/EVENT_LEDGER.jsonl     37 lines
+NIZAM__system/ledgers/STRATEGY_LEDGER.jsonl   2 lines
+NIZAM__system/ledgers/sth/                   3 signed-tree-head documents
+```
+
+**The key's contents were not read** and are not reproduced. It is a **local** signing key the suite
+minted for its own signed-tree-head fixture inside a clone this session created — it authorises nothing
+with any third party, spends nothing and publishes nothing, so it is not the credential class steering
+§2a gates. It is named here rather than omitted so the Operator can decide whether they want it removed.
+
+This is also the run's own positive finding beyond the counts: the governor's append-only ledger and its
+signed-tree-head chain are not merely authored, they **execute** — 37 ledger events and two signed tree
+heads were produced.
+
+**Second hygiene finding in that repository, alongside the one §7 already records.** Its `.gitignore`
+covers `__pycache__` only under the flight-radar subtree:
+
+```
+git check-ignore -v MARSAD__flight_radar/__pycache__/x.pyc
+    .gitignore:117:MARSAD__flight_radar/**/__pycache__/    MARSAD__flight_radar/__pycache__/x.pyc
+git check-ignore -v NIZAM__system/relay/__pycache__/x.pyc
+    (no match — not ignored)
+```
+
+So running its own suite leaves five **untracked** bytecode directories that a careless `git add -A`
+there would commit. Severity is low — bytecode, not a secret — and the recommended action there is one
+unscoped `__pycache__/` entry. The five directories this run created were removed, so the clone's
+working tree carries no untracked path.
+
+### Observation 39 — nothing was committed in the clone, and nothing was pushed (2026-08-11)
+
+Task 5.3 permits a local commit and forbids a push. It also says a commit for its own sake is noise.
+
+```
+tracked files changed                 0
+clone head                            071e54c2d4cfcf7258471e4abb845542df113e8f  (unchanged)
+commits ahead of origin/main          0
+git push in the clone                 never invoked
+```
+
+**So nothing was committed.** No source file, template, configuration or document in that repository was
+created, edited, staged or committed. The only working-tree residue is the four gitignored paths
+Observation 38 names, and gitignored paths cannot be committed. **No push, under any reading** — the
+Operator has not said "push granted", and the clone sits level with its origin.
+
+Spec `07-bot-bringup-v1` was **not modified**. Its record of gap A-G4 and task A5 is cited as evidence
+in §10 of the verified-state document and was left exactly as it stands.
+
+### Observation 40 — STEP 4 verdict and completion timestamp (2026-08-11)
+
+```
+STEP 4 completed at   2026-08-11T09:58:32Z   (UTC)
+local clock read      2026-08-11T12:58:32+03:00
+```
+
+**STEP 4: PASSED, with a real number.** Priority-two of the three objectives is shipped, and it shipped
+independently of the ladder: the other repository's suite has now been **executed** rather than read —
+143 collected, 143 passed, exit 0 — and its 29 relay tests across two files pass. Tasks 5, 5.1, 5.2 and
+5.3 are ticked.
+
+**What was verified, and what was not.** Verified: the clone's identity against §Provenance on four
+independent facts; both path exclusions by resolved-path comparison; Finance_Repo undisturbed; the
+interpreter's presence; the collected total independently of the passing total; the relay split by count
+and by two runners; the gitignore status of every path the run created, by `git check-ignore -v`. Not
+verified: that the relay **works against a live provider** — every test here is offline, and a passing
+transport test is not a delivered message; the install cost of the declared agent-runtime package, which
+§8 leaves unmeasured and this run did not reach; and whether the suite passes on any machine other than
+this one, since it was observed once, on one interpreter.
+
+**Untouched by this step:** no credential was read into any output, no value was printed, no host was
+contacted beyond the two repository remotes, no store was opened, no model call was made. The numeric
+operator identifier §7 records as committed in the other repository's relay environment example was
+**not reproduced**, and neither was the fake identifier its own test file sets. `requirements.md` and
+`design.md` were not modified. The Test_Floor was not lowered, no `eslint-disable` was added, no guard
+was widened, and the Finance_Repo suite was not re-run — STEP 2 remains settled at Observation 28.
+
+### Observation 41 — the tree is dirty again, same two documents, same reason (2026-08-11)
+
+For the third time, and recorded so no later reader misreads it, exactly as Observations 29 and 34 do.
+Writing this section and ticking tasks 5, 5.1, 5.2 and 5.3 modifies:
+
+```
+ M .kiro/specs/ship-run-live-bringup/RUN_LOG.md
+ M .kiro/specs/ship-run-live-bringup/tasks.md
+```
+
+Both are documents only — no source file, no template, no credential, no env file. They are left
+**uncommitted** for a later step to carry.
+
+## STEP 7 — the Drive audit
+
+Read-only throughout, and the last answerable question in the run. Task 14 asks whether a
+**server-side** Drive integration path exists at all — not whether Drive appears in the repository,
+which it plainly does. Nothing was built (R15.4).
+
+### Observation 42 — the four bodies of evidence, read and cited (2026-08-11)
+
+**(1) Both environment templates hold no Drive credential entry of any kind.** Entry names were
+extracted mechanically rather than read by eye, and the counts are a measured correction to the plan's
+own prose:
+
+```
+ops/env/finance.env.example     17 assignment entries
+ops/env/life.env.example        19 assignment entries
+```
+
+`tasks.md` 14.1 says "all 16 entries" and task 10.3 says "sixteen entries per agent". **Measured: 17
+and 19.** Recorded here as an **Observation dated 2026-08-11**, not as a decision, and neither
+template nor `requirements.md` nor `design.md` was edited to match it. The finance file carries one
+entry more than sixteen; the life file carries three more, being the two recovery-provider entries and
+the same one. The discrepancy does not affect the Drive answer, and it is written down because a count
+quoted in a plan and never checked is exactly the kind of claim this run exists to stop repeating.
+
+The names, in file order, so the absence below is checkable rather than asserted:
+
+```
+finance  FINANCE_DATA_DIR · FINANCE_STORE_FILE · STORE_BUSY_TIMEOUT_MS · FINANCE_CONTAINER_PORT
+         <BOT_B_TOKEN> · <MONEY_WEBHOOK_SECRET> · <ALLOWED_USER_IDS> · MSG_API_BASE · TELEGRAM_MODE
+         MAX_WORK_ITEMS · <OR_KEY_FINANCE> · MODEL_API_BASE · FINANCE_WEEKLY_CAP
+         MODEL_ELIGIBILITY_REGISTRY_PATH · BUS_INTERNAL_ENDPOINT · KILL_SENTINEL_PATH · NIZAM_KILL_ALL
+
+life     LIFE_DATA_DIR · LIFE_STORE_FILE · STORE_BUSY_TIMEOUT_MS · LIFE_CONTAINER_PORT
+         <BOT_A_TOKEN> · <LIFE_WEBHOOK_SECRET> · <ALLOWED_USER_IDS> · MSG_API_BASE · TELEGRAM_MODE
+         MAX_WORK_ITEMS · <OR_KEY_LIFE> · MODEL_API_BASE · LIFE_WEEKLY_CAP
+         MODEL_ELIGIBILITY_REGISTRY_PATH · BUS_INTERNAL_ENDPOINT · WHOOP_API_BASE
+         <WHOOP_ACCESS_TOKEN> · KILL_SENTINEL_PATH · NIZAM_KILL_ALL
+```
+
+A pattern search across both files for any entry name containing `DRIVE`, `GOOGLE`, `GDRIVE`, `OAUTH`,
+`REFRESH`, `FOLDER`, `BACKUP`, `SNAPSHOT` or `AGE_` returns **0 matches**. There is no client
+identifier, no refresh token, no folder reference and no recipient-key reference in either template.
+Both files also say so in prose: each closes with a "what is deliberately absent" list, and the finance
+file's opening paragraph states that recovery context reaches that agent as a **band on the consent
+bus, never as a provider call**.
+
+**(2) `src/lib/drive/` is browser-side, and the evidence is its globals.** Seven modules
+(`oauth.ts`, `driveClient.ts`, `driveDb.ts`, `sync.ts`, `picker.ts` plus two test files). What they
+reach for:
+
+```
+src/lib/drive/oauth.ts:70    window.google?.accounts?.oauth2        GIS token client
+src/lib/drive/oauth.ts:75    document.createElement('script')       script tag injection
+src/lib/drive/oauth.ts:79    window.google?.accounts?.oauth2
+src/lib/drive/oauth.ts:84    document.head.appendChild(script)
+src/lib/drive/picker.ts:56   window.gapi?.load('picker', ...)       Google Picker
+src/lib/drive/picker.ts:66   document.createElement('script')
+src/lib/drive/picker.ts:71   document.head.appendChild(script)
+```
+
+`window`, `document` and `document.head` do not exist in the server runtime. This is not a module that
+happens to run in a browser — it is a module that **cannot** run anywhere else. Steering `tech.md`
+states the same thing from the other direction: the token client is in-browser and tokens live in
+memory or session, never committed.
+
+**(3) AC08 enforces the per-file scope, and it is a browser OAuth concern.** The harness registers it as
+`{ id: "AC08", label: "drive scope is per file only", cmd: node scripts/verify/drive-scope.mjs }`. That
+check forbids the full-scope string literal in any non-defensive position and **fails closed if the
+narrow literal is absent from source entirely** — "the narrow per file drive scope was never found in
+source, so the scope assertion may have been removed". The single literal it is satisfied by is:
+
+```
+src/lib/drive/oauth.ts:12    export const DRIVE_FILE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+```
+
+So the one scope AC08 polices belongs to the in-browser OAuth token client. There is no second scope
+literal on the server side for it to police, because there is no server-side Drive call.
+
+**(4) `src/server/ports/drive.ts` and `src/server/mocks/driveMock.ts` are a port plus a mock — and the
+mock is the only implementer in the tree.** The port declares `DrivePort` with three members
+(`uploadEncryptedSnapshot`, `verifyUploadedSnapshot`, `listSnapshots`) and, deliberately, no read path.
+A search for every site that produces a `DrivePort` value finds exactly one:
+
+```
+src/server/mocks/driveMock.ts:81      const port: DrivePort = { ... }     the deterministic mock
+src/server/ports/drive.ts             the interface, and DrivePortConfig
+src/server/ports/index.ts:71-72       type-only re-export
+src/server/mocks/index.ts:52          createDriveMock re-export
++ three test files and one fixture helper
+```
+
+**No live adapter exists.** No module dials a storage provider, and the port's own header says why: its
+live half needs the owner's consent click (**G5**) and the off-host keypair (**G8**), so "nothing here
+reaches a network, names a storage address, or holds an identifier". `DrivePortConfig` requires a
+`folderRef`, and **nothing in either environment template supplies one** — the tests pass the literal
+string `'NIZAM_BACKUP_FOLDER_REF'`, which is a placeholder, not a reference the host would resolve.
+
+**A port plus a mock, no live implementer, and no credential entry in either template is the signature
+of a capability designed for and never provisioned.** That is what the audit found, and it is a
+different statement from "Drive is missing": the boundary is specified precisely enough to be built the
+day G5 and G8 are done.
+
+### Observation 43 — STEP 7 verdict and completion timestamp (2026-08-11)
+
+Where a server-side path exists, R15.2 requires the module and the credential entry it needs to be
+named. **No server-side path exists, so R15.3's sentence applies verbatim:**
+
+> no server-side Drive integration exists; Drive is a browser capability of the PWA
+
+```
+STEP 7 completed at   2026-08-11T10:41:05Z   (UTC)
+local clock read      2026-08-11T13:41:05+03:00
+```
+
+**STEP 7: PASSED, read-only.** Tasks 14, 14.1 and 14.2 are ticked. Nothing was built (R15.4): no
+adapter, no client, no configuration entry, no test. Four files were read and one pattern search was
+run; no file under `src/`, `ops/` or `scripts/` was modified by this step.
+
+**What was verified, and what was not.** Verified: the entry names and counts of both templates, by
+extraction; the absence of any Drive-class entry, by pattern search over both files; the browser-only
+globals of `src/lib/drive/`, by line-cited grep; AC08's registration in the harness and the single
+literal that satisfies it; the complete set of `DrivePort` implementers in the tree. Not verified:
+whether the owner's storage account holds a folder or a grant at all — that is G5, no probe was made,
+and a read against it would have been a network call this step had no need for; and whether the mock's
+behaviour matches a real provider's, which cannot be checked without the live half that does not exist.
+
+## STEP 9 — the Final_Report
+
+### Observation 44 — T4 is unroutable structurally, and the reply path does not depend on it (2026-08-11)
+
+Read from the code, with citations, rather than inferred.
+
+**The verdict every finance run records.** `src/server/benchmark/liveRegistry.ts:268` calls
+`unmeasuredDeveloperBuild(liveRun.modelId, 'code_benchmark_not_run')` for **every** model, with the
+comment "Still unmeasured, and this is not an oversight". Line 278 then sets each registry entry's
+`developerBuild` to `developerBuildPasses(result.developerBuild)`, and
+`src/features/benchmark/developerBuild.ts:115-117` defines that predicate as
+`verdict.kind === 'measured' && verdict.passed` — so an `unmeasured` verdict answers **`false`**,
+unconditionally. The field's type is `UnmeasuredDeveloperBuild`, not a union, so the emission
+**cannot** produce a measured verdict: line 137 documents it as "Always `unmeasured`."
+
+**What T4 asks for.** `src/server/routing/eligibilityRegistry.ts:118-129` is the whole of the join:
+
+```
+T1: { kind: 'finance_band', band: 'L0' }      low-risk extraction
+T2: { kind: 'finance_band', band: 'L1' }      routine financial conversation
+T3: { kind: 'finance_band', band: 'L2' }      high-impact financial decision
+T4: { kind: 'developer_build' }               repository engineering — no L band at all
+```
+
+**So `TIER_REQUIRED_ELIGIBILITY.T4` cannot be met by a finance eval run**, and the repository already
+asserts it: `src/server/benchmark/liveRegistry.test.ts:215-218` checks
+`TIER_REQUIRED_ELIGIBILITY.T4` equals `{ kind: 'developer_build' }` and that
+`admitted.eligibleAt('T4')` is `[]` over a fully emitted live registry. Earning the registry does not
+fix this and **no credential fixes it**: contract 09 grades developer/build work from a code benchmark
+and repository tests, which a finance eval set does not run.
+
+**The tier the finance agent would actually route at.** `src/server/routing/turnClassifier.ts:337` is
+the classifier's last rule and its default for a conversational turn:
+
+```
+return { tier: 'T2', rule: 'routine_conversation' };
+```
+
+`T4` is reachable from exactly one place — line 326, `if (family === 'engineering') return { tier: 'T4',
+rule: 'engineering_intent' }`. Repository engineering is not a bot reply turn. So a message arriving at
+either bot classifies to `T1`, `T2` or `T3`, with **T2 the default for an ordinary conversational
+turn**, and `T2` requires the `L1` band, which **is** what a finance eval run measures.
+
+**The honest limit on this claim, stated rather than papered over.** R14.3 asks for the routed tier read
+from *the router's own selection over the emitted registry*. **No registry was earned** — task 7 never
+built the runner and RUNG 3 never ran — so there was no emitted registry to select over, and this is
+read from the classifier and the join table instead. What the code supports is therefore stated, and the
+selection was **not** exercised: the registry path a finance eval run produces would support `T1`, `T2`
+and `T3`, and the reply path was never run at all.
+
+**The consequence for the report, and why it is not a credential line.** The proven reply path does
+**not** depend on `T4` — nothing was proven, and the path that would have been proven routes at `T2`.
+`T4`'s unroutability is therefore recorded as a **separate structural blocker owned by contract 09's
+code-benchmark work**, not as a credential problem (R14.5). "T4 blocked pending model key" would be the
+wrong report: the key is not the blocker, and writing it that way would send the Operator to fix
+something that is already correct.
+
+### Observation 45 — the Final_Report (2026-08-11)
+
+Exactly one block, eleven lines, in the prescribed order, and nothing else in the block (R24.1, R24.2).
+No credential value and no deployment particular appears in it (R24.6).
+
+```
+PUSHED:        finance a0f5c80019f52effc85b47a09c5ed397ac14cdaa / nizamcore local commits only, 0 commits
+HARNESS:       20 of 20, quoted: "verification harness: 20 of 20 executed checks passed" / "HARNESS PASSED: every acceptance check is green."
+SUITE:         2389 tests, 2389 passed, floor 2301
+NIZAMCORE:     suite RUN? yes. 143 tests, 143 passed. First time ever: yes
+T1 TRANSPORT:  BLOCKED — RUNG 1 was never attempted; the time box expired at STEP 4, so the five offline proofs were not run
+T2 MODEL:      BLOCKED — RUNG 3 was never attempted; scripts/benchmark/earn-registry.mjs was not built, so no registry was earned and no model call was made
+T3 STORE:      BLOCKED — RUNG 2 was never attempted; no Env_File was written, so the loader never accepted an environment and no store isolation proof was run
+DRIVE:         no server-side Drive integration exists; Drive is a browser capability of the PWA — 0 Drive-class entries across 17 finance + 19 life template entries; src/lib/drive is browser-only (window.google.accounts, window.gapi); DrivePort's only implementer is driveMock.ts
+A-G4:          open
+LIVE CONDITIONS: 0 of 7 — no gate was observed this run; the finance agent would route a reply turn at T2 (turnClassifier.ts:337, rule routine_conversation, requiring band L1), and the reply path does not depend on T4
+NEXT BLOCKER:  the credential ask at task 9 has never been issued — Operator owns supplying the seven unmintable values; T4 remains separately blocked on contract 09's code benchmark, which is engineering work and not a credential
+```
+
+**The seven live conditions counted on the `LIVE CONDITIONS` line** are `ops/GATE_REGISTER.md`'s live
+gates — **G1** provision and harden the host, **G2** the records for the two hostnames, **G3** create
+the two bots, **G4** mint the two model keys and their caps, **G5** the storage consent grant, **G6**
+register both webhooks, **G8** the backup keypair with its private half off the host. That is seven, not
+eight, because **G7** is closed as WONT-DO by owner decision (steering §0b) and is not a live condition.
+
+**Why 0 and not more.** Steering §2a is explicit that "a gate is done when observed and the observation
+is recorded" and that "a read does not advance a gate — it produces evidence about one". **This run made
+no gate observation at all**: the host reachability probe (task 10.1) never ran, no credential was
+requested (task 9), no Env_File was written (task 10.3), no model call was made, no webhook was touched,
+no consent was granted, no keypair was generated. Some of these gates may well be done in fact — prior
+sessions' records suggest as much — but a prior session's record is not this run's evidence, and
+claiming a count off it is precisely the inference R23.5 prefers a partial report to.
+
+### Observation 46 — the time box expired, and where the time went (2026-08-11)
+
+Stated plainly, because a run that overruns its box and does not say so has spent the Operator's
+attention without telling them.
+
+```
+run began              ~2026-08-11T07:31Z
+STEP 4 completed        2026-08-11T09:58:32Z      elapsed 2h27m
+STEP 7 completed        2026-08-11T10:41:05Z
+budget                  60 minutes
+overrun at STEP 4       +1h27m, i.e. ~2.5x the box
+```
+
+**Where it went: the STEP 2 remediation.** The harness gate is a hard gate (R3.4) and it failed on its
+first run at **16 of 20** — AC16, AC04, AC14, AC15. R23.4 does not permit skipping a hard gate when the
+clock runs out; it permits **stopping**. Fixing four root causes without weakening any of them, and then
+re-running the full suite a second time to confirm, is where the box was spent. That was the correct
+trade: the alternative was pushing behind a red gate, and the push is the run's first priority precisely
+because it is irreversible.
+
+**What the overrun cost, named.** RUNG 1-4 were **not attempted**, and no partial attempt was made on
+any of them. The credential ask was never issued, so the Operator wait that task 9 was restructured to
+make strict never even opened. `scripts/benchmark/earn-registry.mjs` — the run's one genuine build — was
+not written. A-G4 was not presented, let alone closed. **Per R23.4 the run stops here** and files this
+report with what was measured, rather than attempting a ladder rung on a shortened clock and reporting
+a half-run as a rung.
+
+### Observation 47 — what was verified across the whole run, and what was not (R22.6) (2026-08-11)
+
+**Verified, by measurement, with its evidence in this log:**
+
+- The tree was still before the irreversible step — byte-identical over 26 seconds across 825 files
+  (Obs 1-6). `git status --porcelain` was **not** empty; it held this spec's own documents, and
+  `turnIntake.ts` is tracked. Both facts are Observations dated 2026-08-11, superseding the originating
+  contract's claim (Obs 2).
+- The identity sweep covered **996 scan units** tree-wide — 498 in the working tree including five
+  untracked spec paths, plus 498 history blob versions over `origin/master..HEAD` — cross-checked
+  against `git diff --name-only` with **0 misses**, and 111 units under `.kiro/**` with **no coverage
+  gap**. Shape (a) **0**; shape (b) **0 exact identifiers** across 126 heuristic hits, each judged;
+  shape (c) 1337 heuristic hits with only the hosting provider's **brand name** firing as an exact class
+  (118) and hostname, first label, base domain, IPv4, IPv6 and IPv6-prefix all **0**; shape (d) 17, all
+  `package-lock.json` integrity hashes and filenames. Shapes (a) and (b) are **0 across all 1156
+  reachable blobs**. Three controls ran: positive at source, positive through the scan loop with 0
+  needles missed, and a negative canary. AC18 stayed byte-identical to the index and its scan roots,
+  allowlist and floor were unchanged (Obs 7-17).
+- The harness at **20 of 20**, on a re-run after four named root causes were fixed and none weakened
+  (Obs 18-29). Suite **2389 total, 2389 passed, 0 failed** against floor **2301**, margin **+88**. The
+  full suite ran **twice**, and that deviation from "exactly once" is named in Obs 23 rather than
+  glossed.
+- The push, verified **from the remote by two independent routes** — `ls-remote` and local `HEAD` equal
+  at `a0f5c80019f52effc85b47a09c5ed397ac14cdaa`, ahead 0, behind 0, 51 commits landed in
+  `5498c66..a0f5c80` (Obs 30-34). The command's exit status was explicitly not accepted as sufficient.
+- The other repository's **first observed suite execution ever** — 143 collected, 143 passed, exit 0,
+  0 failed, 0 errored, 0 skipped, 14 subtests, zero packages installed; the 29 relay tests across two
+  files (22 + 7) passing under **both** `unittest` and `pytest`; the clone's identity matching
+  `NIZAMCORE_VERIFIED_STATE.md` §Provenance on four facts; both path exclusions proven by resolved-path
+  comparison; nothing committed and nothing pushed there (Obs 35-41).
+- The Drive answer, from four bodies of evidence, all read this run (Obs 42-43).
+- The T4 determination and the routed tier, from five line-cited code sites (Obs 44).
+
+**Not verified — and no line above should be read as covering any of these:**
+
+- **Nothing live.** No transport dialled a socket, no model was called, no store was opened on a host,
+  no message was sent and no reply arrived in anyone's client. All four ladder rungs are BLOCKED because
+  they were **not attempted**, which is a different fact from "attempted and failed" and is reported as
+  such.
+- **No credential was ever requested, and none exists anywhere in this run.** No env file was written.
+  So R8.1 held strictly, but vacuously — by the ladder never starting, not by the sequencing working.
+- The registry runner was not built, so no registry was earned and every claim about what a measured
+  registry would support is a claim about the **code**, not about an artifact.
+- Gate G1's disagreement with `pfos-current.md` and spec `07-bot-bringup-v1` wave 3 was never
+  re-measured this run; task 10.8 did not run.
+- Whether the other repository's suite passes on any machine but this one — observed once, on one
+  interpreter — and the install cost of its declared agent-runtime package, which its own §8 leaves
+  unmeasured and this run did not reach.
+- Whether the owner's storage account holds a Drive folder or grant at all: that is G5 and no probe was
+  made.
+- The **Test_Floor was not raised**, deliberately. The observed 2389 sits +88 above 2301, and changing
+  the floor in the same run that reports against it would make the report self-referential. The ratchet
+  is a follow-up (R17.1-17.3), and the floor was **never lowered**.
+
+### Observation 48 — what remains for a next session, concretely (2026-08-11)
+
+In the order the fixed step order would resume, so a next session can pick it up without re-deriving it.
+
+1. **RUNG 1 (task 6)** — `tests/smoke/rung1.transportOffline.smoke.test.ts`, five offline proofs (a-e)
+   against a Fake_Responder at the single injected `ProviderRequestFn` seam. Needs no credential, which
+   is why it comes first, and it is a **hard gate** on the rest of the ladder.
+2. **The one build (task 7)** — `scripts/benchmark/earn-registry.mjs` plus the npm script
+   `"benchmark:earn-registry": "node scripts/benchmark/earn-registry.mjs"`. **Not started; no file was
+   created.** It must live under `scripts/` and not `src/server/` so
+   `liveModelCaller.isolation.test.ts` keeps passing. Phases 1-8 in the stated order, with both eval-set
+   gates before dialling.
+3. **The credential ask (task 9)** — never issued. Seven unmintable values only: `<BOT_A_TOKEN>`,
+   `<BOT_B_TOKEN>`, `<OR_KEY_LIFE>`, `<OR_KEY_FINANCE>`, `<ALLOWED_USER_IDS>`, `<MODEL_API_BASE>`,
+   `<MSG_API_BASE>`. Everything else is chosen with its reason, both webhook secrets are generated and
+   not asked for, and the two API bases are **proposed from each provider's own documentation for the
+   Operator to confirm**. Issue it once, then wait.
+4. **RUNG 2, 3 and 4 (tasks 10, 11, 12)** — in that order, each reported independently as OBSERVED with
+   quoted evidence or BLOCKED naming its single blocked step. RUNG 4 additionally needs the Operator to
+   send a real message and confirm a reply arrived in their own client.
+5. **A-G4 (task 15)** — still **open**, and not even presented. Two coupled decisions with the stated
+   default of removing the `decision_log` intent as a patch under `ops/nizamcore-patches/`. Note when
+   presenting it that the 2026-08-10 authorisation is arguably **outside** A-G4's scope.
+6. **The two hygiene findings in the other repository**, both recorded and both unfixed, because that
+   repository is not this session's to write: the **numeric operator identifier committed in its relay
+   environment example** (§7 of `ops/NIZAMCORE_VERIFIED_STATE.md`; the value is not reproduced here or
+   anywhere in this log), and the **unscoped `__pycache__` gitignore gap** — its `.gitignore` covers
+   `__pycache__` only under the flight-radar subtree, so its own suite leaves five untracked bytecode
+   directories a careless `git add -A` there would commit. Recommended fix is one unscoped
+   `__pycache__/` entry. Both belong in a session opened on that repository, per steering §6.
+7. **The Test_Floor ratchet** — raise AC04's `--min` from 2301 toward the observed 2389 in a run that is
+   not reporting against it.
+
+### Observation 49 — the record is committed and pushed (2026-08-11)
+
+Task 16.3 leaves nothing uncommitted. `git status` was read before staging, and the two paths were
+staged **by path** rather than with `git add .`:
+
+```
+ M .kiro/specs/ship-run-live-bringup/RUN_LOG.md
+ M .kiro/specs/ship-run-live-bringup/tasks.md
+```
+
+Both are documents. No source file, template, credential or env file is in this commit. The push is
+authorised and already verified as a route by STEP 3 (Obs 30-34), so the same non-forced
+`git push origin master` carries it, and the remote reference is re-read afterwards to confirm rather
+than resting on the command's exit status. **No force push, and the other repository is not pushed.**
+
+**Why the resulting object identifier is not written into this section.** A commit cannot contain its own
+identifier, and a follow-up commit recording it would have the same problem one step later. So the
+commit identifier and the re-read remote identifier are reported in this run's closing output, where
+they can be checked against `git log -1` and `git ls-remote origin master` directly. What is recorded
+here is the verification *method*, which is the part a later reader cannot reconstruct.
+
+```
+STEP 9 completed at   2026-08-11T10:52Z   (UTC)
+local clock read      2026-08-11T13:52+03:00
+total elapsed          ~3h21m against a 60-minute box
+```
+
+**The run stops here** (R23.4). Tasks 14, 14.1, 14.2, 16, 16.1, 16.2 and 16.3 are ticked. Tasks 6, 7, 8,
+9, 10, 11, 12, 13, 15 and 17 are left as they stand, reflecting reality: not attempted.

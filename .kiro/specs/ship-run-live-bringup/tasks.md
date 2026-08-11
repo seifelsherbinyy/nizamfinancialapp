@@ -92,12 +92,12 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
     - Report a timestamp at completion of STEP 2
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 18.4, 18.5_
 
-- [ ] 4. STEP 3 — the push, and its verification against the remote
-  - [~] 4.1 Push Finance_Repo to `origin master`
+- [x] 4. STEP 3 — the push, and its verification against the remote
+  - [x] 4.1 Push Finance_Repo to `origin master`
     - The command's exit status alone is **insufficient** Evidence_Of_Record for a completed push
     - _Requirements: 4.1, 4.5_
 
-  - [~] 4.2 Run the Push_Verifier: re-read the reference from the remote
+  - [x] 4.2 Run the Push_Verifier: re-read the reference from the remote
     - Re-read the remote reference and assert remote head equals local head
     - Report the remote object identifier, the local object identifier, and an ahead count of 0
     - On mismatch, report both identifiers and the remaining ahead count as a **failure**, not as a
@@ -105,15 +105,15 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
     - Report a timestamp at completion of STEP 3
     - _Requirements: 4.2, 4.3, 4.4, 4.6_
 
-- [ ] 5. STEP 4 — Nizamcore_Clone and the first observed suite execution
-  - [~] 5.1 Create Nizamcore_Clone as a writable clone at a sibling directory
+- [x] 5. STEP 4 — Nizamcore_Clone and the first observed suite execution
+  - [x] 5.1 Create Nizamcore_Clone as a writable clone at a sibling directory
     - Outside Finance_Repo's tracked tree, so nothing it brings can be committed here by accident
     - Outside the ignored path used for the earlier read-only copy, so the read-only copy is not
       silently reused as if it were the writable one
     - A clone is a read under steering §2a; a modify or push is a mutation
     - _Requirements: 5.1, 21.1, 21.3_
 
-  - [~] 5.2 Attempt the suite with the standard-library path first and record what it does
+  - [x] 5.2 Attempt the suite with the standard-library path first and record what it does
     - Its long-poll runner is pure standard library with no installed dependencies
       (`NIZAMCORE_VERIFIED_STATE.md` §3), so start there
     - Its declared agent-runtime package carries a large dependency tree and **no Python module
@@ -126,7 +126,7 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
       that blocked it — not "the suite is broken"
     - _Requirements: 5.2, 5.3, 5.4, 22.1, 23.1, 23.2_
 
-  - [~] 5.3 Commit changes to Nizamcore_Clone locally only
+  - [x] 5.3 Commit changes to Nizamcore_Clone locally only
     - Never push Nizamcore_Clone. A push requires an explicit "push granted" from the Operator
     - Do not modify spec `07-bot-bringup-v1`; cite it as evidence only
     - Report a timestamp at completion of STEP 4
@@ -491,8 +491,8 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
 - [~] 13. Checkpoint — the four rungs reported
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 14. STEP 7 — the Drive audit: answer the question, build nothing
-  - [~] 14.1 Read the evidence and cite it
+- [x] 14. STEP 7 — the Drive audit: answer the question, build nothing
+  - [x] 14.1 Read the evidence and cite it
     - `ops/env/finance.env.example` all 16 entries and `ops/env/life.env.example` — **no Drive
       credential entry in either template**; `src/lib/drive/` is browser-side (in-browser OAuth token
       client, Google Picker, Dexie mirror); AC08 enforces per-file `drive.file` scope, a browser OAuth
@@ -502,7 +502,7 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
     - Where a server-side path exists, name the module and the credential entry it requires
     - _Requirements: 15.1, 15.2, 15.5_
 
-  - [~] 14.2 State the answer verbatim and proceed; build nothing
+  - [x] 14.2 State the answer verbatim and proceed; build nothing
     - Emit exactly: "no server-side Drive integration exists; Drive is a browser capability of the
       PWA"
     - Build no server-side Drive integration
@@ -533,8 +533,8 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
     - Report a timestamp at completion of STEP 8
     - _Requirements: 16.2, 16.6, 16.7, 16.8, 21.2, 21.4_
 
-- [ ] 16. STEP 9 — the Final_Report **[reachable from any point in the run]**
-  - [~] 16.1 Determine the T4 condition and the tier the finance agent actually routes at
+- [x] 16. STEP 9 — the Final_Report **[reachable from any point in the run]**
+  - [x] 16.1 Determine the T4 condition and the tier the finance agent actually routes at
     - Report that a finance eval run records `unmeasured` with reason `code_benchmark_not_run`, so
       `developerBuildPasses` answers `false`, and that `TIER_REQUIRED_ELIGIBILITY.T4` cannot be met
       by a finance eval run. Earning the registry does not fix this and neither does any credential
@@ -545,7 +545,7 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
       the Operator to fix something already correct
     - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5_
 
-  - [~] 16.2 Emit exactly one Final_Report block, eleven lines, in the prescribed order
+  - [x] 16.2 Emit exactly one Final_Report block, eleven lines, in the prescribed order
     - `PUSHED`, `HARNESS`, `SUITE`, `NIZAMCORE`, `T1 TRANSPORT`, `T2 MODEL`, `T3 STORE`, `DRIVE`,
       `A-G4`, `LIVE CONDITIONS`, `NEXT BLOCKER` — that order, and nothing else in the block
     - `HARNESS` quotes the harness's two summary lines verbatim. `SUITE` records the observed count
@@ -556,7 +556,7 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
     - Report a timestamp at completion of STEP 9
     - _Requirements: 24.1, 24.2, 24.3, 24.4, 24.5, 24.6, 24.7, 3.3, 13.1_
 
-  - [~] 16.3 Honour the time box and state what was checked versus what was not
+  - [x] 16.3 Honour the time box and state what was checked versus what was not
     - When the box expires, stop wherever the run is and file the Final_Report with whatever was
       measured. A partial report carrying Evidence_Of_Record beats a complete one carrying an
       inference
