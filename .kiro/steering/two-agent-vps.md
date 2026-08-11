@@ -178,6 +178,65 @@ of the other repository is a **read**; a modify or a push is a **mutation**. So:
   ships the finance agent on bot B only while the life agent follows.
 - The permission to read is not a licence to exercise it for no reason. Read it when a task needs to see it.
 
+### 6a. The cross-repo WRITE authorisation (owner decision, STANDING as of 2026-08-11) - this resolves the §7 blocker of the owner mandate
+
+**Authority:** `.kiro/specs/06-two-agent-vps/OWNER_AUTHORITY_VPS_LIVE.prompt.md` §0 item 6 and §12, dated
+2026-08-11, which carries owner authority and supplies in writing the "explicit authorisation" that §6 above
+names as the missing precondition. **Reconciles with:** §6's second bullet, which held the three change
+specifications in `ops/nizamcore-patches/` as emitted and unapplied pending exactly this authorisation, and
+which named that blocker as the reason phase 1 was recommended on bot B alone. This sub-section is the
+resolution: **one rule, not two.** Do not re-raise it.
+
+**Writing in `nizamcore` is permitted, scoped.** A session opened on this repository may modify, commit and
+push in the other repository for three purposes and no others:
+
+1. **Wiring its model layer.** Its coordinator runs the whole pipeline for real and then calls a stub that
+   returns a canned string (`ops/NIZAMCORE_VERIFIED_STATE.md` §4 item 2). Replacing that stub with a real
+   client, and integrating the agent runtime its registry declares but no module imports (§4 item 1), is the
+   work this authorisation exists for.
+2. **Its environment file.** The template stays here as `ops/env/life.env.example` by §1's boundary rule and
+   the filled file lives on the host, root-owned and mode-restricted. Entries may be added to the template
+   when the model layer needs them, and a rename there surfaces as a finding rather than as silent drift.
+3. **Releasing its relay from standby.** Its standby mode gate is the same class of gate as G4 on this side
+   (`ops/NIZAMCORE_VERIFIED_STATE.md` §5). A reviewable patch series cannot release a runtime gate, which is
+   why the emitted-and-unapplied posture would have left that agent dormant indefinitely rather than later.
+
+**Why the posture changed, in one line.** Both agents stop on the same line and are released by the same
+class of credential (`ops/NIZAMCORE_VERIFIED_STATE.md` §5). Holding one of them behind a patch queue does
+not make the deployment safer, it makes it half a deployment.
+
+**The three emitted patches are not blessed by this authorisation.** They were authored without reading
+their target, and the verified-state file records which of them the target contradicts
+(`ops/NIZAMCORE_VERIFIED_STATE.md` §6). Check each against the verified state before applying it, and do not
+apply one the verified state contradicts. Authorisation to write is not agreement with what was written
+before the target had been read.
+
+**What stays out of scope, so the grant does not widen by inference.** This is not a licence to restructure
+that repository. Its three per-turn gates (the recovery pre-gate, the privacy pre-write gate and the
+continuity post-gate), its deterministic governor's exclusivity as the sole writer to every ledger, that
+governor's zero cost ceiling and zero tool budget, its twelve-agent persona registry and its router
+configuration all stay as authored. Its own tests stay green and its test count does not go down: **143 test
+functions, of which 29 are relay tests**, measured 2026-08-10. The read permission in §6 is unchanged and
+still requires the clone to sit outside this repository's tracked tree.
+
+**Precedence line for the spend clause, because §2a and the authorising prompt would otherwise disagree.**
+§2a classes a model call charged to a production key as a mutation requiring the owner in the loop. The
+authorising prompt requires exactly that call, twice, one per agent, as the done-when line of its G4 step.
+Resolution: **a model call charged to a production key is authorised while it is inside that agent's own
+declared weekly cap**, because the cap is itself the owner's spend decision, recorded per agent in
+`LIFE_WEEKLY_CAP` and `FINANCE_WEEKLY_CAP` and enforced by a ledger that is never aggregated across agents
+for a cap decision. Spending past a cap, raising a cap, and minting or revoking a key stay
+owner-in-the-loop. One rule, not two.
+
+**What this authorisation does NOT touch.** R24 in **both** repositories, both of which are public: no
+secret and no deployment particular in a tracked file, in either tree. No secret value in a message, a log,
+a commit or a report. **Never invent a secret value.** **Never weaken a gate to make it pass.** **Never
+claim a gated item is done** - a gate is done when observed and the observation is recorded. G1-G8 keep
+their numbers, their steps and their states, and **G7 stays CLOSED as WONT-DO** per §0b. §2a's reads-free
+and mutations-gated boundary is unchanged for everything this sub-section does not name. And **D-ROTATE is
+unchanged**: no session rotates any credential unilaterally, and the `getWebhookInfo` compensating control
+stays mandatory on every run while a disclosed token is live (`cloudflare-dns.md` item 3).
+
 ## 7. Gate discipline
 
 - The gate stays `npm run verify:all -- --all`. It must print all checks passed before any commit.
