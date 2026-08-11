@@ -293,6 +293,38 @@ export function preflightEstimateMicroUsd({ cases, modelIds, maxOutputTokens }) 
  *   report?: (line: string) => void,
  * }} input
  */
+/**
+ * Report what an aborted run already spent, by model, in integer micro-USD.
+ *
+ * Called on the abort path only. It states the loss and nothing else: no artifact is written, no
+ * witness exists for a partial run, and no figure here is ever summed into a registry. Reported as
+ * `forfeited` rather than as `spent` because that is what happened to it — the run produced no
+ * measurement, so the charge bought nothing.
+ *
+ * A model that appears with 0 cases is a model whose FIRST case refused; a model absent from the map
+ * was never dialled at all. The distinction is stated rather than collapsed, because "it charged
+ * nothing" and "it never started" are different facts.
+ *
+ * @param {(line: string) => void} report
+ * @param {Map<string, { casesAnswered: number, costMicroUsd: number }>} spentByModel
+ */
+export function reportForfeitedSpend(report, spentByModel) {
+  if (spentByModel.size === 0) {
+    report('ABORTED before any case was answered: nothing was charged, so nothing is forfeited');
+    return;
+  }
+  let totalMicroUsd = 0;
+  for (const [modelId, spent] of spentByModel) {
+    totalMicroUsd += spent.costMicroUsd;
+    report(
+      `ABORTED — forfeited spend on ${modelId}: ${spent.casesAnswered} cases answered, ${spent.costMicroUsd} micro-USD reported by the provider`,
+    );
+  }
+  report(
+    `ABORTED — total forfeited: ${totalMicroUsd} micro-USD across ${spentByModel.size} model(s); the run produced no measurement, so this charge bought nothing`,
+  );
+}
+
 export async function earnRegistry(input) {
   const { transport, environment, config, modelIds } = input;
   const report = input.report ?? (() => {});
@@ -354,18 +386,36 @@ export async function earnRegistry(input) {
   const resolved = resolveLiveRun(grant, environment, config);
 
   // Phase 7 — the calls, one model at a time, in eval-set order. The first failure aborts.
+  //
+  // An abort forfeits the spend already incurred, and that cost is accepted (R10.12) — but it must not
+  // be SILENT. `earnRegistry` only ever reported a model's figures once its run had completed, so a
+  // mid-run refusal returned a code and no accounting, and the operator had no way to read what the
+  // attempt had already charged. The progress observed here is the whole remedy: it adds no retry, no
+  // continue-on-error, no checkpoint and no resume path, and it never carries a witness.
+  const spentByModel = new Map();
   const runs = [];
-  for (const modelId of modelIds) {
-    const run = await runLiveModelCalls({
-      grant,
-      transport,
-      resolved,
-      modelId,
-      cases,
-      maxOutputTokens: config.maxOutputTokens,
-    });
-    runs.push(run);
-    report(`${modelId}: ${run.witness.casesAnswered} cases answered, ${run.witness.actualCostMicroUsd} micro-USD reported`);
+  try {
+    for (const modelId of modelIds) {
+      const run = await runLiveModelCalls({
+        grant,
+        transport,
+        resolved,
+        modelId,
+        cases,
+        maxOutputTokens: config.maxOutputTokens,
+        onCaseAnswered: (progress) => {
+          spentByModel.set(progress.modelId, {
+            casesAnswered: progress.casesAnswered,
+            costMicroUsd: progress.costMicroUsdSoFar,
+          });
+        },
+      });
+      runs.push(run);
+      report(`${modelId}: ${run.witness.casesAnswered} cases answered, ${run.witness.actualCostMicroUsd} micro-USD reported`);
+    }
+  } catch (error) {
+    reportForfeitedSpend(report, spentByModel);
+    throw error;
   }
 
   // Phase 8 — grade and emit. Both capabilities are injected and neither is defaulted:
@@ -484,6 +534,8 @@ export async function main(processEnv = process.env, log = console.log) {
       case 'LIVE_SECRET_NOT_WRAPPED':
       case 'LIVE_PROVIDER_STATUS_NOT_OK':
       case 'LIVE_PROVIDER_BODY_UNPARSEABLE':
+      case 'LIVE_PROVIDER_ERROR_IN_BODY':
+      case 'LIVE_PROVIDER_ANSWER_TRUNCATED':
       case 'LIVE_PROVIDER_USAGE_ABSENT':
       case 'LIVE_PROVIDER_SERVED_ANOTHER_MODEL':
       case 'LIVE_CASE_HAS_NO_EXCHANGE':

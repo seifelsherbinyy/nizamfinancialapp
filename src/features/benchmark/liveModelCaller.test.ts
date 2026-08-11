@@ -537,6 +537,229 @@ describe('the provider reports decimal USD, and it becomes integer micro-USD at 
   });
 });
 
+// ---- the provider's ACTUAL completion shape ----------------------------------------------------
+
+/**
+ * The answer is at `choices[0].message.content`, not at a top-level `text`.
+ *
+ * Measured against the provider's own response reference, whose `NonStreamingChoice` is
+ * `{ finish_reason, native_finish_reason, message: { content, role }, error? }` and whose worked example
+ * carries `choices[0].message.content` beside `usage` and `model`. Before this mapping existed the
+ * reader looked for `body.text`, `body.parsed` and `body.schemaValid` at the top level — none of which a
+ * real answer has — so every case would have graded as empty text with `schemaValid: false` even on a
+ * complete run. The bodies below are shaped as that reference describes them, not as this repository's
+ * mocks happen to be shaped.
+ */
+describe('the answer is read from the completion, in the provider’s own shape', () => {
+  const [first] = CASES;
+  if (first === undefined) throw new Error('the eval set slice is empty');
+  const subject = first;
+
+  /** A body in the provider's OWN documented shape: no top-level text, parsed or schemaValid. */
+  function providerBody(overrides: Record<string, unknown> = {}): LiveHttpResponse {
+    return {
+      status: 200,
+      latencyMs: 13,
+      bodyText: JSON.stringify({
+        id: 'gen-synthetic',
+        object: 'chat.completion',
+        created: 1_677_652_288,
+        model: MODEL_MIMO,
+        choices: [
+          {
+            finish_reason: 'stop',
+            native_finish_reason: 'stop',
+            index: 0,
+            message: { role: 'assistant', content: 'a plain prose answer' },
+          },
+        ],
+        usage: {
+          prompt_tokens: 194,
+          completion_tokens: 2,
+          total_tokens: 196,
+          prompt_tokens_details: { cached_tokens: 0 },
+          completion_tokens_details: { reasoning_tokens: 0 },
+          cost: 0.00014,
+        },
+        ...overrides,
+      }),
+    };
+  }
+
+  function read(overrides: Record<string, unknown> = {}): LiveModelExchange {
+    return readLiveResponse({
+      benchmarkCase: subject,
+      modelIdRequested: MODEL_MIMO,
+      response: providerBody(overrides),
+    });
+  }
+
+  function refusal(overrides: Record<string, unknown>): LiveRunError {
+    try {
+      read(overrides);
+      throw new Error('expected a refusal');
+    } catch (error) {
+      if (!(error instanceof LiveRunError)) throw error;
+      return error;
+    }
+  }
+
+  /** One choice, in the documented `NonStreamingChoice` shape. */
+  function choice(content: string | null, extra: Record<string, unknown> = {}) {
+    return [
+      {
+        finish_reason: 'stop',
+        native_finish_reason: 'stop',
+        index: 0,
+        message: { role: 'assistant', content },
+        ...extra,
+      },
+    ];
+  }
+
+  it('reads the completion text from choices[0].message.content', () => {
+    const exchange = read();
+    expect(exchange.text).toBe('a plain prose answer');
+    // And the usage the same body carries is read as the provider spells it.
+    expect(exchange.promptTokens).toBe(194);
+    expect(exchange.completionTokens).toBe(2);
+    expect(exchange.costMicroUsd).toBe(140);
+  });
+
+  it('parses a JSON completion, and derives schemaValid from it', () => {
+    const answer = { verdict: 'approve', citedEvidence: ['obligation_key'], confidenceBps: 8_800 };
+    const exchange = read({ choices: choice(JSON.stringify(answer)) });
+    expect(exchange.parsed).toEqual(answer);
+    expect(exchange.schemaValid).toBe(true);
+    expect(exchange.confidenceBps).toBe(8_800);
+  });
+
+  it('treats a NON-JSON completion as a legitimate answer, not a refusal', () => {
+    // A model asked a question in prose answers in prose. That answer grades on its text; it is not a
+    // provider failure, so nothing here refuses.
+    const exchange = read({ choices: choice('The obligation is already covered.') });
+    expect(exchange.text).toBe('The obligation is already covered.');
+    expect(exchange.parsed).toBeNull();
+    expect(exchange.schemaValid).toBe(false);
+    expect(exchange.confidenceBps).toBe(0);
+  });
+
+  it('derives schemaValid fail-closed: only an OBJECT counts, and silence never counts', () => {
+    // Valid JSON that is not an object is not the structured answer the verdict is about.
+    expect(read({ choices: choice('[1,2,3]') }).schemaValid).toBe(false);
+    expect(read({ choices: choice('"just a string"') }).schemaValid).toBe(false);
+    expect(read({ choices: choice('42') }).schemaValid).toBe(false);
+    // A truncated JSON fragment does not parse, so it does not read as valid either.
+    expect(read({ choices: choice('{"verdict":"appro') }).schemaValid).toBe(false);
+    // A null content is a documented outcome: it reads as empty and grades as empty.
+    const empty = read({ choices: choice(null) });
+    expect(empty.text).toBe('');
+    expect(empty.schemaValid).toBe(false);
+  });
+
+  it('REFUSES the error-shaped 2xx with its OWN code, carrying the provider’s error code', () => {
+    // The provider's reference: the HTTP status equals `error.code` only when the request was invalid or
+    // the account is out of credits — "otherwise the returned HTTP response status will be 200 and any
+    // error occurred while the LLM is producing the output will be emitted in the response body". Such a
+    // body carries NO usage, which is why it previously refused at `usage` and reported the wrong fact.
+    const error = refusal({
+      choices: undefined,
+      usage: undefined,
+      error: { code: 502, message: 'a provider message that must not be repeated', metadata: { error_type: 'provider_unavailable' } },
+    });
+    expect(error.code).toBe('LIVE_PROVIDER_ERROR_IN_BODY');
+    expect(error.code).not.toBe('LIVE_PROVIDER_USAGE_ABSENT');
+    expect(error.detail.at).toBe('error');
+    expect(error.detail.providerErrorCode).toBe('502');
+    expect(error.detail.providerErrorType).toBe('provider_unavailable');
+    expect(error.detail.caseId).toBe(subject.id);
+  });
+
+  it('never puts the provider’s error MESSAGE in detail, because it can quote flagged input', () => {
+    // The provider documents `error.metadata.flagged_input` as an excerpt of the offending text. A
+    // detail that repeated the message would carry content, which §6.4/R19 forbids outright.
+    const secretish = 'flagged excerpt that must never be repeated';
+    const error = refusal({
+      choices: undefined,
+      usage: undefined,
+      error: { code: 403, message: secretish, metadata: { error_type: 'permission_denied', flagged_input: secretish } },
+    });
+    const rendered = JSON.stringify(error.detail);
+    expect(rendered).not.toContain(secretish);
+    expect(rendered).not.toContain('flagged');
+    expect(error.detail.providerErrorCode).toBe('403');
+  });
+
+  it('REFUSES a provider error attached to the choice, rather than grading the fragment beside it', () => {
+    // The reference's non-streaming provider-error example embeds the error in the final response
+    // "alongside any partial content". Grading that partial content is precisely the cut-off grading the
+    // truncation rule exists to stop, so the same fact refuses here too.
+    const attached = refusal({
+      choices: choice('partial output...', {
+        finish_reason: 'error',
+        error: { code: 502, message: 'ignored', metadata: { error_type: 'provider_unavailable' } },
+      }),
+    });
+    expect(attached.code).toBe('LIVE_PROVIDER_ERROR_IN_BODY');
+    expect(attached.detail.at).toBe('choices[0].error');
+
+    // The same fact with no error object attached: the finish reason alone carries it.
+    const reasonOnly = refusal({ choices: choice('partial output...', { finish_reason: 'error' }) });
+    expect(reasonOnly.code).toBe('LIVE_PROVIDER_ERROR_IN_BODY');
+    expect(reasonOnly.detail.finishReason).toBe('error');
+  });
+
+  it('REFUSES a truncated answer rather than grading a cut-off one', () => {
+    // `finish_reason` is normalized by the provider to tool_calls | stop | length | content_filter |
+    // error. `length` is truncation at the output allowance; `content_filter` is suppression part-way.
+    const truncated = refusal({
+      choices: choice('{"verdict":"appro', { finish_reason: 'length', native_finish_reason: 'max_tokens' }),
+    });
+    expect(truncated.code).toBe('LIVE_PROVIDER_ANSWER_TRUNCATED');
+    expect(truncated.detail.at).toBe('choices[0].finish_reason');
+    expect(truncated.detail.finishReason).toBe('length');
+
+    const filtered = refusal({ choices: choice('partial', { finish_reason: 'content_filter' }) });
+    expect(filtered.code).toBe('LIVE_PROVIDER_ANSWER_TRUNCATED');
+    expect(filtered.detail.finishReason).toBe('content_filter');
+  });
+
+  it('accepts the finish reasons that mean the answer FINISHED', () => {
+    for (const finishReason of ['stop', 'tool_calls', null, undefined]) {
+      expect(read({ choices: choice('an answer', { finish_reason: finishReason }) }).text).toBe('an answer');
+    }
+  });
+
+  it('still REFUSES an absent usage block on an otherwise complete answer', () => {
+    // Usage is not optional on a success: the provider's usage-accounting reference states it returns
+    // usage "with every response" and that the deprecated opt-in parameters have no effect. So an absent
+    // usage block on a 2xx with real choices is a hole in the accounting, and it still halts the run.
+    const absent = refusal({ usage: undefined });
+    expect(absent.code).toBe('LIVE_PROVIDER_USAGE_ABSENT');
+    expect(absent.detail.at).toBe('usage');
+  });
+
+  it('prefers the top-level envelope where a caller supplies one, so recorded exchanges still read', () => {
+    // The additive branch never displaces the spelling this reader already accepted: a body carrying a
+    // top-level `text` / `parsed` / `schemaValid` reads from those, even with choices present.
+    const exchange = read({
+      text: 'the envelope answer',
+      parsed: { verdict: 'from the envelope' },
+      schemaValid: true,
+      choices: choice('{"verdict":"from the completion"}'),
+    });
+    expect(exchange.text).toBe('the envelope answer');
+    expect(exchange.parsed).toEqual({ verdict: 'from the envelope' });
+    expect(exchange.schemaValid).toBe(true);
+  });
+
+  it('honours an explicit schemaValid of false over the derivation', () => {
+    // A stated verdict is believed in both directions. Deriving `true` over an explicit `false` would
+    // overturn what the body said, which is the opposite of failing closed.
+    expect(read({ schemaValid: false, choices: choice('{"verdict":"ok"}') }).schemaValid).toBe(false);
+  });
+});
+
 // ---- fabrication detection --------------------------------------------------------------------
 
 describe('a number the input never supplied is a fabrication (contract 09 definition)', () => {

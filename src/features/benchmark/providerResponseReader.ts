@@ -25,11 +25,23 @@
  * it is a pure function from a status, a body and a latency to either a validated answer or a typed
  * refusal.
  *
- * ## The five refusals, and why each halts rather than degrades
+ * ## The refusals, and why each halts rather than degrades
  *
  *  1. **A non-2xx status.** Reported as the provider gave it; anything outside the success range is a
  *     refusal, never a warning, and never retried in a loop from here.
  *  2. **An unparseable body**, or a body that is not an object.
+ *  2a. **A provider error carried inside a 2xx body.** The provider's own error-handling reference is
+ *     explicit that the HTTP status equals `error.code` only when the request itself was invalid or the
+ *     account is out of credits; "otherwise the returned HTTP response status will be `200` and any
+ *     error occurred while the LLM is producing the output will be emitted in the response body". The
+ *     shape is `{ error: { code, message, metadata? } }`. This is checked BEFORE usage, because such a
+ *     body carries no `usage` at all — so reading it in usage order would report a missing cost when
+ *     the fact is a provider error, and the two must stay distinguishable in a report.
+ *  2b. **An answer the provider says did not finish.** `finish_reason` is normalized by the provider to
+ *     one of `tool_calls`, `stop`, `length`, `content_filter`, `error`. `length` means the answer was
+ *     cut off at the output allowance and `content_filter` means it was suppressed part-way; in both
+ *     cases the text is not the answer the model would have given, so grading it would score a
+ *     fragment as if it were a whole answer.
  *  3. **An absent usage block, or a cost that is not a usable non-negative figure.** Contract 09's
  *     precedence requires the actual reported cost, so a missing one cannot be substituted with an
  *     estimate, and it is never defaulted to zero — a zero would silently claim a free measurement.
@@ -69,6 +81,16 @@
 export const PROVIDER_READ_ERROR_CODES = [
   'LIVE_PROVIDER_STATUS_NOT_OK',
   'LIVE_PROVIDER_BODY_UNPARSEABLE',
+  /**
+   * A 2xx body that reports a provider error instead of an answer. A DISTINCT code rather than an
+   * overload of `LIVE_PROVIDER_USAGE_ABSENT`: a provider error and a missing cost are different facts,
+   * and a report that cannot tell them apart sends the reader looking in the wrong place. The
+   * provider's own `error.code` travels in `detail`; its `error.message` never does, because the
+   * provider's moderation metadata can carry an excerpt of the flagged input.
+   */
+  'LIVE_PROVIDER_ERROR_IN_BODY',
+  /** `finish_reason` says the answer was cut off (`length`) or suppressed (`content_filter`). */
+  'LIVE_PROVIDER_ANSWER_TRUNCATED',
   'LIVE_PROVIDER_USAGE_ABSENT',
   'LIVE_PROVIDER_SERVED_ANOTHER_MODEL',
 ] as const;
@@ -275,10 +297,90 @@ function readTokenCount(usage: Record<string, unknown>, paths: readonly (readonl
   return 0;
 }
 
+// ---------------------------------------------------------------------------------------------
+// The provider's ACTUAL completion shape
+// ---------------------------------------------------------------------------------------------
+
 /**
- * Read one provider answer, or REFUSE. The single implementation of the five rules above.
+ * The `finish_reason` values that mean the text is NOT the answer the model would have given.
  *
- * @throws {ProviderReadError} for every one of the five refusals. A refusal halts the caller rather
+ * From the provider's own response reference: `finish_reason` is normalized to `tool_calls`, `stop`,
+ * `length`, `content_filter` or `error`, with the provider's raw string kept beside it in
+ * `native_finish_reason`. `length` is truncation at the output allowance and `content_filter` is
+ * suppression part-way through; `stop` and `tool_calls` are complete answers and pass. `error` is
+ * handled as a provider error rather than as a truncation, because the same reference documents it as
+ * what a provider failure looks like once generation has begun.
+ */
+const UNFINISHED_FINISH_REASONS: readonly string[] = Object.freeze(['length', 'content_filter']);
+
+/** The first choice of the `choices` array, or `null` when the body carries no usable choice. */
+function firstChoice(body: Record<string, unknown>): Record<string, unknown> | null {
+  const choices = body.choices;
+  if (!Array.isArray(choices) || choices.length === 0) return null;
+  const [first] = choices;
+  return isRecord(first) ? first : null;
+}
+
+/**
+ * The completion text, in the provider's own place for it: `choices[0].message.content`.
+ *
+ * The documented type is `string | null`, and a `null` reads as the empty string — the provider's
+ * reference has a section for a completion that generated no content, so an empty answer is a real
+ * outcome that grades as empty rather than a refusal. Streaming's `delta.content` is deliberately not
+ * read: this path never sets `stream: true`, so a `delta` here would mean the request was not the one
+ * this module composed.
+ */
+function completionTextFrom(choice: Record<string, unknown> | null): string {
+  if (choice === null) return '';
+  const message = choice.message;
+  if (isRecord(message) && typeof message.content === 'string') return message.content;
+  return '';
+}
+
+/**
+ * The completion text read as a JSON object, or `null`.
+ *
+ * A completion that is not JSON is a LEGITIMATE answer shape, not a refusal — a model asked a question
+ * in prose answers in prose, and that answer grades on its text. So this returns `null` rather than
+ * throwing, and only an OBJECT counts: an array, a number or a bare string is not the structured answer
+ * the schema verdict is about, which is why the leading-brace check is a correctness rule here and not
+ * merely an optimisation.
+ */
+function parseCompletionJson(text: string): Record<string, unknown> | null {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('{')) return null;
+  try {
+    const candidate: unknown = JSON.parse(trimmed);
+    return isRecord(candidate) ? { ...candidate } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The provider's own error code and typed category from an error object, as a `detail` fragment.
+ *
+ * `error.code` is a number and `error.metadata.error_type` is a value from the provider's documented,
+ * stable category vocabulary — both are codes. `error.message` is EXCLUDED and no branch here reads it:
+ * the provider's moderation metadata is documented to carry `flagged_input`, an excerpt of the very
+ * text this path must never put in a `detail` (§6.4, R19).
+ */
+function providerErrorDetail(error: Record<string, unknown>): Record<string, string> {
+  const detail: Record<string, string> = {};
+  const code = error.code;
+  if (typeof code === 'number' && Number.isFinite(code)) detail.providerErrorCode = String(code);
+  else if (typeof code === 'string' && code.length > 0) detail.providerErrorCode = code;
+  const metadata = error.metadata;
+  if (isRecord(metadata) && typeof metadata.error_type === 'string' && metadata.error_type.length > 0) {
+    detail.providerErrorType = metadata.error_type;
+  }
+  return detail;
+}
+
+/**
+ * Read one provider answer, or REFUSE. The single implementation of the rules above.
+ *
+ * @throws {ProviderReadError} for every one of the refusals. A refusal halts the caller rather
  *   than degrading one exchange: on the benchmark path a hole makes the run not a measurement, and on
  *   the agent path a half-read answer would be a fabricated reply.
  */
@@ -313,6 +415,51 @@ export function readProviderResponse(input: {
     });
   }
 
+  const choice = firstChoice(body);
+
+  // The error-shaped 2xx, checked BEFORE usage. Such a body carries no `usage`, so in usage order it
+  // would be reported as a missing cost — the wrong fact, and one that sends a reader to the accounting
+  // when the answer is that the provider errored.
+  //
+  // Any top-level `error` object refuses, not only one that arrives without `choices`. The provider's
+  // reference states that for a non-streaming request "the error is embedded in the final response
+  // alongside any partial content", so a body carrying both is a body whose text is a fragment; reading
+  // that fragment as an answer is exactly the cut-off grading the truncation rule below exists to stop.
+  const topLevelError = body.error;
+  if (isRecord(topLevelError)) {
+    throw new ProviderReadError(
+      'LIVE_PROVIDER_ERROR_IN_BODY',
+      'the provider returned a success status with an error object in the body rather than an answer, so there is no completion to grade',
+      { at: 'error', ...providerErrorDetail(topLevelError), ref },
+    );
+  }
+  const choiceError = choice === null ? undefined : choice.error;
+  if (isRecord(choiceError)) {
+    throw new ProviderReadError(
+      'LIVE_PROVIDER_ERROR_IN_BODY',
+      'the provider attached an error to the choice it returned, so its text is a fragment rather than an answer',
+      { at: 'choices[0].error', ...providerErrorDetail(choiceError), ref },
+    );
+  }
+
+  const finishReason = choice === null ? undefined : choice.finish_reason;
+  if (finishReason === 'error') {
+    // The same fact as the two branches above, reported under the same code: the provider failed while
+    // generating. It reaches here rather than there when the failure carried no error object.
+    throw new ProviderReadError(
+      'LIVE_PROVIDER_ERROR_IN_BODY',
+      'the provider finished the choice with an error reason, so what it returned is not a completed answer',
+      { at: 'choices[0].finish_reason', finishReason: 'error', ref },
+    );
+  }
+  if (typeof finishReason === 'string' && UNFINISHED_FINISH_REASONS.includes(finishReason)) {
+    throw new ProviderReadError(
+      'LIVE_PROVIDER_ANSWER_TRUNCATED',
+      'the provider reported that the answer did not finish, so grading it would score a fragment as a whole answer',
+      { at: 'choices[0].finish_reason', finishReason, ref },
+    );
+  }
+
   const usage = body.usage;
   if (!isRecord(usage)) {
     throw new ProviderReadError(
@@ -340,13 +487,25 @@ export function readProviderResponse(input: {
     );
   }
 
+  // The answer, in whichever place it actually is. Top-level `text` / `parsed` / `schemaValid` stay
+  // FIRST and unchanged, so every mock, fixture and recorded exchange in this repository reads exactly
+  // as it did; the provider's own `choices[0].message.content` is the ADDITIVE branch, and it is the one
+  // a real answer takes, because a real answer has no top-level `text` at all.
+  const statedText = typeof body.text === 'string' ? body.text : null;
+  const text = statedText ?? completionTextFrom(choice);
+  const parsedFromText = parseCompletionJson(text);
+  const parsed = isRecord(body.parsed) ? { ...body.parsed } : parsedFromText;
+
   return Object.freeze({
     modelIdRequested,
     modelIdServed,
-    text: typeof body.text === 'string' ? body.text : '',
-    parsed: isRecord(body.parsed) ? { ...body.parsed } : null,
-    // Fail-closed: a response that does not state schema validity is not treated as valid.
-    schemaValid: body.schemaValid === true,
+    text,
+    parsed,
+    // Fail-closed in both branches. A body that STATES a verdict is believed, in either direction — an
+    // explicit `false` is a stated verdict, and deriving over it would overturn what the body said. A
+    // body that is SILENT derives, and the derivation is `true` only when the completion text itself
+    // parsed to an object, so silence never reads as valid.
+    schemaValid: typeof body.schemaValid === 'boolean' ? body.schemaValid : parsedFromText !== null,
     // camelCase first (unchanged), then the provider's own snake_case names and its two nested
     // detail objects. Additive: no spelling this reader already accepted was removed.
     promptTokens: readTokenCount(usage, [['promptTokens'], ['prompt_tokens']]),

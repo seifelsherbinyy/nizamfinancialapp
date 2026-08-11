@@ -202,6 +202,11 @@ export const LIVE_ERROR_CODES = [
   'LIVE_SECRET_NOT_WRAPPED',
   'LIVE_PROVIDER_STATUS_NOT_OK',
   'LIVE_PROVIDER_BODY_UNPARSEABLE',
+  // Re-raised verbatim from `./providerResponseReader.ts`, which owns the vocabulary. A provider error
+  // inside a 2xx body and a truncated answer are separate codes from a missing cost on purpose: three
+  // different facts, three different places to look.
+  'LIVE_PROVIDER_ERROR_IN_BODY',
+  'LIVE_PROVIDER_ANSWER_TRUNCATED',
   'LIVE_PROVIDER_USAGE_ABSENT',
   'LIVE_PROVIDER_SERVED_ANOTHER_MODEL',
   'LIVE_CASE_HAS_NO_EXCHANGE',
@@ -527,7 +532,7 @@ export function readLiveResponse(input: {
   response: LiveHttpResponse;
 }): LiveModelExchange {
   const { benchmarkCase, modelIdRequested, response } = input;
-  // The five refusals live in `./providerResponseReader.ts` and are SHARED with the agent's model
+  // The refusals live in `./providerResponseReader.ts` and are SHARED with the agent's model
   // port (task B6): one implementation of what a provider answer has to satisfy, not two. What this
   // function adds is the benchmark-shaped mapping — the case id and the self-reported confidence —
   // which is the only part that is about grading rather than about the provider.
@@ -584,6 +589,19 @@ export async function runLiveModelCalls(input: {
   modelId: string;
   cases: readonly BenchmarkCase[];
   maxOutputTokens: number;
+  /**
+   * Observed after each answered case, so an abort can be REPORTED rather than being silent.
+   *
+   * Purely observational, and deliberately nothing more. It is not a retry, not a continue-on-error and
+   * not a checkpoint: it hands out no exchange, it cannot mint or carry a witness, and nothing it emits
+   * can be fed back in to resume a run. The abort still forfeits the spend (R10.12) — this only makes
+   * the loss legible instead of leaving the operator to infer it from a refusal code.
+   */
+  onCaseAnswered?: (progress: {
+    readonly modelId: string;
+    readonly casesAnswered: number;
+    readonly costMicroUsdSoFar: number;
+  }) => void;
 }): Promise<LiveModelRun> {
   const { grant, transport, resolved, modelId, cases, maxOutputTokens } = input;
   if (!isDeveloperMachineGrant(grant)) {
@@ -611,6 +629,11 @@ export async function runLiveModelCalls(input: {
     const exchange = readLiveResponse({ benchmarkCase, modelIdRequested: modelId, response });
     exchanges.push(exchange);
     actualCostMicroUsd += exchange.costMicroUsd;
+    input.onCaseAnswered?.({
+      modelId,
+      casesAnswered: exchanges.length,
+      costMicroUsdSoFar: actualCostMicroUsd,
+    });
   }
 
   const witness = Object.freeze({
