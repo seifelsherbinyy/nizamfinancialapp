@@ -368,14 +368,14 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
     - _Requirements: 9.8, 13.1, 13.2, 13.3, 19.3, 19.4, 22.1_
 
 - [ ] 11. RUNG 3 — the registry is earned, then one real model response is quoted
-  - [~] 11.1 Report the pre-flight estimate before anything is spent
+  - [x] 11.1 Report the pre-flight estimate before anything is spent
     - Integer micro-USD over the eval set and both models, compared against
       `DEV_WEEKLY_CEILING_MICRO_USD`
     - **If it does not fit: report RUNG 3 BLOCKED at the estimated number and spend nothing.** Not
       "attempt and stop when the cap trips" — an estimate that does not fit is a decision not to start
     - _Requirements: 10.6, 10.7_
 
-  - [~] 11.2 Run the runner locally and report the four numbers
+  - [x] 11.2 Run the runner locally and report the four numbers
     - Run from the local developer machine on the development model key over both default-allowed
       models. `grantDeveloperMachineRun` refuses with `LIVE_GRANT_REFUSED_SERVER_RUNTIME` when a
       server-runtime marker is present, so the runner **cannot** execute on the host at all
@@ -402,7 +402,7 @@ placeholder. This file is an input to the STEP 1 sweep it specifies (R2.3, R24.6
     - A process reaching ready is **insufficient** evidence for working routing
     - _Requirements: 10.10, 11.8, 22.1, 22.2_
 
-  - [~] 11.5 Write `tests/smoke/rung3.witnessGate.smoke.test.ts` with **both** halves
+  - [x] 11.5 Write `tests/smoke/rung3.witnessGate.smoke.test.ts` with **both** halves
     - The **only** new test for this rung. Fake at the injected `LiveTransport`, so no network, no
       endpoint and no credential
     - **Positive half:** the witness `runLiveModelCalls` minted ⇒ `emitLiveRegistry` returns a

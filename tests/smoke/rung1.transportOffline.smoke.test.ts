@@ -2,7 +2,8 @@
 /**
  * NIZAM · RUNG 1 smoke test — the messaging transport proves itself OFFLINE
  * Owning contract: PFOS Contract 12 — Two-Agent VPS Deployment & Operations
- * Phase: bringup ladder RUNG 1 (spec `ship-run-live-bringup`, task 6), the first of four rungs
+ * Phase: phase 6.3, driven as bringup ladder RUNG 1 (spec `ship-run-live-bringup`, task 6) — the
+ *   first of four rungs
  * Owning requirements: R8.1 (runs before any credential is supplied and before any network call),
  *   R8.2 (one fake seam), R8.3/R8.4 (request composition; auth applied with the credential absent
  *   from the request), R8.5 (five response shapes), R8.6 (one structured line per request, and four
