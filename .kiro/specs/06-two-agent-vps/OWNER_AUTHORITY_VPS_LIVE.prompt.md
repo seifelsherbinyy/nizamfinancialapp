@@ -126,6 +126,7 @@ placeholders. I am not going to be asked about it per row.
 | Backup public key | `AGE_PUBLIC_KEY` | `/etc/<CONFIG_DIR>/backup.env` | G8 |
 | MCP server credentials | the MCP config files on this laptop | laptop only | operator |
 | Host SSH key | `.secrets/` on this laptop | laptop only | G1 |
+| Host shell password, console and rescue only | `VPS_PASSWORD` | `.secrets/` on this laptop, NEVER on the host | G1 |
 
 **Rules that make the writing correct rather than merely permitted:**
 
