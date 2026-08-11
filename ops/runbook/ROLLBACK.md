@@ -38,7 +38,7 @@ not a gap in the tooling. It is the model: migrations are append-only and forwar
 no reverse statement to run, and writing one would create a second definition of every schema it
 touched.
 
-- **Latest applied migration version:** 007
+- **Latest applied migration version:** 008
 - The audit compares that number against the migration series in `src/server/db/migrations.ts` and
   fires if they disagree, so adding a migration without revisiting this document is a gate failure
   rather than a surprise on the day it matters.

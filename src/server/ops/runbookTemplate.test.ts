@@ -158,7 +158,13 @@ const DEPLOY_PROHIBITION = 'Never deploy code that assumes a migration that has 
 const DRILL_PAIR = '`verify_artifact_integrity` -> `decrypt_artifact`';
 const INTEGRITY_FIRST = 'The integrity check precedes trust';
 const PROMOTION = 'Restoring **never** overwrites a live store in place';
-const RECORDED_VERSION = '**Latest applied migration version:** 007';
+/** Quoted from the real document, but the NUMBER is read from the migration series rather than
+ *  restated here. A literal rots the moment a migration is added - which is exactly what happened
+ *  when migration 008 landed and left this anchor, and the document it anchors, at 007. */
+const RECORDED_VERSION = `**Latest applied migration version:** 00${EXPECTED_SCHEMA_VERSION}`;
+/** One version behind the head, so the stale case is stale by construction rather than by a literal
+ *  that could one day coincide with the head. */
+const RECORDED_VERSION_STALE = `**Latest applied migration version:** 00${EXPECTED_SCHEMA_VERSION - 1}`;
 const RECORD_RULE = 'A rollback is recorded with **what was reverted and why**';
 const WAL_DETERMINATION = 'This is an **operator determination**';
 const WAL_OUTCOMES = 'exactly two acceptable outcomes';
@@ -299,7 +305,7 @@ const NEGATIVE_CASES: readonly NegativeCase[] = [
   {
     code: 'MIGRATION_VERSION_STALE',
     why: 'a rollback that targets the wrong schema version targets the wrong store',
-    overrides: { [ROLLBACK_DOC]: swap(RECORDED_VERSION, '**Latest applied migration version:** 006') },
+    overrides: { [ROLLBACK_DOC]: swap(RECORDED_VERSION, RECORDED_VERSION_STALE) },
   },
   {
     code: 'MIGRATION_VERSION_STALE',
