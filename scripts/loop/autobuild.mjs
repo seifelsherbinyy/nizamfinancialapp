@@ -34,7 +34,8 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { assertNotGated, GateRefusal, gateVerdict } from "./gate-guard.mjs";
-import { readOpenTasks, countTasks, unlistedSpecs, taskKey } from "./task-source.mjs";
+import { readOpenTasks, scanTasks, countTasks, unlistedSpecs, taskKey } from "./task-source.mjs";
+import { parseHarnessOutput } from "./harness-read.mjs";
 
 // ---------------------------------------------------------------- constants, all tunable
 const STATE_DIR = ".loop/tmp";                 // gitignored: builder state never dirties the tree
@@ -90,22 +91,7 @@ function saveState(s) {
 function readHarness() {
   const r = sh("npm", ["run", "verify:all", "--", "--all"]);
   const out = (r.stdout ?? "") + "\n" + (r.stderr ?? "");
-  const failing = [];
-  const passing = [];
-  for (const line of out.split(/\r?\n/)) {
-    const m = /^(PASS|FAIL)\s+(\S+)\s+(.*)$/.exec(line.trim());
-    if (!m) continue;
-    (m[1] === "FAIL" ? failing : passing).push(m[2]);
-  }
-  const tally = /verification harness:\s*(\d+)\s+of\s+(\d+)/.exec(out);
-  return {
-    ok: r.status === 0,
-    passed: tally ? Number(tally[1]) : passing.length,
-    total: tally ? Number(tally[2]) : passing.length + failing.length,
-    failing: [...new Set(failing)].sort(),
-    passing: [...new Set(passing)].sort(),
-    measured: Boolean(tally) || passing.length + failing.length > 0,
-  };
+  return { ok: r.status === 0, ...parseHarnessOutput(out) };
 }
 
 // ---------------------------------------------------------------- preflight
@@ -237,7 +223,9 @@ function main() {
 
   const tally = countTasks();
   const totals = Object.values(tally).reduce((a, b) => ({ open: a.open + b.open, done: a.done + b.done }), { open: 0, done: 0 });
-  say("task surface", `${totals.open} open, ${totals.done} done, across ${Object.keys(tally).length} specs`);
+  const scan = scanTasks();
+  say("task surface", `${totals.open} open checkboxes, ${totals.done} done, across ${Object.keys(tally).length} specs`);
+  say("workable leaf tasks", `${scan.tasks.length}  (skipped ${scan.containers} container(s), ${scan.unnumbered} unnumbered acceptance bullet(s))`);
   say("mode", opts.dry ? "DRY, mutates nothing" : opts.emit ? "EMIT, prints the packet only" : `LIVE, up to ${opts.cycles} cycle(s)`);
 
   if (opts.status) {

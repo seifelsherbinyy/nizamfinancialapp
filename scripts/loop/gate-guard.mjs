@@ -22,6 +22,34 @@
  * purpose and every refusal names the pattern that fired so the owner can override knowingly.
  */
 
+/**
+ * NEGATION AWARENESS, and why it is deliberately partial.
+ *
+ * A task that says "no loopback listener, no port, no DNS, no recorded transcript" is describing
+ * what it REFUSES to touch. The first version of R-PUBLIC-RECORD matched the bare word DNS inside
+ * that sentence and blocked a pure offline test task. A task that says "do not perform any G1-G8
+ * step" is the safest wording a task can have, and R-GATE-ID blocked it. Both are perverse.
+ *
+ * So a hit may be suppressed when a negator sits immediately before it. But ONLY for rules that
+ * detect a CAPABILITY MENTION. Never for a rule that detects an IRREVERSIBLE ACTION, because
+ * "do not mint the key" appearing in a task that goes on to mint it must still refuse. The
+ * asymmetry is the whole design: suppression is allowed to reduce noise, never to reduce safety.
+ */
+const NEGATOR = /(?:\bno\b|\bnot\b|\bnever\b|\bwithout\b|\bcannot\b|\bcan't\b|\bdon't\b|\bdo not\b|\bmust not\b|\bnon-)[^.]{0,40}$/i;
+const NEGATION_WINDOW = 48;
+
+function firesWithNegationCheck(regex, text, negatable) {
+  const re = new RegExp(regex.source, regex.flags.includes("g") ? regex.flags : regex.flags + "g");
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    if (!negatable) return { fired: true, matched: m[0] };
+    const before = text.slice(Math.max(0, m.index - NEGATION_WINDOW), m.index);
+    if (!NEGATOR.test(before)) return { fired: true, matched: m[0] };
+    if (m.index === re.lastIndex) re.lastIndex++;
+  }
+  return { fired: false, matched: null };
+}
+
 export class GateRefusal extends Error {
   constructor(message, reasons) {
     super(message);
@@ -32,29 +60,31 @@ export class GateRefusal extends Error {
 
 /** Each rule names itself so a refusal is explainable rather than mysterious. */
 export const GATE_RULES = [
-  { id: "R-PATH-REGISTER", why: "the task lives in or points at the human gate register",
-    test: (t, p) => /GATE_REGISTER/i.test(String(p ?? "")) || /GATE_REGISTER/i.test(t) },
-  { id: "R-GATE-ID", why: "the task names a gate identifier G1 to G8",
-    test: (t) => /(^|[^A-Za-z0-9])G[1-8]([^A-Za-z0-9]|$)/.test(t) },
-  { id: "R-AWAITING-HUMAN", why: "the task carries the blocked-awaiting-human marker",
-    test: (t) => /awaiting\s+human|human\s+gate|BLOCKED\s*[-:]\s*awaiting/i.test(t) },
-  // PLURALS ARE NOT OPTIONAL HERE. The first version of this rule matched \bkey\b and therefore
-  // did NOT match "mint the two model keys", which is the literal wording of gate G4. The
-  // negative suite caught it. Every noun below carries s? for that reason.
-  { id: "R-MINT-SECRET", why: "the task mints, issues or rotates a real credential",
-    test: (t) => /\b(mint|issue|rotate|generate|create)\b[^.]{0,60}\b(tokens?|keys?|secrets?|credentials?|keypairs?|passphrases?)\b/i.test(t) },
-  { id: "R-PLACE-SECRET", why: "the task places a real value into the host secret store",
-    test: (t) => /\/etc\/[<]?CONFIG_DIR|\/etc\/nizam|\.env\b[^.]{0,40}\b(host|root|chmod\s*600)/i.test(t) },
-  { id: "R-PUBLIC-RECORD", why: "the task changes a public record outside this repository",
-    test: (t) => /\b(dns|a record|aaaa record|cname|nameserver|registrar|domain purchase|transfer a domain)\b/i.test(t) },
-  { id: "R-CONSENT", why: "the task completes an interactive consent or authorisation grant",
-    test: (t) => /\b(consent screen|oauth consent|authoriz(?:ation)? code|authoris(?:ation)? code|refresh tokens?)\b/i.test(t) },
-  { id: "R-WEBHOOK-REG", why: "the task registers a webhook and makes the deployment reachable",
-    test: (t) => /\b(setwebhook|register (both )?webhooks?|webhook registration)\b/i.test(t) },
-  { id: "R-SPEND", why: "the task spends money or raises a spend ceiling",
-    test: (t) => /\b(purchase|buy|billing|raise the cap|increase the cap|weekly (cap|limit|ceiling)|spend ceiling|payment method)\b/i.test(t) },
-  { id: "R-HOST-MUTATE", why: "the task mutates the live host rather than this repository",
-    test: (t) => /\b(ssh into|on the host,|systemctl (start|stop|restart|enable)|ufw |sshd_config|apt-get install)\b/i.test(t) },
+  // ---- NEVER suppressed by a negation: these detect an irreversible action or a hard marker.
+  { id: "R-PATH-REGISTER", negatable: false, why: "the task lives in or points at the human gate register",
+    re: /GATE_REGISTER/i, alsoPath: true },
+  { id: "R-AWAITING-HUMAN", negatable: false, why: "the task carries the blocked-awaiting-human marker",
+    re: /awaiting\s+human|human\s+gate|owner\s+blocker|BLOCKED\s*[-:]\s*awaiting/i },
+  // PLURALS ARE NOT OPTIONAL. The first version matched \bkey\b and so did NOT match "mint the two
+  // model keys", the literal wording of gate G4. The negative suite caught it.
+  { id: "R-MINT-SECRET", negatable: false, why: "the task mints, issues or rotates a real credential",
+    re: /\b(mint|issue|rotate|generate|create)\b[^.]{0,60}\b(tokens?|keys?|secrets?|credentials?|keypairs?|passphrases?)\b/i },
+  { id: "R-PLACE-SECRET", negatable: false, why: "the task places a real value into the host secret store",
+    re: /\/etc\/[<]?CONFIG_DIR|\/etc\/nizam|\.env\b[^.]{0,40}\b(host|root|chmod\s*600)/i },
+  { id: "R-CONSENT", negatable: false, why: "the task completes an interactive consent or authorisation grant",
+    re: /\b(consent screen|oauth consent|authoriz(?:ation)? code|authoris(?:ation)? code|refresh tokens?)\b/i },
+  { id: "R-SPEND", negatable: false, why: "the task spends money or raises a spend ceiling",
+    re: /\b(purchase|buy|billing|raise the cap|increase the cap|weekly (cap|limit|ceiling)|spend ceiling|payment method)\b/i },
+
+  // ---- suppressible by an immediately preceding negation: these detect a capability MENTION.
+  { id: "R-GATE-ID", negatable: true, why: "the task names a gate identifier G1 to G8",
+    re: /(?:^|[^A-Za-z0-9])G[1-8](?:[^A-Za-z0-9]|$)/ },
+  { id: "R-PUBLIC-RECORD", negatable: true, why: "the task changes a public record outside this repository",
+    re: /\b(dns|a record|aaaa record|cname|nameserver|registrar|domain purchase|transfer a domain)\b/i },
+  { id: "R-WEBHOOK-REG", negatable: true, why: "the task registers a webhook and makes the deployment reachable",
+    re: /\b(setwebhook|getwebhookinfo|register (?:both )?webhooks?|webhook registration)\b/i },
+  { id: "R-HOST-MUTATE", negatable: true, why: "the task mutates the live host rather than this repository",
+    re: /\b(ssh into|on the host,|systemctl (?:start|stop|restart|enable)|ufw |sshd_config|apt-get install)\b/i },
 ];
 
 /**
@@ -64,16 +94,21 @@ export const GATE_RULES = [
  */
 export function gateVerdict(taskText, sourcePath) {
   const t = String(taskText ?? "");
+  const p = String(sourcePath ?? "");
   const reasons = [];
   for (const rule of GATE_RULES) {
-    let fired = false;
+    let fired = false, matched = null;
     try {
-      fired = Boolean(rule.test(t, sourcePath));
+      if (rule.alsoPath && rule.re.test(p)) { fired = true; matched = p; }
+      if (!fired) {
+        const r = firesWithNegationCheck(rule.re, t, Boolean(rule.negatable));
+        fired = r.fired; matched = r.matched;
+      }
     } catch {
       // A rule that throws is treated as FIRED. An unevaluatable guard is not a passing guard.
-      fired = true;
+      fired = true; matched = "RULE_FAULT";
     }
-    if (fired) reasons.push({ id: rule.id, why: rule.why });
+    if (fired) reasons.push({ id: rule.id, why: rule.why, matched });
   }
   return { gated: reasons.length > 0, reasons };
 }

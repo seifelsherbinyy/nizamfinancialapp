@@ -3,8 +3,20 @@
  * Enumerates the open spec tasks the autonomous builder is allowed to work.
  * Owner: build tooling. Contract: PFOS build loop. Phase: build loop.
  *
- * Dependency ordering is declared, not inferred. Inferring an order from file names would
- * silently reorder itself the day a spec is renamed.
+ * TWO RULES LEARNED FROM A DRY RUN THAT SELECTED THE WRONG THING:
+ *
+ *  1. A checkbox is not a task. tasks.md nests acceptance criteria as their own unnumbered
+ *     "- [ ]" bullets. The first version returned one of those, so the builder was about to
+ *     hand a subagent the fragment "Interactive sign-in yields a token with exactly drive.file"
+ *     with no surrounding task. Only NUMBERED items are tasks; unnumbered ones are context and
+ *     are attached to the task above them. The count of skipped ones is reported, not hidden.
+ *
+ *  2. Prefer the LEAF. "6. RUNG 1" with children 6.1 to 6.4 is a heading, not a unit of work;
+ *     working it means working four things at once. A task with any open numbered descendant
+ *     is a container and is skipped in favour of its first open child.
+ *
+ * Dependency ordering is declared, never inferred, so renaming a spec cannot silently reorder
+ * the build.
  */
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -26,15 +38,20 @@ export const SPEC_ORDER = [
 
 const OPEN = /^(\s*)- \[ \] (.+)$/;
 const DONE = /^(\s*)- \[x\] (.+)$/i;
-const CONTEXT_LINES = 8;
+const NUMBERED = /^([0-9]+(?:\.[0-9]+)*)[.)]?\s+(.*)$/;
+const CONTEXT_LINES = 10;
+
+/** Forward slashes so a path in a prompt works for whatever tool reads it. */
+const norm = (p) => String(p).replace(/\\/g, "/");
 
 /**
- * @returns {{spec:string,file:string,line:number,id:string,title:string,text:string,indent:number}[]}
+ * @returns {{tasks:object[],unnumbered:number,containers:number}}
  */
-export function readOpenTasks({ specRoot = SPEC_ROOT, order = SPEC_ORDER } = {}) {
-  const out = [];
+export function scanTasks({ specRoot = SPEC_ROOT, order = SPEC_ORDER } = {}) {
+  const tasks = [];
+  let unnumbered = 0;
   for (const spec of order) {
-    const file = join(specRoot, spec, "tasks.md");
+    const file = norm(join(specRoot, spec, "tasks.md"));
     if (!existsSync(file)) continue;
     const lines = readFileSync(file, "utf8").split(/\r?\n/);
     for (let i = 0; i < lines.length; i++) {
@@ -42,26 +59,33 @@ export function readOpenTasks({ specRoot = SPEC_ROOT, order = SPEC_ORDER } = {})
       if (!m) continue;
       const indent = m[1].length;
       const title = m[2].trim();
-      const idMatch = /^([0-9]+(?:\.[0-9]+)*)[.)]?\s+(.*)$/.exec(title);
-      const id = idMatch ? idMatch[1] : String(i + 1);
-      // Gather the indented context beneath the task so the guard and the executor both
-      // see the real requirement, not just the one-line title.
+      const num = NUMBERED.exec(title);
+      if (!num) { unnumbered++; continue; }     // an acceptance bullet, not a task
       const ctx = [];
       for (let j = i + 1; j < lines.length && ctx.length < CONTEXT_LINES; j++) {
         const l = lines[j];
-        if (OPEN.test(l) || DONE.test(l)) break;
         if (/^\s*$/.test(l)) continue;
-        if ((l.match(/^\s*/) ?? [""])[0].length <= indent && /^\s*-\s/.test(l)) break;
+        const li = (l.match(/^\s*/) ?? [""])[0].length;
+        if (li <= indent) break;                // dedent ends this task's block
+        if (NUMBERED.test(l.replace(/^\s*- \[[ x]\] /i, "").trim()) && (OPEN.test(l) || DONE.test(l))) break;
         ctx.push(l.trim());
       }
-      out.push({
-        spec, file, line: i + 1, id, title,
-        text: [title, ...ctx].join("\n"),
-        indent,
-      });
+      tasks.push({ spec, file, line: i + 1, id: num[1], title, text: [title, ...ctx].join("\n"), indent });
     }
   }
-  return out;
+  // leaf preference: drop any task that has an open numbered descendant
+  const ids = new Map();
+  for (const t of tasks) ids.set(`${t.spec}:${t.id}`, t);
+  const containers = tasks.filter((t) =>
+    tasks.some((o) => o.spec === t.spec && o.id !== t.id && o.id.startsWith(t.id + ".")));
+  const containerKeys = new Set(containers.map((t) => `${t.spec}:${t.id}`));
+  const leaves = tasks.filter((t) => !containerKeys.has(`${t.spec}:${t.id}`));
+  return { tasks: leaves, unnumbered, containers: containers.length, all: tasks };
+}
+
+/** Backwards-compatible accessor: the workable leaf tasks, in declared order. */
+export function readOpenTasks(opts) {
+  return scanTasks(opts).tasks;
 }
 
 export function countTasks({ specRoot = SPEC_ROOT, order = SPEC_ORDER } = {}) {
@@ -84,11 +108,8 @@ export function countTasks({ specRoot = SPEC_ROOT, order = SPEC_ORDER } = {}) {
 export function unlistedSpecs({ specRoot = SPEC_ROOT, order = SPEC_ORDER } = {}) {
   if (!existsSync(specRoot)) return [];
   return readdirSync(specRoot, { withFileTypes: true })
-    .filter((d) => d.isDirectory())
-    .map((d) => d.name)
+    .filter((d) => d.isDirectory()).map((d) => d.name)
     .filter((n) => !order.includes(n));
 }
 
-export function taskKey(t) {
-  return `${t.spec}:${t.id}`;
-}
+export function taskKey(t) { return `${t.spec}:${t.id}`; }
