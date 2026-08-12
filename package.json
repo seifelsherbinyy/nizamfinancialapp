@@ -2,7 +2,7 @@
   "name": "nizam",
   "version": "0.1.0",
   "private": true,
-  "description": "NIZAM — private YNAB-style personal finance webapp with Google Drive as the database.",
+  "description": "NIZAM \u2014 private YNAB-style personal finance webapp with Google Drive as the database.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -17,7 +17,11 @@
     "benchmark:earn-registry": "node scripts/benchmark/earn-registry.mjs",
     "test:loop": "node --test scripts/loop/ledger.test.mjs",
     "verify:ledger": "node scripts/loop/verify-ledger.mjs",
-    "verify:all": "node scripts/verify/all.mjs"
+    "verify:all": "node scripts/verify/all.mjs",
+    "test:autobuild": "node --test scripts/loop/autobuild.test.mjs",
+    "loop:auto": "node scripts/loop/autobuild.mjs",
+    "loop:auto:dry": "node scripts/loop/autobuild.mjs --dry",
+    "loop:status": "node scripts/loop/autobuild.mjs --status"
   },
   "dependencies": {
     "dexie": "4.0.10",
