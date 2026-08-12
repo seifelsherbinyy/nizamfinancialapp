@@ -348,6 +348,26 @@ They are readable by the provider and are not encrypted to a recipient whose pri
 host, so they are a convenience, not the "a host compromise yields ciphertext only" guarantee G8 makes.
 G8 is still required in full.
 
+### Recorded observation - container runtime confirmed, configuration directory created empty (2026-08-12)
+
+**Status: BLOCKED - awaiting human**
+
+Two lines of the VERIFICATION block above now hold on the live host. `systemctl is-enabled
+<CONTAINER_RUNTIME_SERVICE>` reports `enabled`, the service is active now, and the compose plugin
+is present alongside it, so step 6 is done. `stat -c '%U %G %a' /etc/<CONFIG_DIR>` reports
+`root root 700`, matching the install command in step 8 exactly, so the directory half of step 8 is
+also done.
+
+Nothing else in this checklist was re-checked this pass, and this observation makes no claim about
+the operator account, key-only login, the firewall, intrusion blocking, unattended updates or swap
+either way. The directory itself is empty - no environment file exists inside it yet - so the second
+half of step 8 (one `chmod 600` file per service) and all of step 9 (the five data-directory and
+sentinel-path entries, which have nowhere to be written without those files) remain outstanding, and
+the `grep -c` lines later in the VERIFICATION block above would all still return `0`. G1 stays
+`BLOCKED - awaiting human`. As with the observation above, no particular of the host or of the
+directory name chosen is written here or in any tracked file (R24); that stays in the untracked
+operator file outside the tracked tree.
+
 ---
 
 ## G2 - Records for the two hostnames
@@ -460,6 +480,22 @@ The transport itself: the constant-time token compare and allowlist ported from 
 relay auth, the per-bot dedup index keyed `(bot_id, update_id)`, and the accept-fast/process-async
 handler (spec tasks 4.1-4.4). All of it runs today against the deterministic `TelegramPort` mock (task
 2.2). Clearing G3 swaps the mock for the live adapter; no logic changes.
+
+### Recorded observation - both bots still authenticate, re-confirmed (2026-08-12)
+
+**Status: BLOCKED - awaiting human**
+
+The VERIFICATION line above was run again and holds: both getMe calls against `<MSG_API_BASE>`
+still return `ok:true, is_bot:true`, and the two ids are still distinct. This re-confirms the same
+check recorded once already (2026-08-09, in the untracked operator file this file's own rule keeps
+particulars out of); it is not a new grant and does not narrow what is left. As with that file's
+disclosure note, the tokens are still unrotated - by decision D-ROTATE, rotation is deferred to the
+final acceptance test, not before - and neither name nor identifier is written here (R24).
+
+Step 4 (placing both tokens in the host secret store) still cannot be done: `/etc/<CONFIG_DIR>`
+exists now (recorded under G1 above) but holds no environment files yet, so there is nowhere on the
+host to place them, and step 5's allowlist entry has the same dependency. G3 stays
+`BLOCKED - awaiting human` on the human step above, not on this check.
 
 ---
 
