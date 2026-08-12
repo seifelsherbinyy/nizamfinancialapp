@@ -161,27 +161,27 @@ const NEGATIVE_CASES: readonly NegativeCase[] = [
   {
     code: 'ENTRY_VALUE_NOT_PLACEHOLDER',
     why: 'steering §0b - no example value, and a resolved value in a tracked file is a particular',
-    apply: inTemplate(PROXY_TEMPLATE, swap('DOMAIN=<DOMAIN>', 'DOMAIN=deployment-one')),
+    apply: inTemplate(PROXY_TEMPLATE, swap('LIFE_HOSTNAME=<LIFE_HOSTNAME>', 'LIFE_HOSTNAME=deployment-one')),
   },
   {
     code: 'ENTRY_VALUE_NOT_SELF_NAMED',
     why: 'one thing to resolve per line; a second spelling is a second thing to keep in step',
-    apply: inTemplate(PROXY_TEMPLATE, swap('DOMAIN=<DOMAIN>', 'DOMAIN=<PUBLIC_DOMAIN>')),
+    apply: inTemplate(PROXY_TEMPLATE, swap('LIFE_HOSTNAME=<LIFE_HOSTNAME>', 'LIFE_HOSTNAME=<PUBLIC_HOSTNAME>')),
   },
   {
     code: 'ENTRY_ANNOTATION_MISSING',
     why: 'an entry nobody can trace to a gate is an entry the operator has to guess at',
-    apply: inTemplate(PROXY_TEMPLATE, swap('# secret: no\nDOMAIN=', 'DOMAIN=')),
+    apply: inTemplate(PROXY_TEMPLATE, swap('# secret: no\nLIFE_HOSTNAME=', 'LIFE_HOSTNAME=')),
   },
   {
     code: 'ENTRY_GATE_UNKNOWN',
     why: 'G7 is closed as WONT-DO, so naming it attributes a value to a gate that does not exist',
-    apply: inTemplate(PROXY_TEMPLATE, swap('# gate: G2\n# secret: no\nDOMAIN=', '# gate: G7\n# secret: no\nDOMAIN=')),
+    apply: inTemplate(PROXY_TEMPLATE, swap('# gate: G2\n# secret: no\nLIFE_HOSTNAME=', '# gate: G7\n# secret: no\nLIFE_HOSTNAME=')),
   },
   {
     code: 'ENTRY_SECRET_FLAG_INVALID',
     why: 'a maybe is read as a no by whoever is in a hurry',
-    apply: inTemplate(PROXY_TEMPLATE, swap('# secret: no\nDOMAIN=', '# secret: maybe\nDOMAIN=')),
+    apply: inTemplate(PROXY_TEMPLATE, swap('# secret: no\nLIFE_HOSTNAME=', '# secret: maybe\nLIFE_HOSTNAME=')),
   },
   {
     code: 'ENTRY_SECRECY_UNEXPECTED',
@@ -282,7 +282,7 @@ const NEGATIVE_CASES: readonly NegativeCase[] = [
   {
     code: 'PLACEHOLDER_MALFORMED',
     why: 'a placeholder that is not upper snake case is recognized by neither the operator nor task 9.0',
-    apply: inTemplate(PROXY_TEMPLATE, swap('DOMAIN=<DOMAIN>', 'DOMAIN=<publicDomain>')),
+    apply: inTemplate(PROXY_TEMPLATE, swap('LIFE_HOSTNAME=<LIFE_HOSTNAME>', 'LIFE_HOSTNAME=<publicHostname>')),
   },
 ];
 

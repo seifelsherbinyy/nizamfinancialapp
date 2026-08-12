@@ -43,11 +43,11 @@
 #
 # The routing table, in full - there is nothing else:
 #
-#   hostname          method + path                     upstream          everything else
+#   hostname             method + path                     upstream          everything else
 #   -------------------------------------------------------------------------------------------
-#   life.<DOMAIN>     POST /tg/<LIFE_WEBHOOK_PATH>      life-agent        connection closed
-#   money.<DOMAIN>    POST /tg/<MONEY_WEBHOOK_PATH>     finance-agent     connection closed
-#   any other host    -                                 -                 no certificate exists
+#   <LIFE_HOSTNAME>      POST /tg/<LIFE_WEBHOOK_PATH>      life-agent        connection closed
+#   <MONEY_HOSTNAME>     POST /tg/<MONEY_WEBHOOK_PATH>     finance-agent     connection closed
+#   any other host       -                                 -                 no certificate exists
 
 {
 	# No administration endpoint. Caddy's admin API is a local control plane that can replace this
@@ -67,10 +67,10 @@
 }
 
 # ---------------------------------------------------------------------------------------------
-# life.<DOMAIN> - the life agent: the other repository, Python + FastAPI, store life.db,
+# <LIFE_HOSTNAME> - the life agent: the other repository, Python + FastAPI, store life.db,
 # reachable from here over its own proxy-facing network and over no other.
 # ---------------------------------------------------------------------------------------------
-life.<DOMAIN> {
+<LIFE_HOSTNAME> {
 	tls {
 		issuer acme {
 			# The cleartext port is not published (§2.2.1), so the challenge that needs it can
@@ -110,10 +110,10 @@ life.<DOMAIN> {
 }
 
 # ---------------------------------------------------------------------------------------------
-# money.<DOMAIN> - the finance agent: this repository, Node + TypeScript, store finance.db. Same
+# <MONEY_HOSTNAME> - the finance agent: this repository, Node + TypeScript, store finance.db. Same
 # shape as the life agent, its own everything: hostname, secret path segment, upstream, network.
 # ---------------------------------------------------------------------------------------------
-money.<DOMAIN> {
+<MONEY_HOSTNAME> {
 	tls {
 		issuer acme {
 			disable_http_challenge

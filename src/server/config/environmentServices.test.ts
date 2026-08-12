@@ -70,7 +70,7 @@ const COMPOSE_PATH = 'ops/docker-compose.yml';
 const AUTHORED_ENTRY_COUNT: Readonly<Record<DeploymentService, number>> = {
   life: 19,
   finance: 17,
-  proxy: 6,
+  proxy: 7,
   bus: 3,
   scheduler: 5,
   backup: 12,
@@ -280,12 +280,12 @@ describe('the aggregate refusal names EVERY missing entry in one message (R27, l
       requireDeploymentEnvironment({
         ...env,
         finance: envFor('finance', { OR_KEY_FINANCE: undefined }),
-        proxy: envFor('proxy', { DOMAIN: undefined, ACME_CONTACT: '' }),
+        proxy: envFor('proxy', { LIFE_HOSTNAME: undefined, ACME_CONTACT: '' }),
         bus: envFor('bus', { SIGNALS_DATA_DIR: undefined }),
       }),
     );
     expect(refusal?.findings.length).toBe(4);
-    for (const entry of ['OR_KEY_FINANCE', 'DOMAIN', 'ACME_CONTACT', 'SIGNALS_DATA_DIR']) {
+    for (const entry of ['OR_KEY_FINANCE', 'LIFE_HOSTNAME', 'ACME_CONTACT', 'SIGNALS_DATA_DIR']) {
       expect(refusal?.message, entry).toContain(entry);
     }
     expect(new Set((refusal?.findings ?? []).map((f) => f.service))).toEqual(new Set(['finance', 'proxy', 'bus']));

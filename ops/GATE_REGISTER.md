@@ -47,7 +47,7 @@ in this register, and is blocked pending a human.
 Both repositories are public by owner decision (2026-08-06). This file may describe the *shape* of every
 human step; it may not contain a single **deployment particular**. Never here, not even as an example:
 
-- a real domain or hostname - write `<DOMAIN>`, `life.<DOMAIN>`, `money.<DOMAIN>`
+- a real hostname - write `<LIFE_HOSTNAME>`, `<MONEY_HOSTNAME>`
 - an address of the host, in any notation
 - a secret webhook path segment - generated at deploy time, resident only in the host environment
 - a bot name, a bot identifier, or a numeric messaging user identifier - write `<BOT_A_TOKEN>`, `<ALLOWED_USER_IDS>`
@@ -381,27 +381,29 @@ deliberately not in any secret tier the build can reach. A wrong record is publi
 
 ### Steps
 
-1. At the registrar or zone provider for `<DOMAIN>`, create address records:
-   - `life.<DOMAIN>` -> `<HOST_ADDRESS>`
-   - `money.<DOMAIN>` -> `<HOST_ADDRESS>`
+1. At each dynamic-DNS provider - potentially two different providers, since the two hostnames need not
+   share a domain - create or update the address record for each site:
+   - `<LIFE_HOSTNAME>` -> `<HOST_ADDRESS>`
+   - `<MONEY_HOSTNAME>` -> `<HOST_ADDRESS>`
 2. Set `<TTL>` low until the deployment is stable, then raise it.
 3. Do **not** create a record for the signal bus. The bus is internal-network-only and must never be
    resolvable or proxied (contract 12 §12, requirement **R9**). The full binding requirement - what the
    compose file must declare, what the proxy template must never contain, and how both are verified - is
    `ops/BUS_NETWORK_BINDING.md`, authored in spec Phase 3.3 and binding on tasks 7.1 and 7.2.
-4. Record the entry **this gate supplies**: `DOMAIN=<DOMAIN>` in `<PROXY_ENV_PATH>`. It is the only
-   entry the proxy template attributes to G2, and the two site addresses in `ops/Caddyfile` are derived
-   from it - `life.<DOMAIN>` and `money.<DOMAIN>` - so the two records created in step 1 and the value
-   recorded here cannot be allowed to disagree. No agent's environment file carries it; the proxy is
-   the only service that routes by hostname.
+4. Record the entries **this gate supplies**: `LIFE_HOSTNAME=<LIFE_HOSTNAME>` and
+   `MONEY_HOSTNAME=<MONEY_HOSTNAME>` in `<PROXY_ENV_PATH>`. They are the only entries the proxy template
+   attributes to G2, and the two site addresses in `ops/Caddyfile` are derived from them directly - so
+   the two records created in step 1 and the values recorded here cannot be allowed to disagree. No
+   agent's environment file carries either; the proxy is the only service that routes by hostname.
 
 ### VERIFICATION
 
 ```
-dig +short life.<DOMAIN>     # -> resolves to the host; record the fact, never the value
-dig +short money.<DOMAIN>    # -> resolves to the same host
+dig +short <LIFE_HOSTNAME>   # -> resolves to the host; record the fact, never the value
+dig +short <MONEY_HOSTNAME>  # -> resolves to the same host
 dig +short <BUS_HOSTNAME_THAT_MUST_NOT_EXIST>   # -> empty, and stays empty
-grep -c '^DOMAIN=' <PROXY_ENV_PATH>             # -> 1, and it is the name the two records resolve
+grep -c '^LIFE_HOSTNAME=' <PROXY_ENV_PATH>      # -> 1
+grep -c '^MONEY_HOSTNAME=' <PROXY_ENV_PATH>     # -> 1
 ```
 Then, after the proxy is up, a TLS handshake to each hostname must present a valid certificate for that
 name. Record "certificate valid for both names, issued `<DATE>`" - not the certificate.
@@ -413,8 +415,9 @@ the name resolves and terminates TLS).
 
 ### Already built and waiting
 
-The proxy template `ops/Caddyfile` (spec task 7.2), which already carries the two host blocks derived
-from `<DOMAIN>` and the two secret webhook paths as placeholders, and deliberately carries **no** route
+The proxy template `ops/Caddyfile` (spec task 7.2), which already carries the two host blocks -
+`<LIFE_HOSTNAME>` and `<MONEY_HOSTNAME>` - and the two secret webhook paths as placeholders, and
+deliberately carries **no** route
 to the signal bus.
 
 ---
@@ -679,12 +682,12 @@ through the agent's context.
 3. Register each webhook, from the host, with values sourced from the environment:
    ```
    curl -sS "<MSG_API_BASE>/bot${BOT_A_TOKEN}/setWebhook" \
-     --data-urlencode "url=https://life.<DOMAIN>/tg/<LIFE_WEBHOOK_PATH>" \
+     --data-urlencode "url=https://<LIFE_HOSTNAME>/tg/<LIFE_WEBHOOK_PATH>" \
      --data-urlencode "secret_token=<LIFE_WEBHOOK_SECRET>" \
      --data-urlencode 'allowed_updates=["message","callback_query"]' \
      --data-urlencode "max_connections=<MAX_CONNECTIONS>" \
      --data-urlencode "drop_pending_updates=true"
-   # repeat with ${BOT_B_TOKEN} -> money.<DOMAIN>/tg/<MONEY_WEBHOOK_PATH> + <MONEY_WEBHOOK_SECRET>
+   # repeat with ${BOT_B_TOKEN} -> <MONEY_HOSTNAME>/tg/<MONEY_WEBHOOK_PATH> + <MONEY_WEBHOOK_SECRET>
    ```
    Notes that are policy, not preference: the URL terminates on the TLS port, which the provider
    documents as one of a closed permitted set; `allowed_updates` is narrowed to the two kinds the

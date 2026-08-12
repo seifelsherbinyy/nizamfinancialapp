@@ -47,7 +47,7 @@ because the path does not exist.
 1. **No site block, route, handle, or reverse-proxy directive that names the bus**, under any hostname,
    any path, any port. Not commented out. Not "for local debugging". A commented-out route is a route
    someone uncomments.
-2. No third hostname. The proxy serves exactly `life.<DOMAIN>` and `money.<DOMAIN>` (§2.2.3).
+2. No third hostname. The proxy serves exactly `<LIFE_HOSTNAME>` and `<MONEY_HOSTNAME>` (§2.2.3).
 3. No wildcard or catch-all upstream that could resolve the bus service name by accident.
 
 The gate register already carries the matching negative for DNS: G2 step 3 forbids creating any record
@@ -76,7 +76,7 @@ never typed inline):
 # 4. from the host, and from off the host, the same address is REFUSED
 <PROBE_CMD> <HOST_ADDRESS>:<BUS_PORT>                          # -> connection refused
 # and via the proxy, on both hostnames, every path:
-<PROBE_CMD> https://money.<DOMAIN>/<ANY_PATH>                  # -> the proxy has no route to the bus
+<PROBE_CMD> https://<MONEY_HOSTNAME>/<ANY_PATH>                 # -> the proxy has no route to the bus
 
 # 5. the proxy configuration names the bus nowhere at all
 grep -ci '<BUS_SERVICE>' ops/Caddyfile                         # -> 0

@@ -143,7 +143,7 @@ const NEGATIVE_CASES: readonly NegativeCase[] = [
   {
     code: 'ENV_COMPANION_UNREADABLE',
     why: 'a template outside the supported subset cannot be read for its entries, and skipping it would let the gate cross-read pass by not running',
-    overrides: { templates: { ...ENV_TEMPLATES, 'proxy.env': 'export DOMAIN=<DOMAIN>\n' } },
+    overrides: { templates: { ...ENV_TEMPLATES, 'proxy.env': 'export LIFE_HOSTNAME=<LIFE_HOSTNAME>\n' } },
   },
   {
     code: 'ENV_COMPANION_UNREADABLE',
@@ -229,22 +229,22 @@ const NEGATIVE_CASES: readonly NegativeCase[] = [
   {
     code: 'ENTRY_STEP_MISSING',
     why: 'this is the check that would have caught the nine entries the first half of task 9.3 found unnamed, and there is no default for any of them',
-    overrides: { register: swap('`DOMAIN=<DOMAIN>` in `<PROXY_ENV_PATH>`', 'the site name in `<PROXY_ENV_PATH>`') },
+    overrides: { register: swap('`LIFE_HOSTNAME=<LIFE_HOSTNAME>`', 'the life-site hostname') },
   },
   {
     code: 'ENTRY_STEP_NOT_VERIFIED',
     why: 'an entry placed but never checked is one discovered missing at the worst possible moment',
-    overrides: { register: swap("grep -c '^DOMAIN=' <PROXY_ENV_PATH>", "grep -c '^ACME_CONTACT=' <PROXY_ENV_PATH>") },
+    overrides: { register: swap("grep -c '^LIFE_HOSTNAME=' <PROXY_ENV_PATH>", "grep -c '^ACME_CONTACT=' <PROXY_ENV_PATH>") },
   },
   {
     code: 'VERIFICATION_PRINTS_A_VALUE',
     why: 'the register\u2019s own rule is to record the observation and never the value, and a grep without a counting flag prints the assignment',
-    overrides: { register: swap("grep -c '^DOMAIN=' <PROXY_ENV_PATH>", "grep '^DOMAIN=' <PROXY_ENV_PATH>") },
+    overrides: { register: swap("grep -c '^LIFE_HOSTNAME=' <PROXY_ENV_PATH>", "grep '^LIFE_HOSTNAME=' <PROXY_ENV_PATH>") },
   },
   {
     code: 'VERIFICATION_PRINTS_A_VALUE',
     why: 'a whole-file print of an environment file prints every secret in it at once',
-    overrides: { register: swap("grep -c '^DOMAIN=' <PROXY_ENV_PATH>", VALUE_PRINTING_SHAPE) },
+    overrides: { register: swap("grep -c '^LIFE_HOSTNAME=' <PROXY_ENV_PATH>", VALUE_PRINTING_SHAPE) },
   },
 
   // --- what the register quotes ----------------------------------------------------------------
@@ -362,8 +362,8 @@ describe('the gate register on disk is the shape task 9.3 requires', () => {
   });
 
   it('distinguishes an entry name from the placeholder that shares its spelling', () => {
-    expect(namesEntry('DOMAIN=<DOMAIN>', 'DOMAIN')).toBe(true);
-    expect(namesEntry('the record for life.<DOMAIN>', 'DOMAIN')).toBe(false);
+    expect(namesEntry('LIFE_HOSTNAME=<LIFE_HOSTNAME>', 'LIFE_HOSTNAME')).toBe(true);
+    expect(namesEntry('the record for <LIFE_HOSTNAME>', 'LIFE_HOSTNAME')).toBe(false);
   });
 
   it('attributes an entry to a gate only through the one environment vocabulary', () => {

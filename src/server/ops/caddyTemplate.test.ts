@@ -28,7 +28,6 @@ import { fileURLToPath } from 'node:url';
 
 import {
   CADDY_FINDING_CODES,
-  DOMAIN_PLACEHOLDER,
   EXPECTED_SITES,
   FORBIDDEN_UPSTREAM_NAMES,
   LIFE_SITE,
@@ -98,7 +97,7 @@ const NEGATIVE_CASES: readonly NegativeCase[] = [
   {
     code: 'GLOBAL_OPTIONS_MISSING',
     why: 'giving the global options block an address turns proxy-wide policy into one more site',
-    apply: swap('\n{\n', `\nstatus.${DOMAIN_PLACEHOLDER} {\n`),
+    apply: swap('\n{\n', '\n<STATUS_HOSTNAME> {\n'),
   },
   {
     code: 'GLOBAL_DIRECTIVE_UNEXPECTED',
@@ -123,22 +122,22 @@ const NEGATIVE_CASES: readonly NegativeCase[] = [
   {
     code: 'SITE_BLOCK_COUNT_UNEXPECTED',
     why: 'BUS_NETWORK_BINDING prohibition 2 - no third hostname',
-    apply: (t) => `${t}\nstatus.${DOMAIN_PLACEHOLDER} {\n${FALLBACK}}\n`,
+    apply: (t) => `${t}\n<STATUS_HOSTNAME> {\n${FALLBACK}}\n`,
   },
   {
     code: 'SITE_SET_UNEXPECTED',
     why: '§2.2.3 names the two hostnames; a renamed one is a hostname nobody registered',
-    apply: swap(`\n${MONEY_SITE} {\n`, `\nledger.${DOMAIN_PLACEHOLDER} {\n`),
+    apply: swap(`\n${MONEY_SITE} {\n`, '\n<LEDGER_HOSTNAME> {\n'),
   },
   {
     code: 'SITE_ADDRESS_LIST_UNEXPECTED',
     why: 'collapsing both hostnames into one block loses the per-hostname route to a single agent',
-    apply: swap(`\n${MONEY_SITE} {\n`, `\n${MONEY_SITE}, admin.${DOMAIN_PLACEHOLDER} {\n`),
+    apply: swap(`\n${MONEY_SITE} {\n`, `\n${MONEY_SITE}, <ADMIN_HOSTNAME> {\n`),
   },
   {
     code: 'SITE_ADDRESS_WILDCARD',
     why: 'prohibition 3 - a wildcard address serves hostnames nobody enumerated',
-    apply: swap(`\n${MONEY_SITE} {\n`, `\n*.${DOMAIN_PLACEHOLDER} {\n`),
+    apply: swap(`\n${MONEY_SITE} {\n`, '\n* {\n'),
   },
   {
     code: 'SITE_DIRECTIVE_UNEXPECTED',
@@ -252,7 +251,7 @@ const NEGATIVE_CASES: readonly NegativeCase[] = [
   },
   {
     code: 'PARTICULAR_HOSTNAME',
-    why: `R24 - write ${DOMAIN_PLACEHOLDER}, never a name`,
+    why: 'R24 - write a hostname placeholder, never a name',
     apply: swap('<ACME_CONTACT>', HOSTNAME_SHAPED),
   },
   {
@@ -364,7 +363,7 @@ describe('ops/BUS_NETWORK_BINDING.md, the three prohibitions for task 7.2', () =
     for (const address of addresses) {
       expect(address.includes('*'), `${address} must not be a wildcard`).toBe(false);
       expect(address.startsWith(':'), `${address} must not be a bare port`).toBe(false);
-      expect(address.endsWith(DOMAIN_PLACEHOLDER), `${address} must be derived from ${DOMAIN_PLACEHOLDER}`).toBe(true);
+      expect(/^<[A-Z][A-Z0-9_]*>$/.test(address), `${address} must be a full placeholder, not a derived or partial value`).toBe(true);
     }
   });
 

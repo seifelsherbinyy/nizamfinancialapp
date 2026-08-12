@@ -609,7 +609,8 @@ export const SERVICE_ENTRY_NAMES: Readonly<Record<DeploymentService, readonly st
   // comparison lives in the agent, and a proxy that held the value could compare it somewhere no
   // test covers. Deferred in phase 1: the proxy stays down under `longPoll`.
   proxy: Object.freeze([
-    'DOMAIN',
+    'LIFE_HOSTNAME',
+    'MONEY_HOSTNAME',
     'ACME_CONTACT',
     'LIFE_WEBHOOK_PATH',
     'MONEY_WEBHOOK_PATH',

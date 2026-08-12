@@ -157,11 +157,12 @@ export function parseCaddySubset(source: string): readonly CaddyNode[] {
 // What the contract says the proxy is. Named constants, so a rename surfaces as a finding.
 // ---------------------------------------------------------------------------------------------
 
-/** R24: the domain is never written down, so every site address is derived from the placeholder. */
-export const DOMAIN_PLACEHOLDER = '<DOMAIN>';
-
-export const LIFE_SITE = `life.${DOMAIN_PLACEHOLDER}`;
-export const MONEY_SITE = `money.${DOMAIN_PLACEHOLDER}`;
+/** R24: no real hostname is ever written down. Each agent's site address is its own independent
+ *  placeholder - DuckDNS/FreeDNS-style free dynamic-DNS hostnames have no shared apex to derive
+ *  from, so the two addresses are NOT required to share a suffix (unlike a registered domain's
+ *  `life.<DOMAIN>` / `money.<DOMAIN>` subdomains). */
+export const LIFE_SITE = '<LIFE_HOSTNAME>';
+export const MONEY_SITE = '<MONEY_HOSTNAME>';
 
 /** Contract 12 §2.2.3: two hostnames, one per agent. Exactly these, and no third. */
 export const EXPECTED_SITES: readonly string[] = [LIFE_SITE, MONEY_SITE];

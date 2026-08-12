@@ -228,7 +228,8 @@ const HALT_OWNERS: readonly string[] = [LIFE_TEMPLATE, FINANCE_TEMPLATE, SCHEDUL
  */
 export const ENTRY_SPECS: Readonly<Record<string, EntrySpec>> = {
   // --- the proxy: the two secret path segments, and nothing belonging to an agent -------------
-  DOMAIN: { owners: [PROXY_TEMPLATE], gate: 'G2', secret: false },
+  LIFE_HOSTNAME: { owners: [PROXY_TEMPLATE], gate: 'G2', secret: false },
+  MONEY_HOSTNAME: { owners: [PROXY_TEMPLATE], gate: 'G2', secret: false },
   ACME_CONTACT: { owners: [PROXY_TEMPLATE], gate: 'operator', secret: false },
   LIFE_WEBHOOK_PATH: { owners: [PROXY_TEMPLATE], gate: 'G6', secret: true },
   MONEY_WEBHOOK_PATH: { owners: [PROXY_TEMPLATE], gate: 'G6', secret: true },
