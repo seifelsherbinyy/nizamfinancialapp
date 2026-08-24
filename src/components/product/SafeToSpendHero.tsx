@@ -35,6 +35,7 @@ export function SafeToSpendHero({
     <section
       className={`safe-hero ${deficit ? 'safe-hero-negative' : ''}`}
       aria-label="Safe to spend"
+      role="status"
     >
       <div className="safe-hero-main">
         <span className="section-eyebrow">Available without breaking the plan</span>
