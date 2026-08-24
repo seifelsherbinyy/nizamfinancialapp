@@ -1,8 +1,8 @@
 /**
  * NIZAM - Command Center: safe-to-spend, obligation protection, and net worth.
  * Owning contract: PFOS contract 04 (Interface) section 2 - the Command Center / Home.
- * Build phase: PFOS Stage 1, phase 1.4 - Command Center UI (net worth composed from Stage 4).
- * Depends on: safeToSpend engine, obligations engine, netWorth engine, state/store, components/MoneyCell.
+ * Build phase: PFOS Stage 1, phase 1.4; visual composition enhanced in Visual Upgrade Wave 1.
+ * Depends on: safeToSpend engine, obligations engine, netWorth engine, state/store, product components.
  *
  * Presentation only. Every number comes from an already-tested pure engine; no money
  * math happens here (contract 03 section 1 - the interface never sources numbers). The
@@ -24,6 +24,9 @@ import {
 import { netWorth } from '@/features/netWorth/netWorth';
 import { applySampleData } from '@/features/demo/sampleData';
 import { MoneyCell } from '@/components/MoneyCell';
+import { FinancialMetric } from '@/components/product/FinancialMetric';
+import { SafeToSpendHero } from '@/components/product/SafeToSpendHero';
+import { SectionHeader } from '@/components/product/SectionHeader';
 import type { RagState } from '@/styles/theme';
 
 function today(): string {
@@ -81,19 +84,21 @@ export function CommandCenter() {
 
   if (!db) return <p className="muted">Loading...</p>;
 
-  // Empty portfolio: offer clearly-labelled sample data (never shown once real accounts exist,
-  // so it can not overwrite a real ledger).
   if (db.accounts.length === 0) {
     return (
-      <section aria-label="Command Center">
-        <div className="month-nav">
-          <h2>Command Center</h2>
-        </div>
-        <div className="card">
-          <p>
-            No accounts yet. Load a fully-worked <strong>sample portfolio</strong> to explore
-            safe-to-spend, obligation protection, the decision engine, and multi-currency net
-            worth with demonstration data.
+      <section className="page-stack" aria-label="Command Center">
+        <SectionHeader
+          eyebrow="Overview"
+          title="Your financial position"
+          description="A decision-first view of liquidity, obligations, confidence and net worth."
+          level={1}
+        />
+        <div className="surface">
+          <span className="section-eyebrow">Start safely</span>
+          <h2>No accounts yet</h2>
+          <p className="muted">
+            Load a fully-worked sample portfolio to explore safe-to-spend, obligation protection,
+            the decision engine and multi-currency net worth with demonstration data.
           </p>
           <button
             className="btn"
@@ -101,195 +106,184 @@ export function CommandCenter() {
           >
             Load sample data
           </button>
-          <p className="muted">Sample data only - add your own accounts to replace it.</p>
+          <p className="muted">Sample data only — adding your own accounts replaces this state.</p>
         </div>
       </section>
     );
   }
 
-  // Hero window: prefer the next-7-days view, else the first available window.
   const hero = horizons.find((r) => r.horizon.id === '7d') ?? horizons[0];
   const others = horizons.filter((r) => r !== hero);
   const worst = obligations.length > 0 ? worstStatus(obligations) : null;
 
   return (
-    <section aria-label="Command Center">
-      <div className="month-nav">
-        <h2>Command Center</h2>
-        <div className="spacer" />
-        <span className="badge" role="status" aria-label="As of date">
-          As of {asOf}
-        </span>
+    <section className="page-stack" aria-label="Command Center">
+      <SectionHeader
+        eyebrow="Overview"
+        title="Your financial position"
+        description="What is safe now, what is due next, and where the plan is under pressure."
+        level={1}
+        action={
+          <span className="badge" role="status" aria-label="As of date">
+            As of {asOf}
+          </span>
+        }
+      />
+
+      {hero ? (
+        <SafeToSpendHero
+          horizonLabel={hero.horizon.label}
+          amount={hero.safeToSpend}
+          dailyAllowance={hero.dailyAllowance}
+          confidenceLabel={BAND_LABEL[hero.confidenceBand]}
+          confidencePercent={pctText(hero.confidenceBps)}
+          confidenceBps={hero.confidenceBps}
+          primaryRisk={hero.primaryRisk}
+          deficit={hero.deficit}
+        />
+      ) : (
+        <div className="surface" role="status">
+          <p className="muted">No spending window could be computed.</p>
+        </div>
+      )}
+
+      {hero?.deficit ? (
+        <div className="surface" role="alert">
+          <span className="section-eyebrow">Action required</span>
+          <strong>Protected costs exceed available funds for this window.</strong>
+          <p className="error-text">Review the highest-priority obligations before discretionary spending.</p>
+        </div>
+      ) : null}
+
+      <div className="dashboard-grid">
+        <div>
+          <SectionHeader
+            eyebrow="Runway"
+            title="Safe-to-spend horizons"
+            description="Compare near-term flexibility without hiding the confidence behind each window."
+            level={2}
+          />
+          {others.length > 0 ? (
+            <div className="horizon-grid" aria-label="Safe to spend by horizon">
+              {others.map((r) => (
+                <article className="horizon-card" key={r.horizon.id}>
+                  <div className="horizon-card-top">
+                    <strong>{r.horizon.label}</strong>
+                    <span>{BAND_LABEL[r.confidenceBand]}</span>
+                  </div>
+                  <div className="horizon-card-amount">
+                    <MoneyCell amount={r.safeToSpend} rag={r.deficit ? 'negative' : undefined} />
+                  </div>
+                  <div className="horizon-card-meta">
+                    <MoneyCell amount={r.dailyAllowance} /> / day · {pctText(r.confidenceBps)} confidence
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="surface surface-subtle">
+              <p className="muted">No additional horizons available.</p>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <SectionHeader eyebrow="Position" title="Balance-sheet view" level={2} />
+          {nw ? (
+            <div className="position-panel" aria-label="Net worth position">
+              <FinancialMetric label="Net worth" value={nw.nominal} emphasis="hero" />
+              <div className="position-metrics">
+                <FinancialMetric label="Liquid" value={nw.liquid} supporting={nw.referenceCurrency} />
+                <FinancialMetric
+                  label="Liquidation"
+                  value={nw.liquidation}
+                  supporting="After haircuts"
+                />
+              </div>
+              {nw.unratedCurrencies.length > 0 ? (
+                <p className="error-text" role="alert">
+                  {nw.unratedCurrencies.length} currency value(s) omitted for missing FX rates:{' '}
+                  {nw.unratedCurrencies.join(', ')}.
+                </p>
+              ) : (
+                <p className="muted">All tracked currency values are represented.</p>
+              )}
+            </div>
+          ) : null}
+        </div>
       </div>
 
-      {/* Safe to spend - the headline answer. */}
-      <div className="card" aria-label="Safe to spend">
-        {hero ? (
-          <>
-            <div
-              className={`rta-banner rta-${hero.deficit ? 'negative' : 'positive'}`}
-              role="status"
-              aria-label="Safe to spend"
-            >
-              <span>Safe to spend / {hero.horizon.label}</span>
-              <span className="rta-amount">
-                <MoneyCell amount={hero.safeToSpend} rag={hero.deficit ? 'negative' : 'positive'} />
+      <div>
+        <SectionHeader
+          eyebrow="Protection"
+          title="Upcoming obligations"
+          description="Highest consequence liabilities remain visible before lower-priority spending."
+          level={2}
+          action={
+            worst ? (
+              <span
+                className={`badge money-${STATUS_RAG[worst]}`}
+                role="status"
+                aria-label="Worst obligation status"
+              >
+                {STATUS_LABEL[worst]}
               </span>
-            </div>
+            ) : undefined
+          }
+        />
+        {obligations.length === 0 ? (
+          <div className="surface surface-subtle">
             <p className="muted">
-              About <MoneyCell amount={hero.dailyAllowance} />/day - Confidence:{' '}
-              {BAND_LABEL[hero.confidenceBand]} ({pctText(hero.confidenceBps)})
+              No obligations tracked yet. Add bills, loans and cards so safe-to-spend can protect them.
             </p>
-            {hero.deficit ? (
-              <p className="error-text" role="alert">
-                Over-committed: protected costs exceed available funds for this window.
-              </p>
-            ) : null}
-            <p>
-              <strong>Main risk:</strong> {hero.primaryRisk}
-            </p>
-            {hero.whatWouldImprove.length > 0 ? (
-              <ul aria-label="What would improve confidence">
-                {hero.whatWouldImprove.map((w) => (
-                  <li key={w}>{w}</li>
-                ))}
-              </ul>
-            ) : null}
-          </>
+          </div>
         ) : (
-          <p className="muted">No spending window could be computed.</p>
+          <div className="table-wrap">
+            <table className="table" aria-label="Obligation protection">
+              <thead>
+                <tr>
+                  <th scope="col">Creditor</th>
+                  <th scope="col">Priority</th>
+                  <th scope="col" className="num">Due</th>
+                  <th scope="col" className="num">Reserved</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {obligations.map((line) => (
+                  <tr key={line.obligation.id}>
+                    <td>{line.obligation.creditor}</td>
+                    <td>{line.obligation.priority}</td>
+                    <td className="num">
+                      {line.obligation.dueDate}{line.overdue ? ' (overdue)' : ''}
+                    </td>
+                    <td className="num"><MoneyCell amount={line.required} /></td>
+                    <td>
+                      <span className={`badge money-${STATUS_RAG[line.status]}`} title={line.reason}>
+                        {STATUS_LABEL[line.status]}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
-      {/* The remaining horizons at a glance. */}
-      {others.length > 0 ? (
-        <table className="table" aria-label="Safe to spend by horizon">
-          <thead>
-            <tr>
-              <th scope="col">Window</th>
-              <th scope="col" className="num">
-                Safe to spend
-              </th>
-              <th scope="col" className="num">
-                Per day
-              </th>
-              <th scope="col">Confidence</th>
-            </tr>
-          </thead>
-          <tbody>
-            {others.map((r) => (
-              <tr key={r.horizon.id}>
-                <td>{r.horizon.label}</td>
-                <td className="num">
-                  <MoneyCell
-                    amount={r.safeToSpend}
-                    rag={r.deficit ? 'negative' : undefined}
-                    variant="pill"
-                  />
-                </td>
-                <td className="num">
-                  <MoneyCell amount={r.dailyAllowance} />
-                </td>
-                <td>
-                  {BAND_LABEL[r.confidenceBand]} ({pctText(r.confidenceBps)})
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : null}
-
-      {/* Obligation protection. */}
-      <div className="month-nav">
-        <h3>Upcoming obligations</h3>
-        {worst ? (
-          <span
-            className={`badge money-${STATUS_RAG[worst]}`}
-            role="status"
-            aria-label="Worst obligation status"
-          >
-            {STATUS_LABEL[worst]}
-          </span>
-        ) : null}
-      </div>
-      {obligations.length === 0 ? (
-        <div className="card">
-          <p className="muted">
-            No obligations tracked yet. Add bills, loans, and cards so safe-to-spend can protect
-            them.
-          </p>
-        </div>
-      ) : (
-        <table className="table" aria-label="Obligation protection">
-          <thead>
-            <tr>
-              <th scope="col">Creditor</th>
-              <th scope="col">Priority</th>
-              <th scope="col" className="num">
-                Due
-              </th>
-              <th scope="col" className="num">
-                Reserved
-              </th>
-              <th scope="col">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {obligations.map((l) => (
-              <tr key={l.obligation.id}>
-                <td>{l.obligation.creditor}</td>
-                <td>{l.obligation.priority}</td>
-                <td className="num">
-                  {l.obligation.dueDate}
-                  {l.overdue ? ' (overdue)' : ''}
-                </td>
-                <td className="num">
-                  <MoneyCell amount={l.required} />
-                </td>
-                <td>
-                  <span className={`badge money-${STATUS_RAG[l.status]}`} title={l.reason}>
-                    {STATUS_LABEL[l.status]}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {/* Net worth (Stage 4). */}
-      <h3>Net worth</h3>
-      {nw ? (
-        <div className="card" aria-label="Net worth">
-          {nw.unratedCurrencies.length > 0 ? (
-            <p className="error-text" role="alert">
-              {nw.unratedCurrencies.length} currency value(s) omitted for a missing FX rate:{' '}
-              {nw.unratedCurrencies.join(', ')}. Add rates to include them.
-            </p>
-          ) : null}
-          <table className="table" aria-label="Net worth views">
-            <tbody>
-              <tr>
-                <td>Nominal</td>
-                <td className="num">
-                  <MoneyCell amount={nw.nominal} variant="pill" />
-                </td>
-              </tr>
-              <tr>
-                <td>Liquid</td>
-                <td className="num">
-                  <MoneyCell amount={nw.liquid} />
-                </td>
-              </tr>
-              <tr>
-                <td>Liquidation (after haircuts)</td>
-                <td className="num">
-                  <MoneyCell amount={nw.liquidation} />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <p className="muted">Figures in {nw.referenceCurrency}.</p>
+      {hero && hero.whatWouldImprove.length > 0 ? (
+        <div>
+          <SectionHeader
+            eyebrow="Data quality"
+            title="What would improve confidence"
+            description="These are evidence gaps from the existing deterministic safe-to-spend result."
+            level={2}
+          />
+          <div className="surface surface-subtle">
+            <ul aria-label="What would improve confidence">
+              {hero.whatWouldImprove.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          </div>
         </div>
       ) : null}
     </section>
