@@ -89,8 +89,8 @@ export function CommandCenter() {
       <section className="page-stack" aria-label="Command Center">
         <SectionHeader
           eyebrow="Overview"
-          title="Your financial position"
-          description="A decision-first view of liquidity, obligations, confidence and net worth."
+          title="Command Center"
+          description="Your financial position, decision readiness and evidence quality in one place."
           level={1}
         />
         <div className="surface">
@@ -120,8 +120,8 @@ export function CommandCenter() {
     <section className="page-stack" aria-label="Command Center">
       <SectionHeader
         eyebrow="Overview"
-        title="Your financial position"
-        description="What is safe now, what is due next, and where the plan is under pressure."
+        title="Command Center"
+        description="Your financial position: what is safe now, what is due next, and where the plan is under pressure."
         level={1}
         action={
           <span className="badge" role="status" aria-label="As of date">
@@ -150,7 +150,7 @@ export function CommandCenter() {
       {hero?.deficit ? (
         <div className="surface" role="alert">
           <span className="section-eyebrow">Action required</span>
-          <strong>Protected costs exceed available funds for this window.</strong>
+          <strong>Over-committed: protected costs exceed available funds for this window.</strong>
           <p className="error-text">Review the highest-priority obligations before discretionary spending.</p>
         </div>
       ) : null}
@@ -188,26 +188,28 @@ export function CommandCenter() {
         </div>
 
         <div>
-          <SectionHeader eyebrow="Position" title="Balance-sheet view" level={2} />
+          <SectionHeader eyebrow="Position" title="Net worth" level={2} />
           {nw ? (
             <div className="position-panel" aria-label="Net worth position">
               <FinancialMetric label="Net worth" value={nw.nominal} emphasis="hero" />
               <div className="position-metrics">
                 <FinancialMetric label="Liquid" value={nw.liquid} supporting={nw.referenceCurrency} />
-                <FinancialMetric
-                  label="Liquidation"
-                  value={nw.liquidation}
-                  supporting="After haircuts"
-                />
+                <FinancialMetric label="Liquidation" value={nw.liquidation} supporting="After haircuts" />
               </div>
+              <table className="table" aria-label="Net worth views">
+                <tbody>
+                  <tr><td>Nominal</td><td className="num"><MoneyCell amount={nw.nominal} /></td></tr>
+                  <tr><td>Liquid</td><td className="num"><MoneyCell amount={nw.liquid} /></td></tr>
+                  <tr><td>Liquidation</td><td className="num"><MoneyCell amount={nw.liquidation} /></td></tr>
+                </tbody>
+              </table>
+              <p className="muted">Figures in {nw.referenceCurrency}.</p>
               {nw.unratedCurrencies.length > 0 ? (
                 <p className="error-text" role="alert">
-                  {nw.unratedCurrencies.length} currency value(s) omitted for missing FX rates:{' '}
+                  {nw.unratedCurrencies.length} currency value(s) omitted for missing FX rates: {' '}
                   {nw.unratedCurrencies.join(', ')}.
                 </p>
-              ) : (
-                <p className="muted">All tracked currency values are represented.</p>
-              )}
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -221,11 +223,7 @@ export function CommandCenter() {
           level={2}
           action={
             worst ? (
-              <span
-                className={`badge money-${STATUS_RAG[worst]}`}
-                role="status"
-                aria-label="Worst obligation status"
-              >
+              <span className={`badge money-${STATUS_RAG[worst]}`} role="status" aria-label="Worst obligation status">
                 {STATUS_LABEL[worst]}
               </span>
             ) : undefined
@@ -233,9 +231,7 @@ export function CommandCenter() {
         />
         {obligations.length === 0 ? (
           <div className="surface surface-subtle">
-            <p className="muted">
-              No obligations tracked yet. Add bills, loans and cards so safe-to-spend can protect them.
-            </p>
+            <p className="muted">No obligations tracked yet. Add bills, loans and cards so safe-to-spend can protect them.</p>
           </div>
         ) : (
           <div className="table-wrap">
@@ -254,15 +250,9 @@ export function CommandCenter() {
                   <tr key={line.obligation.id}>
                     <td>{line.obligation.creditor}</td>
                     <td>{line.obligation.priority}</td>
-                    <td className="num">
-                      {line.obligation.dueDate}{line.overdue ? ' (overdue)' : ''}
-                    </td>
+                    <td className="num">{line.obligation.dueDate}{line.overdue ? ' (overdue)' : ''}</td>
                     <td className="num"><MoneyCell amount={line.required} /></td>
-                    <td>
-                      <span className={`badge money-${STATUS_RAG[line.status]}`} title={line.reason}>
-                        {STATUS_LABEL[line.status]}
-                      </span>
-                    </td>
+                    <td><span className={`badge money-${STATUS_RAG[line.status]}`} title={line.reason}>{STATUS_LABEL[line.status]}</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -276,7 +266,7 @@ export function CommandCenter() {
           <SectionHeader
             eyebrow="Data quality"
             title="What would improve confidence"
-            description="These are evidence gaps from the existing deterministic safe-to-spend result."
+            description="Evidence gaps surfaced by the existing deterministic safe-to-spend result."
             level={2}
           />
           <div className="surface surface-subtle">
