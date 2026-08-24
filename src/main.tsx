@@ -8,6 +8,7 @@ import { createRoot } from 'react-dom/client';
 import { AppProviders } from '@/app/providers';
 import App from '@/App';
 import '@/styles/globals.css';
+import '@/styles/analytics.css';
 
 const rootEl = document.getElementById('root');
 if (!rootEl) {
