@@ -1,9 +1,9 @@
 /**
- * NIZAM · Root component — YNAB-style shell: sidebar + router outlet
- * Implemented by: KIRO Contract 4 / Phase 4.2
+ * NIZAM · Root component — financial command-system shell
+ * Implemented by: KIRO Contract 4 / Phase 4.2; enhanced by PFOS Contract 04 / Visual Upgrade Wave 1
  * Depends on: app/router.tsx, features/* views, state/store.ts
  */
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { RouterOutlet, useHashRoute, type RoutePath } from '@/app/router';
 import { useNizamStore } from '@/state/store';
 import { createEmptyDb } from '@/lib/db/schema';
@@ -21,19 +21,49 @@ import { ForecastView } from '@/features/forecast/ForecastView';
 import { DecisionsView } from '@/features/decisions/DecisionsView';
 import { NetWorthView } from '@/features/netWorth/NetWorthView';
 
-const NAV: { path: RoutePath; label: string }[] = [
-  { path: '/home', label: 'Home' },
-  { path: '/budget', label: 'Budget' },
-  { path: '/decide', label: 'Decide' },
-  { path: '/forecast', label: 'Forecast' },
-  { path: '/decisions', label: 'Decisions' },
-  { path: '/networth', label: 'Net worth' },
-  { path: '/obligations', label: 'Obligations' },
-  { path: '/settings', label: 'Settings' },
-  { path: '/reports', label: 'Reports' },
-  { path: '/import', label: 'Import' },
-  { path: '/reconcile', label: 'Reconcile' },
-];
+interface NavItem {
+  readonly path: RoutePath;
+  readonly label: string;
+}
+
+interface NavGroup {
+  readonly label: string;
+  readonly items: readonly NavItem[];
+}
+
+const NAV_GROUPS: readonly NavGroup[] = [
+  { label: 'Overview', items: [{ path: '/home', label: 'Home' }] },
+  {
+    label: 'Plan',
+    items: [
+      { path: '/budget', label: 'Budget' },
+      { path: '/forecast', label: 'Forecast' },
+      { path: '/decide', label: 'Decide' },
+    ],
+  },
+  {
+    label: 'Money',
+    items: [
+      { path: '/obligations', label: 'Obligations' },
+      { path: '/networth', label: 'Net worth' },
+    ],
+  },
+  {
+    label: 'Activity',
+    items: [
+      { path: '/decisions', label: 'Decisions' },
+      { path: '/reports', label: 'Reports' },
+    ],
+  },
+  {
+    label: 'Tools',
+    items: [
+      { path: '/import', label: 'Import' },
+      { path: '/reconcile', label: 'Reconcile' },
+      { path: '/settings', label: 'Settings' },
+    ],
+  },
+] as const;
 
 function SyncBadge() {
   const sessionStatus = useNizamStore((s) => s.sessionStatus);
@@ -45,7 +75,10 @@ function SyncBadge() {
     <div className="sidebar-footer">
       {sessionStatus === 'signedIn' ? (
         <>
-          <span className="badge">Drive: {syncStatus}</span>{' '}
+          <span className="badge" role="status">
+            <span className="status-dot" aria-hidden="true" />
+            Drive {syncStatus}
+          </span>{' '}
           <button className="btn btn-sm btn-secondary" onClick={() => void disconnect()}>
             Sign out
           </button>
@@ -82,9 +115,8 @@ export default function App() {
   const db = useNizamStore((s) => s.db);
   const hydrateFromCache = useNizamStore((s) => s.hydrateFromCache);
   const route = useHashRoute();
+  const [navOpen, setNavOpen] = useState(false);
 
-  // Local-first boot: hydrate from the offline cache; start a fresh local db
-  // when nothing exists yet (Drive connect merges later).
   useEffect(() => {
     void (async () => {
       await hydrateFromCache();
@@ -95,22 +127,54 @@ export default function App() {
     })();
   }, [hydrateFromCache]);
 
+  useEffect(() => {
+    setNavOpen(false);
+  }, [route.path, route.param]);
+
   return (
     <div className="app-shell">
-      <nav className="sidebar" aria-label="Main navigation">
-        <div className="sidebar-brand">NIZAM</div>
-        <div className="sidebar-nav">
-          {NAV.map((n) => (
-            <a key={n.path} href={`#${n.path}`} className={route.path === n.path ? 'active' : ''}>
-              {n.label}
-            </a>
-          ))}
+      <nav className={`sidebar ${navOpen ? 'open' : ''}`} aria-label="Main navigation">
+        <div className="sidebar-top">
+          <div>
+            <div className="sidebar-brand">NIZAM</div>
+            <span className="sidebar-subtitle">Financial command system</span>
+          </div>
+          <button
+            type="button"
+            className="nav-toggle"
+            aria-expanded={navOpen}
+            aria-controls="primary-sidebar-body"
+            onClick={() => setNavOpen((open) => !open)}
+          >
+            {navOpen ? 'Close' : 'Menu'}
+          </button>
         </div>
-        <AccountsSidebar />
-        <SyncBadge />
+        <div className="sidebar-body" id="primary-sidebar-body">
+          <div className="sidebar-nav">
+            {NAV_GROUPS.map((group) => (
+              <div className="nav-group" key={group.label}>
+                <div className="nav-group-label">{group.label}</div>
+                {group.items.map((item) => (
+                  <a
+                    key={item.path}
+                    href={`#${item.path}`}
+                    className={route.path === item.path ? 'active' : ''}
+                    aria-current={route.path === item.path ? 'page' : undefined}
+                  >
+                    {item.label}
+                  </a>
+                ))}
+              </div>
+            ))}
+          </div>
+          <AccountsSidebar />
+          <SyncBadge />
+        </div>
       </nav>
       <main className="app-main">
-        {db ? <RouterOutlet views={views} /> : <p className="muted">Loading…</p>}
+        <div className="app-content">
+          {db ? <RouterOutlet views={views} /> : <p className="muted">Loading…</p>}
+        </div>
       </main>
     </div>
   );
