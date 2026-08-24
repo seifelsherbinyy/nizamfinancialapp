@@ -1,0 +1,210 @@
+/* NIZAM · Finance analytics presentation — Visual Upgrade Wave 2
+   Owning contract: PFOS Contract 04 interface. Presentation only. */
+
+/* Budget: preserve the table semantics, but make the planning surface intentional on narrow screens. */
+section[aria-label='Budget'] {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+section[aria-label='Budget'] > .month-nav {
+  margin-bottom: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+section[aria-label='Budget'] > .table {
+  min-width: 760px;
+  box-shadow: var(--shadow-sm);
+}
+section[aria-label='Budget'] .group-row td {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+section[aria-label='Budget'] tbody tr:not(.group-row) td:first-child {
+  min-width: 240px;
+}
+
+/* Forecast: decision-first cards plus a retained semantic table for dense comparison. */
+.forecast-page {
+  display: grid;
+  gap: 22px;
+}
+.forecast-intro {
+  max-width: 760px;
+  color: var(--foreground-muted);
+}
+.forecast-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.forecast-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+}
+.forecast-card-risk {
+  border-color: color-mix(in srgb, var(--negative) 26%, var(--border));
+  background: linear-gradient(145deg, var(--surface-1), color-mix(in srgb, var(--negative-surface) 45%, var(--surface-1)));
+}
+.forecast-card-head,
+.forecast-card-row,
+.forecast-risk-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.forecast-card-head h3 {
+  font-size: 1rem;
+}
+.forecast-card-kicker,
+.forecast-card-label {
+  color: var(--foreground-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.forecast-card-value {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.25rem, 2.4vw, 1.65rem);
+  font-weight: 780;
+  letter-spacing: -.03em;
+}
+.forecast-card-scenarios {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.forecast-scenario {
+  padding: 11px 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.forecast-scenario strong {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.forecast-risk-track {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+.forecast-risk-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+}
+.forecast-card-risk .forecast-risk-track > span {
+  background: var(--negative);
+}
+
+/* Obligations: prioritize harm hierarchy while retaining full table information. */
+section[aria-label='Obligations'] {
+  display: grid;
+  gap: 16px;
+}
+section[aria-label='Obligations'] > .month-nav {
+  margin-bottom: 0;
+}
+section[aria-label='Obligations'] > .table {
+  min-width: 860px;
+  box-shadow: var(--shadow-sm);
+}
+section[aria-label='Obligations'] tbody td:nth-child(2) {
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+section[aria-label='Obligations'] tbody td:nth-child(3),
+section[aria-label='Obligations'] tbody td:nth-child(4) {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Net worth: turn the three canonical views into a stronger position summary without changing data. */
+section[aria-label='Net worth'] {
+  display: grid;
+  gap: 18px;
+}
+section[aria-label='Net worth'] > .month-nav {
+  margin-bottom: 0;
+}
+section[aria-label='Net worth'] > table[aria-label='Net-worth summary'] {
+  border-spacing: 12px;
+  border-collapse: separate;
+  background: transparent;
+  border: 0;
+  table-layout: fixed;
+}
+section[aria-label='Net worth'] > table[aria-label='Net-worth summary'] tbody {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+section[aria-label='Net worth'] > table[aria-label='Net-worth summary'] tr {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+}
+section[aria-label='Net worth'] > table[aria-label='Net-worth summary'] td {
+  display: block;
+  border: 0;
+  padding: 0;
+}
+section[aria-label='Net worth'] > table[aria-label='Net-worth summary'] td:first-child {
+  color: var(--foreground-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+section[aria-label='Net worth'] > table[aria-label='Net-worth summary'] td.num {
+  text-align: left;
+  font-size: clamp(1.2rem, 2.4vw, 1.65rem);
+  font-weight: 780;
+}
+
+@media (max-width: 900px) {
+  .forecast-grid { grid-template-columns: 1fr; }
+  section[aria-label='Net worth'] > table[aria-label='Net-worth summary'] tbody {
+    grid-template-columns: 1fr;
+  }
+  section[aria-label='Budget'] > .month-nav {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  section[aria-label='Budget'] > .month-nav .rta-banner {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 640px) {
+  .forecast-card-scenarios { grid-template-columns: 1fr; }
+  .forecast-card-row,
+  .forecast-risk-row { align-items: flex-start; }
+  section[aria-label='Budget'] > .table,
+  section[aria-label='Obligations'] > .table {
+    display: block;
+    overflow-x: auto;
+    width: 100%;
+  }
+}
