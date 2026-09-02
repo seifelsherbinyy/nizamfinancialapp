@@ -34,7 +34,43 @@ export type JournalPersistenceFailureCode =
   | 'JOURNAL_PAYLOAD_TEXT_INVALID'
   | 'JOURNAL_PAYLOAD_SOURCE_REF_INVALID'
   | 'JOURNAL_PAYLOAD_RECORDED_AT_INVALID'
+  | 'JOURNAL_RECORD_ID_INVALID'
+  | 'JOURNAL_UPDATE_NOT_PERMITTED'
   | 'JOURNAL_LOCAL_READBACK_MISMATCH';
+
+/**
+ * How this attempt resolved against the record identity that already exists on disk.
+ * CREATE            no document for this recordId yet.
+ * IDEMPOTENT_REPLAY a document exists and the canonical payload hash is byte-identical:
+ *                   nothing is rewritten and no downstream boundary is re-invoked.
+ * UPDATE            a document exists and the payload changed: the SAME logical record is
+ *                   revised in place. A changed payload can never mint a second record.
+ */
+export type JournalPersistenceMode = 'CREATE' | 'UPDATE' | 'IDEMPOTENT_REPLAY';
+
+/**
+ * What a caller may do when a recordId already holds a DIFFERENT payload.
+ * 'REFUSE' (default) fails closed and writes nothing.
+ * 'REVISE'           writes a new revision of the same record and archives the prior one.
+ * Neither value can produce a second logical record — that is the point of the enum.
+ */
+export type JournalUpdatePolicy = 'REFUSE' | 'REVISE';
+
+/**
+ * Persistence request with a CALLER-FROZEN identity.
+ *
+ * The recordId names the logical journal session. It is chosen once, before the first attempt, and
+ * every retry reuses it verbatim. It is deliberately NOT derived from the payload: a
+ * payload-derived key means an edited retry hashes differently, lands on a different path and
+ * silently becomes a second journal entry. That is the duplicate-entry mechanism this request
+ * shape exists to remove.
+ */
+export interface JournalAppendRequest {
+  readonly recordId: string;
+  readonly text: string;
+  readonly sourceRef: string;
+  readonly recordedAt: string;
+}
 
 /** Typed failure for this module — never a silent fallback (same discipline as db/errors.ts). */
 export class JournalPersistenceError extends Error {
@@ -75,7 +111,19 @@ export interface JournalPersistenceMirrorReceipt {
   readonly contentHash: string;
 }
 
+/**
+ * Coarse outcome. Deliberately four values, because a caller that must decide whether to act
+ * should not have to interpret a state machine.
+ *   OK          the canonical record is persisted and independently read back.
+ *   FAILED      nothing durable was produced by this attempt.
+ *   RECOVERED   a previously staged attempt reached OK on a later pass.
+ *   NEEDS_HUMAN local truth is safe but a boundary outside this module must act before it is
+ *               complete. The reason is always in recoveryAction, never left to be inferred.
+ */
+export type JournalPersistenceStatus = 'OK' | 'FAILED' | 'RECOVERED' | 'NEEDS_HUMAN';
+
 export interface JournalPersistenceReceipt {
+  /** Back-compatible alias of recordId, kept because SingleWindowJournalRecord names it. */
   readonly entryRef: string;
   readonly state: JournalPersistenceState;
   readonly record: SingleWindowJournalRecord | null;
@@ -84,6 +132,22 @@ export interface JournalPersistenceReceipt {
   readonly mirror: JournalPersistenceMirrorReceipt | null;
   readonly pending: readonly ('ledger' | 'mirror')[];
   readonly failureCode?: JournalPersistenceFailureCode;
+
+  // --- declared receipt surface: every field below is observed, never inferred ---
+  readonly status: JournalPersistenceStatus;
+  readonly mode: JournalPersistenceMode;
+  readonly recordId: string;
+  /** Path of the canonical JSON. Non-null exactly when a canonical document is on disk. */
+  readonly canonicalPath: string | null;
+  /** Reference of the derived mirror. Null when absent, unapproved, or pending. */
+  readonly mirrorPath: string | null;
+  /** Identity and payload passed validation before anything was written. */
+  readonly schemaValid: boolean;
+  /** The re-read document's recomputed payload hash equals the expected payload hash. */
+  readonly hashMatch: boolean;
+  /** An independent re-open of the canonical JSON succeeded in full. */
+  readonly readBackConfirmed: boolean;
+  readonly recoveryAction: string | null;
 }
 
 export interface JournalPersistenceVerification {
@@ -103,10 +167,25 @@ export interface JournalPersistenceAdapterConfig {
   readonly mirror?: JournalMirrorPort;
   /** HIMAYAH-classification stand-in: must return true before any mirror call is attempted. */
   readonly mirrorApproved?: (record: SingleWindowJournalRecord) => boolean;
+  /**
+   * What to do when a recordId already holds a different payload. Default 'REFUSE': fail
+   * closed, write nothing. Neither setting can create a second logical record.
+   */
+  readonly updatePolicy?: JournalUpdatePolicy;
   readonly now: () => string;
 }
 
 export interface JournalPersistenceAdapter extends SingleWindowJournalPort {
+  /**
+   * The identity-frozen entry point. Prefer this everywhere: the caller owns recordId, so a
+   * retry of an edited payload revises one record instead of minting a second one.
+   */
+  appendRecord(request: JournalAppendRequest): JournalPersistenceReceipt;
+  /**
+   * Legacy content-addressed entry point, retained for SingleWindowJournalPort callers. It
+   * derives recordId from the payload, which means an EDITED retry is a different record. New
+   * callers use appendRecord and choose their own stable identity.
+   */
   appendWithReceipt(text: string, sourceRef: string, recordedAt: string): JournalPersistenceReceipt;
   /** Independent re-read of the local file, ignoring any in-memory belief about its state. */
   verify(entryRef: string): JournalPersistenceVerification;
@@ -115,25 +194,72 @@ export interface JournalPersistenceAdapter extends SingleWindowJournalPort {
 }
 
 const MAX_TEXT_LENGTH = 20_000;
+const MAX_RECORD_ID_LENGTH = 200;
 
-interface StoredJournalEntry {
-  readonly entryRef: string;
+/**
+ * A recordId becomes a path segment, so it is validated as an identifier and never as a path.
+ * Only characters that cannot traverse, escape, or name a device are admitted, and the caller
+ * gets a typed refusal rather than a sanitised value: silently rewriting an identity would
+ * change which record was written while the call still looked successful.
+ */
+const RECORD_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+/** Canonical document version. v1 documents carried no version field and no payloadHash. */
+const SCHEMA_VERSION = 2;
+
+/** The canonical on-disk shape. `payloadHash` covers the identity-anchored payload only. */
+interface StoredJournalDocument {
+  readonly schemaVersion: number;
+  readonly recordId: string;
+  /** Frozen on CREATE. Every later attempt on this recordId reuses the stored value verbatim. */
+  readonly capturedAt: string;
+  readonly revision: number;
   readonly sourceRef: string;
   readonly recordedAt: string;
   readonly text: string;
+  readonly payloadHash: string;
+}
+
+/** Shape actually parsed off disk, which may be a v1 document with none of the v2 fields. */
+interface ParsedDocument {
+  readonly schemaVersion?: unknown;
+  readonly recordId?: unknown;
+  readonly entryRef?: unknown;
+  readonly capturedAt?: unknown;
+  readonly revision?: unknown;
+  readonly sourceRef?: unknown;
+  readonly recordedAt?: unknown;
+  readonly text?: unknown;
+  readonly payloadHash?: unknown;
 }
 
 interface StateFileShape {
-  readonly entryRef: string;
+  readonly recordId: string;
   readonly state: JournalPersistenceState;
+  readonly mode: JournalPersistenceMode;
+  readonly capturedAt: string;
+  readonly revision: number;
+  readonly payloadHash: string;
   readonly ledger: JournalPersistenceLedgerReceipt | null;
   readonly mirror: JournalPersistenceMirrorReceipt | null;
   readonly pending: readonly ('ledger' | 'mirror')[];
   readonly failureCode?: JournalPersistenceFailureCode;
+  /** Legacy v1 state files keyed this instead of recordId. Read, never written. */
+  readonly entryRef?: string;
 }
 
 function sha256(input: string): string {
   return createHash('sha256').update(input, 'utf8').digest('hex');
+}
+
+function validateRecordId(recordId: string): JournalPersistenceFailureCode | null {
+  if (typeof recordId !== 'string' || recordId.trim() === '' || recordId.length > MAX_RECORD_ID_LENGTH) {
+    return 'JOURNAL_RECORD_ID_INVALID';
+  }
+  // Checked explicitly as well as by the pattern: `a..b` satisfies the character class.
+  if (recordId.includes('..')) return 'JOURNAL_RECORD_ID_INVALID';
+  if (!RECORD_ID_PATTERN.test(recordId)) return 'JOURNAL_RECORD_ID_INVALID';
+  return null;
 }
 
 function validatePayload(text: string, sourceRef: string, recordedAt: string): JournalPersistenceFailureCode | null {
@@ -149,13 +275,39 @@ function validatePayload(text: string, sourceRef: string, recordedAt: string): J
   return null;
 }
 
-/** Content-addressed key: identical inputs always hash to the same entryRef (idempotency). */
+/**
+ * Change detector, not an identity. Deterministic because the object literal fixes key order,
+ * and identity-anchored because recordId is inside it: the same text under a different record
+ * hashes differently, so a hash collision cannot merge two records.
+ *
+ * capturedAt and revision are deliberately OUTSIDE the hash. capturedAt is frozen metadata and
+ * revision changes on every revision, so including either would make an unchanged payload look
+ * changed and defeat idempotent replay.
+ */
+function payloadHashFor(recordId: string, sourceRef: string, recordedAt: string, text: string): string {
+  return sha256(JSON.stringify({ recordId, sourceRef, recordedAt, text }));
+}
+
+/** Legacy content-addressed key, retained only to derive a recordId for legacy callers. */
 function entryRefFor(text: string, sourceRef: string, recordedAt: string): string {
   return sha256(`${sourceRef}\u241F${text}\u241F${recordedAt}`);
 }
 
-function serializeEntry(entry: StoredJournalEntry): string {
-  return JSON.stringify({ entryRef: entry.entryRef, sourceRef: entry.sourceRef, recordedAt: entry.recordedAt, text: entry.text }, null, 2);
+function serializeDocument(doc: StoredJournalDocument): string {
+  return JSON.stringify(
+    {
+      schemaVersion: doc.schemaVersion,
+      recordId: doc.recordId,
+      capturedAt: doc.capturedAt,
+      revision: doc.revision,
+      sourceRef: doc.sourceRef,
+      recordedAt: doc.recordedAt,
+      text: doc.text,
+      payloadHash: doc.payloadHash,
+    },
+    null,
+    2,
+  );
 }
 
 function atomicWrite(path: string, contents: string): void {
@@ -176,54 +328,105 @@ function readJson<T>(path: string): T | null {
 
 export function createJournalPersistenceAdapter(config: JournalPersistenceAdapterConfig): JournalPersistenceAdapter {
   const subdirectory = config.subdirectory ?? 'journal';
+  const updatePolicy: JournalUpdatePolicy = config.updatePolicy ?? 'REFUSE';
   const entryPathOf = (ref: string): string => resolveStorePath(config.dataDir, join(subdirectory, 'entries', `${ref}.json`));
   const statePathOf = (ref: string): string => resolveStorePath(config.dataDir, join(subdirectory, 'state', `${ref}.json`));
+  const revisionPathOf = (ref: string, revision: number): string =>
+    resolveStorePath(config.dataDir, join(subdirectory, 'revisions', `${ref}.r${revision}.json`));
 
-  function loadState(entryRef: string): StateFileShape | null {
-    return readJson<StateFileShape>(statePathOf(entryRef));
+  function loadState(recordId: string): StateFileShape | null {
+    const raw = readJson<StateFileShape>(statePathOf(recordId));
+    if (raw === null) return null;
+    // A v1 state file has entryRef and no recordId. Normalise on read; never rewrite silently.
+    return raw.recordId !== undefined ? raw : { ...raw, recordId: raw.entryRef ?? recordId };
   }
 
   function saveState(state: StateFileShape): void {
-    atomicWrite(statePathOf(state.entryRef), JSON.stringify(state, null, 2));
+    atomicWrite(statePathOf(state.recordId), JSON.stringify(state, null, 2));
   }
 
   /**
-   * Independent read-back: re-reads whatever is on disk RIGHT NOW and recomputes its
-   * content-addressed key from the stored fields. Tampering with `text`, `sourceRef`,
-   * `recordedAt` or the stored `entryRef` after a successful write changes the recomputed
-   * key, so this can never pass by re-deriving the same value from the same tampered bytes —
-   * the comparison is against the ref the CALLER asked to verify, not against anything read
-   * from the same tampered file.
+   * Independent read-back. Re-opens whatever is on disk RIGHT NOW and recomputes the payload
+   * hash from the stored fields.
+   *
+   * The anchor is deliberately NOT inside the document being checked. For a v2 document the
+   * expected hash comes from the state file, a separate file in a separate directory, so a
+   * tamper must alter two files consistently to pass. When no state file exists the stored
+   * payloadHash is used, which still catches any edit to text, sourceRef, recordedAt or
+   * recordId, because those four are exactly what the hash covers.
    */
-  function verify(entryRef: string): JournalPersistenceVerification {
-    const entryPath = entryPathOf(entryRef);
+  function verify(recordId: string): JournalPersistenceVerification {
+    const entryPath = entryPathOf(recordId);
     if (!existsSync(entryPath)) {
-      return { entryRef, exists: false, parses: false, hashMatches: false, contentHash: null };
+      return { entryRef: recordId, exists: false, parses: false, hashMatches: false, contentHash: null };
     }
     const raw = readFileSync(entryPath, 'utf8');
     const contentHash = sha256(raw);
-    let parsed: Partial<StoredJournalEntry>;
+    let parsed: ParsedDocument;
     try {
-      parsed = JSON.parse(raw) as Partial<StoredJournalEntry>;
+      parsed = JSON.parse(raw) as ParsedDocument;
     } catch {
-      return { entryRef, exists: true, parses: false, hashMatches: false, contentHash };
+      return { entryRef: recordId, exists: true, parses: false, hashMatches: false, contentHash };
     }
     const fieldsPresent =
-      typeof parsed.sourceRef === 'string' &&
-      typeof parsed.text === 'string' &&
-      typeof parsed.recordedAt === 'string' &&
-      typeof parsed.entryRef === 'string';
+      typeof parsed.sourceRef === 'string' && typeof parsed.text === 'string' && typeof parsed.recordedAt === 'string';
     if (!fieldsPresent) {
-      return { entryRef, exists: true, parses: false, hashMatches: false, contentHash };
+      return { entryRef: recordId, exists: true, parses: false, hashMatches: false, contentHash };
     }
-    const recomputedRef = entryRefFor(parsed.text as string, parsed.sourceRef as string, parsed.recordedAt as string);
-    const hashMatches = recomputedRef === entryRef && parsed.entryRef === entryRef;
-    return { entryRef, exists: true, parses: true, hashMatches, contentHash };
+
+    if (parsed.schemaVersion === undefined) {
+      // v1 document: identity WAS the content hash, so recompute it and compare to the request.
+      const recomputedRef = entryRefFor(parsed.text as string, parsed.sourceRef as string, parsed.recordedAt as string);
+      const hashMatches = recomputedRef === recordId && parsed.entryRef === recordId;
+      return { entryRef: recordId, exists: true, parses: true, hashMatches, contentHash };
+    }
+
+    if (typeof parsed.recordId !== 'string' || typeof parsed.payloadHash !== 'string') {
+      return { entryRef: recordId, exists: true, parses: false, hashMatches: false, contentHash };
+    }
+    const recomputed = payloadHashFor(
+      parsed.recordId,
+      parsed.sourceRef as string,
+      parsed.recordedAt as string,
+      parsed.text as string,
+    );
+    const state = loadState(recordId);
+    const externalAnchor = state?.payloadHash;
+    const hashMatches =
+      parsed.recordId === recordId &&
+      recomputed === parsed.payloadHash &&
+      (externalAnchor === undefined || externalAnchor === recomputed);
+    return { entryRef: recordId, exists: true, parses: true, hashMatches, contentHash };
   }
 
-  function receiptFrom(record: SingleWindowJournalRecord | null, local: JournalPersistenceLocalReceipt | null, state: StateFileShape): JournalPersistenceReceipt {
+  function statusFor(state: JournalPersistenceState, recovered: boolean): JournalPersistenceStatus {
+    if (state === 'FAILED') return 'FAILED';
+    if (state === 'STAGED_RETRY') return 'NEEDS_HUMAN';
+    return recovered ? 'RECOVERED' : 'OK';
+  }
+
+  function recoveryActionFor(state: StateFileShape): string | null {
+    if (state.state === 'STAGED_RETRY') {
+      return `call retryStaged() once the pending boundary is reachable: ${state.pending.join(', ')}`;
+    }
+    if (state.failureCode === 'JOURNAL_UPDATE_NOT_PERMITTED') {
+      return 'recordId already holds a different payload: pass updatePolicy REVISE to revise this record, or choose a new recordId for a genuinely new session';
+    }
+    if (state.failureCode === 'JOURNAL_LOCAL_READBACK_MISMATCH') {
+      return 'canonical read-back did not match: preserve the artifact for inspection, do not rewrite over it';
+    }
+    return null;
+  }
+
+  function receiptFrom(
+    record: SingleWindowJournalRecord | null,
+    local: JournalPersistenceLocalReceipt | null,
+    state: StateFileShape,
+    verification: JournalPersistenceVerification | null,
+    recovered: boolean,
+  ): JournalPersistenceReceipt {
     return {
-      entryRef: state.entryRef,
+      entryRef: state.recordId,
       state: state.state,
       record,
       local,
@@ -231,18 +434,57 @@ export function createJournalPersistenceAdapter(config: JournalPersistenceAdapte
       mirror: state.mirror,
       pending: state.pending,
       ...(state.failureCode !== undefined ? { failureCode: state.failureCode } : {}),
+      status: statusFor(state.state, recovered),
+      mode: state.mode,
+      recordId: state.recordId,
+      canonicalPath: verification?.exists === true ? entryPathOf(state.recordId) : null,
+      mirrorPath: state.mirror?.mirrorRef ?? null,
+      schemaValid: state.failureCode === undefined || state.failureCode === 'JOURNAL_LOCAL_READBACK_MISMATCH' || state.failureCode === 'JOURNAL_UPDATE_NOT_PERMITTED',
+      hashMatch: verification?.hashMatches ?? false,
+      readBackConfirmed: verification !== null && verification.exists && verification.parses && verification.hashMatches,
+      recoveryAction: recoveryActionFor(state),
     };
   }
 
-  /** Attempt ledger then mirror for an already-local-written, already-verified entry. */
-  function attemptDownstream(entryRef: string, record: SingleWindowJournalRecord, contentHash: string, payloadJson: string): StateFileShape {
+  /** Receipt for a refusal that never reached disk. Nothing is written, including no state file. */
+  function refusal(recordId: string, failureCode: JournalPersistenceFailureCode): JournalPersistenceReceipt {
+    return {
+      entryRef: recordId,
+      state: 'FAILED',
+      record: null,
+      local: null,
+      ledger: null,
+      mirror: null,
+      pending: [],
+      failureCode,
+      status: 'FAILED',
+      mode: 'CREATE',
+      recordId,
+      canonicalPath: null,
+      mirrorPath: null,
+      schemaValid: false,
+      hashMatch: false,
+      readBackConfirmed: false,
+      recoveryAction: null,
+    };
+  }
+
+  /** Attempt ledger then mirror for an already-written, already-verified record. */
+  function attemptDownstream(
+    recordId: string,
+    record: SingleWindowJournalRecord,
+    contentHash: string,
+    documentJson: string,
+  ): { ledger: JournalPersistenceLedgerReceipt | null; mirror: JournalPersistenceMirrorReceipt | null; pending: Array<'ledger' | 'mirror'>; state: JournalPersistenceState } {
     const pending: Array<'ledger' | 'mirror'> = [];
 
     let ledger: JournalPersistenceLedgerReceipt | null = null;
     if (config.ledger !== undefined) {
       try {
-        const existingRows = config.ledger.countRowsFor(entryRef);
-        ledger = existingRows > 0 ? { rowRef: entryRef } : config.ledger.appendRow(entryRef, contentHash);
+        // Idempotent on recordId, so a revision of the same logical record does not append a
+        // second THABAT event. One logical session, one event.
+        const existingRows = config.ledger.countRowsFor(recordId);
+        ledger = existingRows > 0 ? { rowRef: recordId } : config.ledger.appendRow(recordId, contentHash);
       } catch {
         pending.push('ledger');
       }
@@ -253,7 +495,7 @@ export function createJournalPersistenceAdapter(config: JournalPersistenceAdapte
     let mirror: JournalPersistenceMirrorReceipt | null = null;
     if (mirrorWanted && !ledgerBlocking) {
       try {
-        const { mirrorRef } = config.mirror!.mirror(entryRef, contentHash, payloadJson);
+        const { mirrorRef } = config.mirror!.mirror(recordId, contentHash, documentJson);
         const readBack = config.mirror!.readBack(mirrorRef);
         if (readBack.contentHash === contentHash) {
           mirror = { mirrorRef, contentHash: readBack.contentHash };
@@ -268,44 +510,152 @@ export function createJournalPersistenceAdapter(config: JournalPersistenceAdapte
     }
 
     const state: JournalPersistenceState = pending.length > 0 ? 'STAGED_RETRY' : mirror !== null ? 'DRIVE_MIRRORED' : 'LOCAL_WRITTEN';
-    return { entryRef, state, ledger, mirror, pending };
+    return { ledger, mirror, pending, state };
+  }
+
+  function appendRecord(request: JournalAppendRequest): JournalPersistenceReceipt {
+    const { recordId, text, sourceRef, recordedAt } = request;
+
+    const idFailure = validateRecordId(recordId);
+    if (idFailure !== null) {
+      // The refused id is NOT echoed into a path. It is reported back so the caller can see
+      // what it sent, and nothing is created anywhere.
+      return refusal(typeof recordId === 'string' ? recordId : String(recordId), idFailure);
+    }
+    const payloadFailure = validatePayload(text, sourceRef, recordedAt);
+    if (payloadFailure !== null) return refusal(recordId, payloadFailure);
+
+    const payloadHash = payloadHashFor(recordId, sourceRef, recordedAt, text);
+    const record: SingleWindowJournalRecord = { entryRef: recordId, sourceRef, recordedAt };
+    const entryPath = entryPathOf(recordId);
+    const existing = readJson<ParsedDocument>(entryPath);
+    const existingState = loadState(recordId);
+
+    let mode: JournalPersistenceMode;
+    let capturedAt: string;
+    let revision: number;
+
+    if (existing !== null && typeof existing.payloadHash === 'string' && typeof existing.capturedAt === 'string') {
+      if (existing.payloadHash === payloadHash) {
+        // IDEMPOTENT REPLAY. Do not rewrite the document and do not re-invoke any boundary.
+        // Still read back, because the caller is being told the record is persisted.
+        const verification = verify(recordId);
+        const replayState: StateFileShape = existingState !== null
+          ? { ...existingState, mode: 'IDEMPOTENT_REPLAY' }
+          : {
+              recordId,
+              state: 'LOCAL_WRITTEN',
+              mode: 'IDEMPOTENT_REPLAY',
+              capturedAt: existing.capturedAt,
+              revision: typeof existing.revision === 'number' ? existing.revision : 1,
+              payloadHash,
+              ledger: null,
+              mirror: null,
+              pending: [],
+            };
+        return receiptFrom(
+          record,
+          verification.exists ? { path: entryPath, contentHash: verification.contentHash! } : null,
+          replayState,
+          verification,
+          false,
+        );
+      }
+      // Same record, different payload. This is the branch that used to be impossible to reach,
+      // because a content-derived key sent an edited payload to a different path and created a
+      // second journal entry. It is now explicit, and neither outcome creates a second record.
+      if (updatePolicy === 'REFUSE') {
+        const verification = verify(recordId);
+        const refusedState: StateFileShape = {
+          recordId,
+          state: 'FAILED',
+          mode: 'UPDATE',
+          capturedAt: existing.capturedAt,
+          revision: typeof existing.revision === 'number' ? existing.revision : 1,
+          payloadHash: existing.payloadHash,
+          ledger: existingState?.ledger ?? null,
+          mirror: existingState?.mirror ?? null,
+          pending: existingState?.pending ?? [],
+          failureCode: 'JOURNAL_UPDATE_NOT_PERMITTED',
+        };
+        // No write of any kind: the prior canonical record stands untouched.
+        return receiptFrom(record, null, refusedState, verification, false);
+      }
+      mode = 'UPDATE';
+      capturedAt = existing.capturedAt; // frozen: a revision is the same logical session
+      revision = (typeof existing.revision === 'number' ? existing.revision : 1) + 1;
+      // Preserve the superseded revision before overwriting. Nothing is discarded.
+      atomicWrite(revisionPathOf(recordId, revision - 1), JSON.stringify(existing, null, 2));
+    } else if (existing !== null) {
+      // A v1 document, or a v2 document missing its hash. Do not guess and do not overwrite.
+      const verification = verify(recordId);
+      const blockedState: StateFileShape = {
+        recordId,
+        state: 'FAILED',
+        mode: 'UPDATE',
+        capturedAt: typeof existing.capturedAt === 'string' ? existing.capturedAt : recordedAt,
+        revision: 1,
+        payloadHash,
+        ledger: existingState?.ledger ?? null,
+        mirror: existingState?.mirror ?? null,
+        pending: existingState?.pending ?? [],
+        failureCode: 'JOURNAL_UPDATE_NOT_PERMITTED',
+      };
+      return receiptFrom(record, null, blockedState, verification, false);
+    } else {
+      mode = 'CREATE';
+      capturedAt = config.now(); // frozen here, once, for the life of this record
+      revision = 1;
+    }
+
+    const documentJson = serializeDocument({
+      schemaVersion: SCHEMA_VERSION,
+      recordId,
+      capturedAt,
+      revision,
+      sourceRef,
+      recordedAt,
+      text,
+      payloadHash,
+    });
+    const contentHash = sha256(documentJson);
+
+    atomicWrite(entryPath, documentJson);
+
+    // The state file is written BEFORE downstream so the external hash anchor exists for the
+    // read-back below. Local truth first, boundaries after.
+    const preState: StateFileShape = {
+      recordId,
+      state: 'LOCAL_WRITTEN',
+      mode,
+      capturedAt,
+      revision,
+      payloadHash,
+      ledger: existingState?.ledger ?? null,
+      mirror: null,
+      pending: [],
+    };
+    saveState(preState);
+
+    const verification = verify(recordId);
+    if (!verification.hashMatches) {
+      const failed: StateFileShape = { ...preState, state: 'FAILED', failureCode: 'JOURNAL_LOCAL_READBACK_MISMATCH' };
+      saveState(failed);
+      return receiptFrom(record, null, failed, verification, false);
+    }
+
+    const downstream = attemptDownstream(recordId, record, contentHash, documentJson);
+    const finalState: StateFileShape = { ...preState, ...downstream };
+    saveState(finalState);
+    return receiptFrom(record, { path: entryPath, contentHash }, finalState, verification, false);
   }
 
   function appendWithReceipt(text: string, sourceRef: string, recordedAt: string): JournalPersistenceReceipt {
-    const failureCode = validatePayload(text, sourceRef, recordedAt);
-    if (failureCode !== null) {
-      const entryRef = `invalid-${sha256(`${sourceRef}\u241F${recordedAt}\u241F${config.now()}`)}`;
-      return { entryRef, state: 'FAILED', record: null, local: null, ledger: null, mirror: null, pending: [], failureCode };
+    const payloadFailure = validatePayload(text, sourceRef, recordedAt);
+    if (payloadFailure !== null) {
+      return refusal(`invalid-${sha256(`${sourceRef}\u241F${recordedAt}\u241F${config.now()}`)}`, payloadFailure);
     }
-
-    const entryRef = entryRefFor(text, sourceRef, recordedAt);
-    const record: SingleWindowJournalRecord = { entryRef, sourceRef, recordedAt };
-    const payloadJson = serializeEntry({ entryRef, sourceRef, recordedAt, text });
-    const contentHash = sha256(payloadJson);
-    const entryPath = entryPathOf(entryRef);
-
-    const existingState = loadState(entryRef);
-    if (existingState !== null && existsSync(entryPath)) {
-      // Idempotent replay: identical inputs hash to the same entryRef. Do not rewrite the file
-      // and do not re-invoke ledger/mirror — that is precisely the duplicate-on-restart this
-      // adapter exists to prevent.
-      return receiptFrom(record, { path: entryPath, contentHash }, existingState);
-    }
-
-    if (!existsSync(entryPath)) {
-      atomicWrite(entryPath, payloadJson);
-    }
-
-    const verification = verify(entryRef);
-    if (!verification.hashMatches) {
-      const state: StateFileShape = { entryRef, state: 'FAILED', ledger: null, mirror: null, pending: [], failureCode: 'JOURNAL_LOCAL_READBACK_MISMATCH' };
-      saveState(state);
-      return receiptFrom(record, null, state);
-    }
-
-    const state = attemptDownstream(entryRef, record, contentHash, payloadJson);
-    saveState(state);
-    return receiptFrom(record, { path: entryPath, contentHash }, state);
+    return appendRecord({ recordId: entryRefFor(text, sourceRef, recordedAt), text, sourceRef, recordedAt });
   }
 
   function retryStaged(): JournalPersistenceReceipt[] {
@@ -320,21 +670,30 @@ export function createJournalPersistenceAdapter(config: JournalPersistenceAdapte
     const results: JournalPersistenceReceipt[] = [];
     for (const fileName of readdirSync(stateDir)) {
       if (!fileName.endsWith('.json')) continue;
-      const entryRef = fileName.slice(0, -'.json'.length);
-      const existingState = loadState(entryRef);
+      const recordId = fileName.slice(0, -'.json'.length);
+      const existingState = loadState(recordId);
       if (existingState === null || existingState.state !== 'STAGED_RETRY') continue;
 
-      const entryPath = entryPathOf(entryRef);
-      const stored = readJson<StoredJournalEntry>(entryPath);
+      const entryPath = entryPathOf(recordId);
+      const stored = readJson<ParsedDocument>(entryPath);
       if (stored === null) continue;
+      if (typeof stored.sourceRef !== 'string' || typeof stored.recordedAt !== 'string') continue;
 
-      const record: SingleWindowJournalRecord = { entryRef: stored.entryRef, sourceRef: stored.sourceRef, recordedAt: stored.recordedAt };
-      const payloadJson = readFileSync(entryPath, 'utf8');
-      const contentHash = sha256(payloadJson);
+      const record: SingleWindowJournalRecord = {
+        entryRef: recordId,
+        sourceRef: stored.sourceRef,
+        recordedAt: stored.recordedAt,
+      };
+      const documentJson = readFileSync(entryPath, 'utf8');
+      const contentHash = sha256(documentJson);
 
-      const nextState = attemptDownstream(entryRef, record, contentHash, payloadJson);
+      const downstream = attemptDownstream(recordId, record, contentHash, documentJson);
+      const nextState: StateFileShape = { ...existingState, ...downstream };
       saveState(nextState);
-      results.push(receiptFrom(record, { path: entryPath, contentHash }, nextState));
+      const verification = verify(recordId);
+      // RECOVERED is claimed only when this pass actually left STAGED_RETRY behind.
+      const recovered = nextState.state !== 'STAGED_RETRY';
+      results.push(receiptFrom(record, { path: entryPath, contentHash }, nextState, verification, recovered));
     }
     return results;
   }
@@ -345,11 +704,12 @@ export function createJournalPersistenceAdapter(config: JournalPersistenceAdapte
       if (receipt.state === 'FAILED' || receipt.record === null) {
         throw new JournalPersistenceError(
           receipt.failureCode ?? 'JOURNAL_LOCAL_READBACK_MISMATCH',
-          `NIZAM journal: entry ${receipt.entryRef} did not reach a local-written state${receipt.failureCode ? ` (${receipt.failureCode})` : ''}.`,
+          `NIZAM journal: entry ${receipt.recordId} did not reach a local-written state${receipt.failureCode ? ` (${receipt.failureCode})` : ''}.`,
         );
       }
       return receipt.record;
     },
+    appendRecord,
     appendWithReceipt,
     verify,
     retryStaged,
