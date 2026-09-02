@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "3.0",
+  "metadata": {
+    "name": "nizam-verifier",
+    "displayName": "NIZAM Verifier",
+    "description": "Independent NIZAM acceptance, invariant, gate, and release-readiness auditor",
+    "author": "nizam-owner",
+    "version": "1.0.0",
+    "orderId": 31,
+    "visible": true,
+    "platforms": ["windows"]
+  },
+  "llm": {
+    "provider": "bedrock",
+    "modelId": "Claude Sonnet 4.6",
+    "temperature": 0.2,
+    "reasoning": {
+      "enabled": true,
+      "thinkingEffort": "high"
+    },
+    "effort": "high",
+    "retry": {
+      "maxRetries": 3,
+      "minDelaySecs": 1.0,
+      "maxDelaySecs": 20.0
+    }
+  },
+  "tools": {
+    "permissions": {
+      "deny": [
+        "Write({workspace}/src/**)",
+        "Write({workspace}/tests/**)",
+        "Write({workspace}/scripts/verify/**)",
+        "Write({workspace}/scripts/loop/**)",
+        "Edit({workspace}/src/**)",
+        "Edit({workspace}/tests/**)",
+        "Edit({workspace}/scripts/verify/**)",
+        "Edit({workspace}/scripts/loop/**)",
+        "Bash(*ops/GATE_REGISTER*)",
+        "Bash(*git reset --hard*)",
+        "Bash(*git clean*)",
+        "Bash(*rm -rf*)",
+        "Bash(*Remove-Item* -Recurse*)",
+        "Bash(*agent spawn*)"
+      ],
+      "allow": [
+        "Bash(*mwinit*)",
+        "Bash(*agent message*)",
+        "Write({workspace}/reports/**)",
+        "Write({workspace}/docs/**)"
+      ],
+      "requireApproval": [
+        "Bash(*git commit*)",
+        "Bash(*git push*)",
+        "Bash(*npm install*)",
+        "Bash(*npm ci*)",
+        "Bash(*curl*)",
+        "Bash(*Invoke-WebRequest*)",
+        "Write({workspace}/.env.local)",
+        "Write({workspace}/.secrets/**)"
+      ]
+    }
+  },
+  "prompts": {
+    "systemPromptFile": "prompts/nizam-verifier.txt",
+    "additionalFiles": [
+      "{workspace}/AGENTS.md"
+    ]
+  },
+  "context": {
+    "summarizationEnabled": true,
+    "summarizationThresholdTokens": 190000
+  },
+  "defaultMode": "auto",
+  "enableMemory": true,
+  "marketplaceSkills": [
+    "verify",
+    "review-code"
+  ],
+  "teammates": {
+    "teammate-general": "Read-only helper for bounded inspection and evidence gathering"
+  },
+  "ui": {
+    "color": "orange",
+    "starters": [
+      "nizam-acceptance-audit",
+      "review-recent-work"
+    ],
+    "tips": [
+      "I report evidence, not assumptions.",
+      "I never weaken a failing check or execute a human gate.",
+      "I distinguish pre-existing worktree changes from current-task changes."
+    ]
+  }
+}

@@ -1,6 +1,8 @@
 /**
  * NIZAM · Sync engine — local cache <-> Drive source-of-truth + conflict resolution
  * Implemented by: KIRO Contract 2 / Phase 2.4
+ * Repaired by: KIRO Contract 2 / Phase 2.4 — merge-base fallback defect
+ *   (a null base must stay null; see noCommonAncestorBase below)
  * Depends on: driveDb.ts, lib/db/localCache.ts, lib/db/schema.ts
  *
  * Strategy (steering drive-db.md):
@@ -9,7 +11,7 @@
  *    remote = Drive). Both-changed => local wins (last-write-wins) WITH an audit
  *    entry appended to meta.conflicts.
  */
-import type { NizamDb, ConflictEntry } from '@/lib/db/schema';
+import { createEmptyDb, type NizamDb, type ConflictEntry } from '@/lib/db/schema';
 import type { DriveClient } from '@/lib/drive/driveClient';
 import { loadDb, saveDb, type DriveDbHandle } from '@/lib/drive/driveDb';
 
@@ -187,6 +189,9 @@ export function merge3(base: NizamDb, local: NizamDb, remote: NizamDb, nowIso: s
     assets: assets.result,
     fxRates: fxRates.result,
     macro: macro.result,
+    // Candidates are device-local (they are unreviewed, not synced to Drive).
+    // On a merge the local device's candidates win; the remote device keeps its own.
+    transactionCandidates: local.transactionCandidates,
   };
   return { merged, conflicts: newConflicts };
 }
@@ -210,8 +215,12 @@ function dedupeConflicts(entries: ConflictEntry[]): ConflictEntry[] {
 export interface SyncDeps {
   client: DriveClient;
   handle: DriveDbHandle;
-  /** Base (last-synced) copy for 3-way merges. */
-  getBase: () => NizamDb;
+  /**
+   * Base (last-synced) copy for 3-way merges, or NULL when no sync point exists
+   * yet (first sync, or the local cache was lost). Returning the local or the
+   * remote db as a stand-in is a data-loss bug: see noCommonAncestorBase().
+   */
+  getBase: () => NizamDb | null;
   now?: () => Date;
 }
 
@@ -220,6 +229,32 @@ export interface PushOutcome {
   version: number;
   merged: boolean;
   conflicts: ConflictEntry[];
+}
+
+/**
+ * The base to merge against when NO sync point is available (first sync, or the
+ * local cache was lost). There is no common ancestor, so an EMPTY database is the
+ * only honest base: every row on both sides then reads as an addition and the
+ * merge becomes a union, which cannot silently drop either side's data.
+ *
+ * Why not local or remote:
+ *  - base = local  makes localChanged always false, so REMOTE wins every
+ *    divergence and local edits vanish.
+ *  - base = remote makes remoteChanged always false, so LOCAL wins every
+ *    divergence and every remote-only row is treated as a local delete and
+ *    dropped.
+ * Both were live defects repaired in this phase.
+ *
+ * Known limit: without a base, a local deletion is indistinguishable from a row
+ * never held, so a deleted row may reappear. Durable deletion needs tombstones
+ * (planned separately) — a union is the safest behaviour available until then,
+ * and the caller records the situation in meta.conflicts.
+ */
+export function noCommonAncestorBase(local: NizamDb): NizamDb {
+  // merge3 rebuilds meta from local and remote and never reads base.meta, so the
+  // base's own timestamps are inert. Keep them deterministic rather than 'now'.
+  const empty = createEmptyDb(local.meta.createdAt ?? '1970-01-01T00:00:00.000Z');
+  return { ...empty, schemaVersion: local.schemaVersion };
 }
 
 /**
@@ -234,7 +269,23 @@ export async function pushDb(deps: SyncDeps, local: NizamDb): Promise<PushOutcom
   }
 
   const nowIso = now().toISOString();
-  const { merged, conflicts } = merge3(deps.getBase(), local, first.remote.db, nowIso);
+  const base = deps.getBase();
+  const { merged, conflicts } = merge3(base ?? noCommonAncestorBase(local), local, first.remote.db, nowIso);
+  if (base === null) {
+    // Make the degraded merge visible instead of silent: the owner must be able
+    // to see that this merge had no common ancestor.
+    const entry: ConflictEntry = {
+      id: `cfl_meta_noBase_${nowIso}`,
+      at: nowIso,
+      collection: 'meta',
+      entityId: 'mergeBase',
+      resolution: 'merged',
+      note:
+        'no sync point was available, so an empty merge base was used: both sides were unioned and no row was dropped. A local deletion made before this merge cannot be distinguished from a row never held and may reappear until tombstones land.',
+    };
+    merged.meta.conflicts = dedupeConflicts([...merged.meta.conflicts, entry]);
+    conflicts.push(entry);
+  }
   const retryHandle: DriveDbHandle = { ...deps.handle, version: first.remote.version };
   const second = await saveDb(deps.client, retryHandle, merged, now());
   if (second.conflict) {

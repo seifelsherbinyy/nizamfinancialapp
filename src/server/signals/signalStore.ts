@@ -125,7 +125,7 @@ export interface SignalStoreQuery {
 
 /** A store-level refusal that is not a validation refusal. Discriminate on `code`. */
 export class SignalStoreError extends Error {
-  readonly code: 'SIGNAL_ID_ALREADY_STORED' | 'SIGNAL_STORE_QUERY_INVALID';
+  readonly code: 'SIGNAL_ID_ALREADY_STORED' | 'SIGNAL_STORE_QUERY_INVALID' | 'SIGNAL_STORE_FILE_NOT_ALLOWED';
   readonly signalIdRef: string | null;
 
   constructor(code: SignalStoreError['code'], message: string, signalIdRef: string | null = null) {
@@ -170,6 +170,12 @@ export function openSignalStore(
   config: SignalStoreOpenConfig,
   now: () => string = () => new Date().toISOString(),
 ): OpenedSignalStore {
+  if (config.fileName !== SIGNAL_STORE_FILE_NAME) {
+    throw new SignalStoreError(
+      'SIGNAL_STORE_FILE_NOT_ALLOWED',
+      `NIZAM signal store: only the isolated ${SIGNAL_STORE_FILE_NAME} boundary may be opened; ${config.fileName} belongs to another store`,
+    );
+  }
   const handle = openStore(config);
   try {
     const migrations = migrate(handle, { migrations: SIGNAL_STORE_MIGRATIONS, now });

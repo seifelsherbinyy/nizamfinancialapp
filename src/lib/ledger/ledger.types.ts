@@ -45,6 +45,21 @@ export type IngestExtractionMethod = (typeof INGEST_EXTRACTION_METHODS)[number];
 export const CONFIDENCE_BANDS = ['high', 'medium', 'low'] as const;
 export type ConfidenceBand = (typeof CONFIDENCE_BANDS)[number];
 
+/**
+ * Whether an import row is believed to be unique, a confirmed duplicate, or needs human review.
+ * Replaces the `is_duplicate: boolean` on `LedgerRow` at the staging-tier level.
+ *
+ *  - `unique`    — passes all dedup checks; safe to promote to the canonical transaction store.
+ *  - `duplicate` — an exact match for a row already in the canonical store; must be dropped.
+ *  - `ambiguous` — a fuzzy match that could be a duplicate; needs owner review before promotion.
+ *
+ * The `is_duplicate: boolean` on `LedgerRow` (column 24) maps as:
+ *   true  -> `duplicate`  (source flagged it)
+ *   false -> `unique` by default, but the import engine may override to `ambiguous` on a fuzzy match
+ */
+export const DUPLICATE_STATUSES = ['unique', 'duplicate', 'ambiguous'] as const;
+export type DuplicateStatus = (typeof DUPLICATE_STATUSES)[number];
+
 export type LedgerDirection = 'in' | 'out';
 
 /**

@@ -43,7 +43,7 @@ documentation is read.
 
 - Each limit carries a **Provenance** line saying so explicitly.
 - The provider's own API base is a placeholder here, `<MSG_API_BASE>`, resolved by the operator from
-  the provider's published documentation (`ops/GATE_REGISTER.md`, placeholder glossary). That is not
+  the provider's published documentation (`ops/DEPLOYMENT_CONTROL.md`, placeholder glossary). That is not
   because the endpoint is a secret; it is because "which domains are harmless" is a judgement call and
   the public-repository invariant admits none (**R24**).
 - **Re-confirm before relying on a number.** A published limit can change, and this file is a

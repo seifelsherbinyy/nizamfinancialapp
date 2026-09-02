@@ -223,7 +223,7 @@ snapshot step, and the snapshot step in `ops/backup/` therefore **aborts loudly 
 instead of degrading.
 
 This is an **operator determination**, to be made once, before the first real backup, and recorded in
-`ops/GATE_REGISTER.md`. It has exactly two acceptable outcomes, and they are **ranked**:
+`ops/DEPLOYMENT_CONTROL.md`. It has exactly two acceptable outcomes, and they are **ranked**:
 
 1. **Outcome B is the documented default: issue the snapshot statement from inside the owning
    service**, which already holds the sidecar as the single writer (§3.2.4), and hand the resulting

@@ -1,0 +1,33 @@
+{
+  "profileCatalogVersion": "1.0",
+  "name": "NIZAM Personal Development Profiles",
+  "repository": "NIZAM",
+  "canonicalPrompt": "outputs/NIZAM_PERSONAL_DEVELOPMENT_AGENT.prompt.json",
+  "profiles": [
+    {
+      "id": "nizam-builder",
+      "path": "nizam-builder/manifest.json",
+      "role": "implementation",
+      "useWhen": "The owner requests an offline code, test, bug-fix, or repository tooling change."
+    },
+    {
+      "id": "nizam-verifier",
+      "path": "nizam-verifier/manifest.json",
+      "role": "verification-and-release",
+      "useWhen": "The owner requests acceptance testing, invariant auditing, gate review, or release readiness."
+    },
+    {
+      "id": "nizam-architect",
+      "path": "nizam-architect/manifest.json",
+      "role": "architecture-and-specification",
+      "useWhen": "The owner requests requirements, contracts, ADRs, data boundaries, or implementation planning."
+    }
+  ],
+  "sharedBoundaries": [
+    "Preserve user worktree changes.",
+    "Use NIZAM steering and contracts as authority.",
+    "Keep money integer and deterministic.",
+    "Protect personal data, secrets, and deployment particulars.",
+    "Refuse human-gated operations and never weaken acceptance checks."
+  ]
+}

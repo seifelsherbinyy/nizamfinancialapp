@@ -1,6 +1,6 @@
 # Create the two bots (gate G3) - operator walkthrough
 
-> **Register:** `ops/GATE_REGISTER.md` section G3 is the authority on what this gate means and how it
+> **Control record:** `ops/DEPLOYMENT_CONTROL.md` section G3 is the authority on what this gate means and how it
 > is verified. This file is the click-by-click half the register deliberately does not carry.
 > **Contract:** PFOS 12 section 5.2 / 5.3 (the two authenticity checks), 3.2.7 (one environment file
 > per service, root-owned and mode-restricted).
@@ -34,7 +34,7 @@ place them the moment G1's configuration directory exists, and only then G6.
 4. **"Is G3 done?" is answered by observation, not by this file.** Two `getMe` responses plus the
    presence counts in section 7, and nothing else. A document asserting a gate is complete is not
    evidence; it is the single most damaging thing this register forbids.
-5. **If this file disagrees with `ops/GATE_REGISTER.md`, `ops/env/*.env.example`, or
+5. **If this file disagrees with `ops/DEPLOYMENT_CONTROL.md`, `ops/env/` templates, or
    `src/server/telegram/auth.ts`, those win** and this file is the bug. Report the disagreement, do
    not reconcile it silently.
 

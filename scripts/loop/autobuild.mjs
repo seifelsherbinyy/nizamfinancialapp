@@ -360,7 +360,15 @@ function main() {
     const agentArgs = ["run", "--name", "autobuild", "--profile", opts.profile,
       "--mode", "act", "--timeout", String(opts.timeout), "--task", packet.prompt];
     if (opts.model) agentArgs.push("--model", opts.model);
-    const run = sh("agent", agentArgs, { maxBuffer: 32 * 1024 * 1024 });
+    // On Windows, `agent` on PATH resolves to a .cmd shim (agent.cmd -> `"%AKI_BIN%" agent %*`).
+    // spawnSync cannot exec a .cmd without shell:true, and shell:true would push this large
+    // multiline --task prompt through cmd.exe quoting, which can corrupt it. Bypass the shim:
+    // invoke AKI_BIN (a real .exe) directly with "agent" prepended. No shell, no quoting risk.
+    const akiBin = process.env.AKI_BIN;
+    const [bin, binArgs] = akiBin && existsSync(akiBin)
+      ? [akiBin, ["agent", ...agentArgs]]
+      : ["agent", agentArgs];
+    const run = sh(bin, binArgs, { maxBuffer: 32 * 1024 * 1024 });
     const answer = ((run.stdout ?? "") + (run.stderr ?? "")).trim();
     say("subagent exit", String(run.status));
     rule();

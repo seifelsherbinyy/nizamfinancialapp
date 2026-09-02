@@ -7,14 +7,15 @@
  *   properties the series must still assert about the other repository: R11/R12 (the transport
  *   guards survive the swap), R13/R14 (dedup keyed on the pair), R10 (the classification whose
  *   egress set is empty stays empty)
- * Depends on: ./patchSeries and the four files it reads - ops/nizamcore-patches/001, 002, 003 and
- *   the README - all read from disk as text
+ * Depends on: ./patchSeries and the four files it reads - ops/nizamcore-patches/001, 002, 003, 004
+ *   and the README - all read from disk as text
  *
  * Two halves, and the second is the one that matters.
  *
  * POSITIVE. The four artifacts on disk produce no finding, and the properties that carry the weight
  * are asserted separately as well: the apply order the README states is the file numbering, every
- * specification declares its form and its provenance, every declared dotted token is actually used
+ * each numbered specification declares its form and its provenance, the 004 handoff preserves its
+ * explicit target-repository boundary, every declared dotted token is actually used
  * by an artifact (an allowlist with a stale entry is an allowlist nobody is reading), and no
  * artifact carries a fabricated content address.
  *
@@ -36,6 +37,7 @@ import {
   PATCH_FILES,
   PATCH_FINDING_CODES,
   PATCH_IDS,
+  SPEC_IDS,
   README_FILE,
   README_REQUIRED_SECTIONS,
   REQUIRED_HEADER_FIELDS,
@@ -64,6 +66,7 @@ const SOURCES: Readonly<Record<string, string>> = {
   '001': read(PATCH_FILES['001']),
   '002': read(PATCH_FILES['002']),
   '003': read(PATCH_FILES['003']),
+  '004': read(PATCH_FILES['004']),
 };
 const README = read(README_FILE);
 
@@ -389,7 +392,7 @@ const NEGATIVE_CASES: readonly NegativeCase[] = [
   {
     code: 'README_ORDER_MISMATCH',
     why: 'the README\u2019s own claim is that the numbering IS the order, so a stated order that disagrees makes the claim false',
-    overrides: { [README_FILE]: swap('**001, then 002, then 003.**', '**003, then 002, then 001.**') },
+    overrides: { [README_FILE]: swap('**001, then 002, then 003, then 004.**', '**004, then 003, then 002, then 001.**') },
   },
   {
     code: 'README_ORDER_RATIONALE_MISSING',
@@ -456,8 +459,8 @@ const NEGATIVE_CASES: readonly NegativeCase[] = [
 ];
 
 describe('the four artifacts on disk are the shape Phase 8 requires', () => {
-  it('all three specifications parse, with exactly the required sections in order', () => {
-    for (const id of PATCH_IDS) {
+  it('all three numbered specifications parse, with exactly the required sections in order', () => {
+    for (const id of SPEC_IDS) {
       const spec = parseSpecification(SOURCES[id] ?? '');
       expect(spec.sections.map((s) => s.title), `${id} sections`).toEqual([...REQUIRED_SECTIONS]);
       expect(spec.sections.map((s) => s.number), `${id} numbering`).toEqual([1, 2, 3, 4, 5]);
@@ -484,8 +487,8 @@ describe('the four artifacts on disk are the shape Phase 8 requires', () => {
     expect(statedApplyOrder(README)).toEqual([...PATCH_IDS]);
   });
 
-  it('names the same target repository and branch in all three headers', () => {
-    for (const id of PATCH_IDS) {
+  it('names the same target repository and branch in all three specification headers', () => {
+    for (const id of SPEC_IDS) {
       const header = parseSpecification(SOURCES[id] ?? '').header;
       expect(header['TARGET REPOSITORY'], id).toBe(TARGET_REPOSITORY);
       expect(header['TARGET BRANCH'], id).toBe(TARGET_BRANCH);

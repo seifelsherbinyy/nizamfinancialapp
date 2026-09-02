@@ -1,0 +1,5 @@
+# Hermes profile configuration template for NIZAM.
+# All deployment values remain in the protected profile environment or host secret store.
+model:
+  default: xiaomi/mimo-v2.5
+  provider: openrouter

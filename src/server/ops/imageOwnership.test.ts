@@ -70,7 +70,7 @@ function textAt(relative: string): string {
 
 const RECORD = textAt('ops/IMAGE_BUILD.md');
 const COMPOSE = textAt('ops/docker-compose.yml');
-const REGISTER = textAt('ops/GATE_REGISTER.md');
+const REGISTER = textAt('ops/DEPLOYMENT_CONTROL.md');
 const PROXY_CONFIG = textAt('ops/Caddyfile');
 const RECIPES: readonly RecipeInput[] = recipesOnDisk(REPO).map((r) => ({ path: r.path, text: (r.text ?? '').split('\r\n').join('\n') }));
 const RUNTIME_MAJOR = textAt('.nvmrc').trim();

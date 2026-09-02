@@ -4,7 +4,8 @@
 
 | file | topic |
 |------|-------|
-| budgeting-app-ynab-architecture.md | YNAB-style offline-first app architecture (Actual Budget reference, integer money, sync) |
+| 2026-09-02-ynab-live-product-teardown.md | **Firsthand** teardown of the live YNAB public surface (design tokens, stack/CSP, public API data model, milliunits confirmation). Prefer this over the file below for observed facts about YNAB. Owning contract: C4. |
+| budgeting-app-ynab-architecture.md | YNAB-style offline-first app architecture (Actual Budget reference, integer money, sync) — SECONDHAND, proposes SQLite/Tauri; see teardown above |
 | budgeting-app-offline-telegram-ingestion.md | Local-first design + optional ingestion adapters (Tauri/SQLite/SQLCipher analysis) |
 | egypt-liquidity-buffer-debt-paydown.md | How much cash buffer to hold while paying high-interest card debt (Egypt) |
 | egypt-loan-readiness-dashboard.md | 12-week HSBC-Egypt loan-readiness dashboard design (feeds Contract 5 rescue widgets) |

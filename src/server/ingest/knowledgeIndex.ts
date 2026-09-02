@@ -39,8 +39,26 @@ import {
 } from '../db/repositories/documentIndexRepository.ts';
 import type { RepositoryContext } from '../db/repositories/support.ts';
 
-/** The classes this spec's tier-2 sources fall into. A document outside them is refused, not filed. */
-export const KNOWLEDGE_CLASSES = ['recovery_plan', 'financial_research', 'agent_contract', 'architecture'] as const;
+/**
+ * The classes this tier's sources fall into.
+ * Extended by Contract 05 to support multi-domain agent knowledge:
+ *   transaction_history, bank_statement, persona, journal_entry, health_record, goal, life_context, github_content.
+ * A document outside them is refused, not filed.
+ */
+export const KNOWLEDGE_CLASSES = [
+  'recovery_plan',
+  'financial_research',
+  'agent_contract',
+  'architecture',
+  'transaction_history',
+  'bank_statement',
+  'persona',
+  'journal_entry',
+  'health_record',
+  'goal',
+  'life_context',
+  'github_content',
+] as const;
 export type KnowledgeClass = (typeof KNOWLEDGE_CLASSES)[number];
 
 /** The owner's staged recovery plan, as one ordered set. */
@@ -67,11 +85,25 @@ export interface KnowledgeSourceRule {
  * its position in the set.
  */
 export const KNOWLEDGE_SOURCE_RULES: readonly KnowledgeSourceRule[] = [
+  // github_content is checked FIRST — the github:// scheme is fully distinct and must not
+  // be claimed by an interior path pattern like agent_contract matching /contracts/pfos/.
+  { knowledgeClass: 'github_content', referencePattern: /^github:\/\/[^/]+\/[^/]+\// },
+  // Remaining classes — specificity order preserved (recovery before research).
+  // Pattern anchor: (?:^|\/) means start-of-string OR a slash, so both bare paths and
+  // absolute paths match. (?:^\/|\/) (start-WITH-slash) would reject bare paths.
   { knowledgeClass: 'recovery_plan', referencePattern: /(?:^|\/)recovery\/[^/]+\.md$/i, setName: RECOVERY_PLAN_SET },
   { knowledgeClass: 'agent_contract', referencePattern: /(?:^|\/)contracts\/pfos\/[^/]+\.md$/i },
   { knowledgeClass: 'architecture', referencePattern: /(?:^|\/)docs\/(?:architecture|adr)\/[^/]+\.md$/i },
   { knowledgeClass: 'architecture', referencePattern: /(?:^|\/)docs\/[A-Z0-9_]+\.md$/ },
   { knowledgeClass: 'financial_research', referencePattern: /(?:^|\/)(?:docs\/)?research(?:es)?\/[^/]+\.md$/i },
+  // New classes — Contract 05 §3.1
+  { knowledgeClass: 'transaction_history', referencePattern: /(?:^|\/)transactions?\/[^/]+\.(?:csv|json|xml|ofx|qif)$/i },
+  { knowledgeClass: 'bank_statement', referencePattern: /(?:^|\/)statements?\/[^/]+\.(?:pdf|csv|json|md)$/i },
+  { knowledgeClass: 'persona', referencePattern: /(?:^|\/)personas?\/[^/]+\.md$/i },
+  { knowledgeClass: 'journal_entry', referencePattern: /(?:^|\/)journal(?:s|_entries?)?\/[^/]+\.md$/i },
+  { knowledgeClass: 'health_record', referencePattern: /(?:^|\/)health(?:_records?)?\/[^/]+\.(?:md|json|csv)$/i },
+  { knowledgeClass: 'goal', referencePattern: /(?:^|\/)goals?\/[^/]+\.md$/i },
+  { knowledgeClass: 'life_context', referencePattern: /(?:^|\/)life(?:_context)?\/[^/]+\.md$/i },
 ];
 
 export interface Classification {
@@ -121,6 +153,8 @@ export function classifyKnowledgeDocument(reference: string): Classification | n
 export interface KnowledgeDocument {
   /** Resolved by the caller. Never a literal in this module. */
   readonly reference: string;
+  /** Optional durable pointer when the classification reference is a path inside an external archive. */
+  readonly documentRef?: string;
   readonly contentHash: string;
   readonly byteCount: number;
   readonly processingState?: DocumentProcessingState;
@@ -180,7 +214,7 @@ export function indexKnowledgeDocuments(
     try {
       const outcome = repo.indexDocument({
         id: `doc_${document.contentHash.slice(0, 24)}`,
-        documentRef: document.reference,
+        documentRef: document.documentRef ?? document.reference,
         contentHash: document.contentHash,
         byteCount: document.byteCount,
         documentClass: classification.knowledgeClass,

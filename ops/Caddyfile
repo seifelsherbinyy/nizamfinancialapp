@@ -36,7 +36,7 @@
 #
 # THE TWO SECRET PATH SEGMENTS ARE PLACEHOLDERS AND NOTHING ELSE. <LIFE_WEBHOOK_PATH> and
 # <MONEY_WEBHOOK_PATH> are generated on the host at deploy time under gate G6
-# (ops/GATE_REGISTER.md) and live only in the host environment. There is no example of one here,
+# (ops/DEPLOYMENT_CONTROL.md) and live only in the host environment. There is no example of one here,
 # no redacted stand-in of the right length, and no comment showing its shape or width. Steering
 # §0b is categorical about this, and the practical reason is that a plausible-looking example is
 # precisely the thing that gets copied into a real deployment.

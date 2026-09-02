@@ -29,7 +29,7 @@
  *   - every `${ENTRY}` and `<PLACEHOLDER>` is checked against a vocabulary assembled from
  *     `ops/env/**`, the topology, the gate register, and the two shell templates - so a name from
  *     nowhere is a name nobody reviewed;
- *   - every gate named is checked against `ops/GATE_REGISTER.md`;
+ *   - every gate named is checked against `ops/DEPLOYMENT_CONTROL.md`;
  *   - the health-probe invocation is parsed by the probe's OWN parser.
  *
  * IT FAILS CLOSED. An unreadable document, an unreadable companion, a document outside the supported
@@ -689,7 +689,7 @@ function auditShared(
     if (!gates.includes(gate)) {
       note(
         'GATE_REFERENCE_UNKNOWN',
-        `${name} names gate ${gate}, which ops/GATE_REGISTER.md does not carry; a step attributed to a gate that does not exist is a step nobody can clear (R23)`,
+        `${name} names gate ${gate}, which ops/DEPLOYMENT_CONTROL.md does not carry; a step attributed to a gate that does not exist is a step nobody can clear (R23)`,
       );
     }
   }
@@ -1046,7 +1046,7 @@ function auditPosture(doc: RunbookDoc, note: (code: RunbookFindingCode, detail: 
 export const RUNBOOK_SUBDIR = 'runbook';
 /** The two companions this checker cross-reads that are not shell templates. */
 export const COMPOSE_FILE = 'docker-compose.yml';
-export const GATE_REGISTER_FILE = 'GATE_REGISTER.md';
+export const DEPLOYMENT_CONTROL_FILE = 'DEPLOYMENT_CONTROL.md';
 
 /**
  * Audit the three documents on disk together with the four companions they are cross-read against. An
@@ -1080,7 +1080,7 @@ export function auditRunbookFiles(runbookDir: string, opsDir: string): readonly 
       sources,
       unreadable,
       composeSource: companion(COMPOSE_FILE),
-      gateRegisterSource: companion(GATE_REGISTER_FILE),
+      gateRegisterSource: companion(DEPLOYMENT_CONTROL_FILE),
       backupSource: companion(BACKUP_SCRIPT_PATH),
       restoreSource: companion(RESTORE_SCRIPT_PATH),
     }),

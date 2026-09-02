@@ -7,7 +7,7 @@
  *   R13/R14/R15 (the degraded long-poll mode keeps every transport guard), R23 (a gate is named,
  *   never attempted), R24 (no deployment particular)
  * Depends on: ./runbookTemplate and the seven files it cross-reads - the three documents under
- *   ops/runbook/ plus ops/docker-compose.yml, ops/GATE_REGISTER.md, ops/backup/ and ops/restore/ -
+ *   ops/runbook/ plus ops/docker-compose.yml, ops/DEPLOYMENT_CONTROL.md, ops/backup/ and ops/restore/ -
  *   all read from disk as text
  *
  * Two halves, and the second is the one that matters.
@@ -71,7 +71,7 @@ const DOCS: Readonly<Record<string, string>> = {
   [RATE_LIMIT_DOC]: read(`${RUNBOOK_SUBDIR}/${RUNBOOK_FILES[RATE_LIMIT_DOC] ?? ''}`),
 };
 const COMPOSE = read('docker-compose.yml');
-const GATE_REGISTER = read('GATE_REGISTER.md');
+const GATE_REGISTER = read('DEPLOYMENT_CONTROL.md');
 const BACKUP = read('backup/backup.sh');
 const RESTORE = read('restore/restore.sh');
 

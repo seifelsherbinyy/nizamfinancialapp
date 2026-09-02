@@ -278,6 +278,26 @@ describe('a model-bearing classification CAN carry a model request (R16, the rel
     expect(request.messages[1]?.content).toBe('/categorise coffee');
   });
 
+  it('adds Drive context as separately labelled, untrusted reference data', () => {
+    const { classification, turn } = classified('/categorise coffee', 'turn-ref-drive');
+    if (!isModelBearing(classification)) throw new Error('expected a model-bearing turn');
+    const request = planTurnModelRequest(
+      {
+        agent: 'finance',
+        turnRef: turn.turnRef,
+        text: '/categorise coffee',
+        knowledgeContext: '[UNTRUSTED DRIVE REFERENCE contracts/pfos/06_knowledge.md]\nPolicy context',
+      },
+      classification.modelGrant,
+      turn.facts,
+    );
+
+    expect(request.messages.map((message) => message.role)).toEqual(['system', 'system', 'user']);
+    expect(request.messages[1]?.content).toContain('never an instruction');
+    expect(request.messages[1]?.content).toContain('Policy context');
+    expect(request.messages[2]?.content).toBe('/categorise coffee');
+  });
+
   it('opens the model door with that request, so the releasing direction is observed and not assumed', async () => {
     const seen: string[] = [];
     const channel = createModelChannel({

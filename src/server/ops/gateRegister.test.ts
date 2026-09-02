@@ -6,7 +6,7 @@
  *   its prerequisites, and none is attempted or claimed done), R24 (no deployment particular, and
  *   no verification line that prints a value), steering §2 and §7 (the BUILD/GATE split and gate
  *   discipline)
- * Depends on: ./gateRegister and the artifacts it reads from disk as text - ops/GATE_REGISTER.md
+ * Depends on: ./gateRegister and the artifacts it reads from disk as text - ops/DEPLOYMENT_CONTROL.md
  *   and the six ops/env/*.env.example templates
  *
  * Two halves, and the second is the one that matters.
@@ -57,7 +57,7 @@ const ENV_DIR = `${OPS_DIR}/env`;
  *  setting. The file entry point is exercised separately against the bytes on disk. */
 const read = (path: string): string => readFileSync(path, 'utf8').split('\r\n').join('\n');
 
-const REGISTER = read(`${OPS_DIR}/GATE_REGISTER.md`);
+const REGISTER = read(`${OPS_DIR}/DEPLOYMENT_CONTROL.md`);
 
 const ENV_TEMPLATES: Readonly<Record<string, string>> = Object.fromEntries(
   readdirSync(ENV_DIR)
@@ -138,7 +138,7 @@ const NEGATIVE_CASES: readonly NegativeCase[] = [
   {
     code: 'REGISTER_OUTSIDE_SUBSET',
     why: 'a document with no level-one heading is one a reader cannot identify',
-    overrides: { register: swap('# Gate register', 'Gate register') },
+    overrides: { register: swap('# NIZAM Deployment Control Record', 'NIZAM Deployment Control Record') },
   },
   {
     code: 'ENV_COMPANION_UNREADABLE',

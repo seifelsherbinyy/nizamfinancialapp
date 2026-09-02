@@ -195,3 +195,50 @@ describe('A4.3 — the contract set and the architecture documents classify', ()
     expect(report.sets[0]?.complete).toBe(false);
   });
 });
+
+describe('Contract 05 — extended knowledge classes (A4.1)', () => {
+  it('classifies transaction_history from a transactions/ path', () => {
+    expect(classifyKnowledgeDocument('transactions/bank-export.csv')?.knowledgeClass).toBe('transaction_history');
+    expect(classifyKnowledgeDocument('transaction/account-2026.json')?.knowledgeClass).toBe('transaction_history');
+  });
+
+  it('classifies bank_statement from a statements/ path', () => {
+    expect(classifyKnowledgeDocument('statements/statement-jan.csv')?.knowledgeClass).toBe('bank_statement');
+    expect(classifyKnowledgeDocument('statement/2026-08.md')?.knowledgeClass).toBe('bank_statement');
+  });
+
+  it('classifies persona from a personas/ path', () => {
+    expect(classifyKnowledgeDocument('personas/owner-persona.md')?.knowledgeClass).toBe('persona');
+    expect(classifyKnowledgeDocument('persona/identity.md')?.knowledgeClass).toBe('persona');
+  });
+
+  it('classifies journal_entry from a journals/ path', () => {
+    expect(classifyKnowledgeDocument('journals/entry-2026-08-01.md')?.knowledgeClass).toBe('journal_entry');
+    expect(classifyKnowledgeDocument('journal/2026-01-15.md')?.knowledgeClass).toBe('journal_entry');
+  });
+
+  it('classifies health_record from a health_records/ path', () => {
+    expect(classifyKnowledgeDocument('health_records/whoop-2026-08.json')?.knowledgeClass).toBe('health_record');
+    expect(classifyKnowledgeDocument('health/biometrics.csv')?.knowledgeClass).toBe('health_record');
+  });
+
+  it('classifies goal from a goals/ path', () => {
+    expect(classifyKnowledgeDocument('goals/goal-financial-freedom.md')?.knowledgeClass).toBe('goal');
+    expect(classifyKnowledgeDocument('goal/career.md')?.knowledgeClass).toBe('goal');
+  });
+
+  it('classifies life_context from a life_context/ path', () => {
+    expect(classifyKnowledgeDocument('life_context/bio.md')?.knowledgeClass).toBe('life_context');
+    expect(classifyKnowledgeDocument('life/preferences.md')?.knowledgeClass).toBe('life_context');
+  });
+
+  it('classifies github_content from a github:// URI', () => {
+    expect(classifyKnowledgeDocument('github://synthetic-owner/synthetic-repo/README.md')?.knowledgeClass).toBe('github_content');
+    expect(classifyKnowledgeDocument('github://synthetic-owner/synthetic-repo/contracts/pfos/01.md')?.knowledgeClass).toBe('github_content');
+  });
+
+  it('reports an unrecognised path as unclassified, never files it under a default', () => {
+    expect(classifyKnowledgeDocument('random/file.txt')).toBeNull();
+    expect(classifyKnowledgeDocument('uploads/photo.jpg')).toBeNull();
+  });
+});

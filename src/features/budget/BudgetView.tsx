@@ -11,12 +11,24 @@ import {
   setAssigned,
   applySeed,
   ensureCreditCardPaymentCategories,
-  goalProgress,
   nextMonth,
   prevMonth,
   type ComputedCategoryMonth,
 } from '@/features/budget/budget.logic';
-import type { Category, CategoryTarget, MonthKey, TargetType } from '@/features/budget/budget.types';
+import {
+  ROLLOVER_BEHAVIOURS,
+  TARGET_FAMILY,
+  TARGET_TYPES,
+  requiresObligation,
+  requiresTargetMonth,
+  type Category,
+  type CategoryTarget,
+  type MonthKey,
+  type RolloverBehaviour,
+  type TargetType,
+} from '@/features/budget/budget.types';
+import { targetFunding } from '@/features/budget/targets';
+import type { Obligation } from '@/features/obligations/obligation.types';
 import { MoneyCell } from '@/components/MoneyCell';
 import { MoneyInput } from '@/components/MoneyInput';
 import { Modal } from '@/components/Modal';
@@ -47,7 +59,29 @@ function progressPercentText(ratio: number): string {
 // Target editor modal (post-release item R2)
 // ---------------------------------------------------------------------------
 
-function TargetModal(props: { category: Category; month: MonthKey; onClose: () => void }) {
+/** Human labels for the eight target types (UI_CONTRACT_DELTA target editor). */
+const TARGET_TYPE_LABELS: Record<TargetType, string> = {
+  monthly_funding: 'Monthly funding',
+  target_balance: 'Balance to reach (no date)',
+  target_balance_by_date: 'Balance to reach by a month',
+  sinking_fund: 'Sinking fund (by a month)',
+  acquisition: 'Purchase goal (by a month)',
+  emergency_reserve: 'Emergency reserve (no date)',
+  obligation_reserve: 'Reserve for an obligation',
+  debt_reduction: 'Pay an obligation down in full',
+};
+
+const ROLLOVER_LABELS: Record<RolloverBehaviour, string> = {
+  set_aside: 'Set aside this amount again each month',
+  refill: 'Refill up to this amount (leftover counts)',
+};
+
+function TargetModal(props: {
+  category: Category;
+  month: MonthKey;
+  obligations: readonly Obligation[];
+  onClose: () => void;
+}) {
   const mutate = useNizamStore((s) => s.mutate);
   const existing = props.category.target;
   const [type, setType] = useState<TargetType | 'none'>(existing?.type ?? 'none');
@@ -55,22 +89,46 @@ function TargetModal(props: { category: Category; month: MonthKey; onClose: () =
   const [targetMonth, setTargetMonth] = useState<MonthKey>(
     existing?.targetMonth ?? nextMonth(props.month),
   );
+  const [rollover, setRollover] = useState<RolloverBehaviour>(existing?.rollover ?? 'set_aside');
+  const [obligationId, setObligationId] = useState<string | null>(existing?.obligationId ?? null);
   const [error, setError] = useState<string | null>(null);
+
+  const linked = type !== 'none' && requiresObligation(type);
+  const dated = type !== 'none' && requiresTargetMonth(type);
+  // Only the per-month family consults rollover; every other family is cumulative and
+  // behaves as refill, so the control is hidden rather than shown as an inert choice.
+  const rolloverApplies = type !== 'none' && TARGET_FAMILY[type] === 'per_month';
 
   function save() {
     setError(null);
-    if (type !== 'none' && amount <= 0) {
+    if (type === 'none') {
+      commit(null);
+      return;
+    }
+    if (!linked && amount <= 0) {
       setError('Enter a positive target amount.');
       return;
     }
-    if (type === 'target_by_date' && targetMonth < props.month) {
+    if (dated && targetMonth < props.month) {
       setError('The target month cannot be in the past.');
       return;
     }
-    const target: CategoryTarget | null =
-      type === 'none'
-        ? null
-        : { type, amount, targetMonth: type === 'target_by_date' ? targetMonth : null };
+    if (linked && obligationId === null) {
+      setError('Choose the obligation this target funds.');
+      return;
+    }
+    commit({
+      type,
+      // The linked Obligation is the only source of truth for an obligation-backed
+      // amount, so no figure is stored here that could go stale against it.
+      amount: linked ? 0 : amount,
+      targetMonth: dated ? targetMonth : null,
+      rollover: rolloverApplies ? rollover : 'refill',
+      obligationId: linked ? obligationId : null,
+    });
+  }
+
+  function commit(target: CategoryTarget | null) {
     mutate((draft) => {
       const cat = draft.categories.find((c) => c.id === props.category.id);
       if (cat) cat.target = target;
@@ -89,17 +147,62 @@ function TargetModal(props: { category: Category; month: MonthKey; onClose: () =
           aria-label="Target type"
         >
           <option value="none">No target</option>
-          <option value="monthly">Monthly funding target</option>
-          <option value="target_by_date">Amount available by a month</option>
+          {TARGET_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {TARGET_TYPE_LABELS[t]}
+            </option>
+          ))}
         </select>
       </label>
-      {type !== 'none' ? (
+      {type !== 'none' && !linked ? (
         <label className="field">
-          <span>{type === 'monthly' ? 'Amount to assign each month (EGP)' : 'Amount to have available (EGP)'}</span>
+          <span>
+            {TARGET_FAMILY[type] === 'per_month'
+              ? 'Amount to assign each month (EGP)'
+              : 'Amount to have available (EGP)'}
+          </span>
           <MoneyInput value={amount} onCommit={setAmount} aria-label="Target amount" />
         </label>
       ) : null}
-      {type === 'target_by_date' ? (
+      {linked ? (
+        <label className="field">
+          <span>Linked obligation</span>
+          <select
+            className="input"
+            value={obligationId ?? ''}
+            onChange={(e) => setObligationId(e.target.value === '' ? null : e.target.value)}
+            aria-label="Linked obligation"
+          >
+            <option value="">Choose an obligation…</option>
+            {props.obligations.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.creditor} — due {o.dueDate} ({o.priority})
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      {linked ? (
+        <p className="muted">The amount comes from the obligation, not from this form.</p>
+      ) : null}
+      {rolloverApplies ? (
+        <label className="field">
+          <span>Rollover behaviour</span>
+          <select
+            className="input"
+            value={rollover}
+            onChange={(e) => setRollover(e.target.value as RolloverBehaviour)}
+            aria-label="Rollover behaviour"
+          >
+            {ROLLOVER_BEHAVIOURS.map((r) => (
+              <option key={r} value={r}>
+                {ROLLOVER_LABELS[r]}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      {dated ? (
         <label className="field">
           <span>By month</span>
           <input
@@ -133,27 +236,52 @@ function GoalBadge(props: {
   category: Category;
   month: MonthKey;
   computed: ComputedCategoryMonth | undefined;
+  obligations: readonly Obligation[];
 }) {
-  const goal = goalProgress(props.category, props.month, props.computed);
-  if (!goal) return null;
+  const target = props.category.target;
+  if (!target) return null;
+  const obligation =
+    target.obligationId === null
+      ? null
+      : (props.obligations.find((o) => o.id === target.obligationId) ?? null);
+  // A target pointing at a missing obligation is a data defect, not a zero. Saying so is
+  // the only honest render: the engine cannot source an amount, so no figure is shown.
+  if (requiresObligation(target.type) && obligation === null) {
+    return (
+      <span
+        className="badge money-negative"
+        role="status"
+        aria-label={`Goal for ${props.category.name}`}
+        title="This target references an obligation that no longer exists."
+      >
+        ⚠ obligation missing
+      </span>
+    );
+  }
+  const goal = targetFunding(target, props.month, props.computed, obligation);
   const pct = progressPercentText(goal.progress);
-  const funded = goal.remaining === 0;
+  const funded = goal.funded;
+  // The per-month rate is only informative for targets with a deadline; for a monthly
+  // target it would just restate the amount.
+  const scheduled = goal.family === 'balance_by_date' || goal.family === 'obligation';
+  const title =
+    goal.family === 'per_month'
+      ? `Monthly target (${ROLLOVER_LABELS[goal.rolloverApplied]}): ${pct} funded this month`
+      : goal.family === 'balance'
+        ? `Balance target: ${pct} available, no deadline`
+        : `${pct} available; on this rate it completes ${goal.expectedCompletion ?? 'never'}`;
   return (
     <div
       className={`badge money-${funded ? 'positive' : 'warning'}`}
       role="status"
       aria-label={`Goal for ${props.category.name}`}
-      title={
-        goal.target.type === 'monthly'
-          ? `Monthly target: assign ${pct} funded this month`
-          : `By ${goal.target.targetMonth}: ${pct} available`
-      }
+      title={title}
     >
       {funded ? '✓ funded' : `${pct}`}
-      {!funded && goal.suggestedPerMonth !== null && goal.target.type === 'target_by_date' ? (
+      {!funded && goal.monthlyRate !== null && scheduled ? (
         <>
           {' · '}
-          <MoneyCell amount={goal.suggestedPerMonth} rag="zero" />
+          <MoneyCell amount={goal.monthlyRate} rag="zero" />
           /mo
         </>
       ) : null}
@@ -165,6 +293,7 @@ function CategoryRow(props: {
   category: Category;
   month: MonthKey;
   computed: ComputedCategoryMonth | undefined;
+  obligations: readonly Obligation[];
   onEditTarget: (category: Category) => void;
 }) {
   const mutate = useNizamStore((s) => s.mutate);
@@ -180,7 +309,12 @@ function CategoryRow(props: {
         >
           {category.name}
         </button>{' '}
-        <GoalBadge category={category} month={month} computed={computed} />
+        <GoalBadge
+          category={category}
+          month={month}
+          computed={computed}
+          obligations={props.obligations}
+        />
       </td>
       <td className="num" style={{ width: 140 }}>
         <MoneyInput
@@ -281,6 +415,7 @@ export function BudgetView() {
                     category={c}
                     month={month}
                     computed={computed?.categories[c.id]}
+                    obligations={db.obligations}
                     onEditTarget={setEditingTarget}
                   />
                 )),
@@ -291,7 +426,12 @@ export function BudgetView() {
       )}
 
       {editingTarget ? (
-        <TargetModal category={editingTarget} month={month} onClose={() => setEditingTarget(null)} />
+        <TargetModal
+          category={editingTarget}
+          month={month}
+          obligations={db.obligations}
+          onClose={() => setEditingTarget(null)}
+        />
       ) : null}
     </section>
   );

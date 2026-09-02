@@ -161,6 +161,7 @@ export const LOG_EVENTS = [
   // §7.1/§7.2 operations
   'backup_completed',
   'restore_drill_completed',
+  'knowledge_refresh_refused',
 ] as const;
 export type LogEvent = (typeof LOG_EVENTS)[number];
 

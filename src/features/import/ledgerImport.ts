@@ -750,6 +750,10 @@ export function importLedger(db: NizamDb, csvText: string): ImportOutcome {
       name: name || 'Imported Account',
       type: inferAccountType(name, identifier),
       onBudget: true,
+      // Imported rows carry no currency column, so the STORE's own currency is the
+      // only non-guessing source. A genuinely foreign statement must be corrected
+      // on review rather than silently assumed (C6 I1.2, I5).
+      currency: db.meta.currency,
       balance: 0,
       clearedBalance: 0,
       accountIdentifier: identifier || null,
@@ -819,6 +823,7 @@ export function importLedger(db: NizamDb, csvText: string): ImportOutcome {
       categoryId,
       memo: row.memo || row.description,
       amount: row.amount,
+      currency: account.currency,
       cleared: 'cleared',
       approved: false,
       transferAccountId: null,

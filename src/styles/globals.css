@@ -133,6 +133,13 @@ table {
   font-size: 12px;
   color: var(--sidebar-muted);
 }
+.sidebar-footer-error {
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #ff9d94;
+  overflow-wrap: anywhere;
+}
 
 /* --- cards / surfaces --- */
 .card {

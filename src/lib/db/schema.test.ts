@@ -21,6 +21,7 @@ describe('nizam_db schema', () => {
       name: 'CIB Current',
       type: 'CIB_DEBIT',
       onBudget: true,
+      currency: 'EGP',
       balance: 123_456,
       clearedBalance: 123_456,
       accountIdentifier: '1234',
@@ -41,6 +42,7 @@ describe('nizam_db schema', () => {
       name: 'Bad',
       type: 'CASH',
       onBudget: true,
+      currency: 'EGP',
       balance: 10.5, // float — must fail
       clearedBalance: 0,
       accountIdentifier: null,

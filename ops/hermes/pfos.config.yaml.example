@@ -1,0 +1,5 @@
+# Hermes profile configuration template for PFOS.
+# All deployment values remain in the protected profile environment or host secret store.
+model:
+  default: z-ai/glm-5.2
+  provider: openrouter

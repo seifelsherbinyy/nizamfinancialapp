@@ -58,6 +58,10 @@ export function applyPurchase(db: NizamDb, request: PurchaseRequest, price: Mone
     categoryId: request.category,
     memo: 'decision-engine simulation',
     amount: -Math.abs(price),
+    // A simulation must be denominated exactly like the account it debits.
+    currency:
+      db.accounts.find((a) => a.id === (request.accountId ?? db.accounts[0]?.id))?.currency ??
+      db.meta.currency,
     cleared: 'uncleared',
     approved: false,
     transferAccountId: null,

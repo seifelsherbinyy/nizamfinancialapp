@@ -161,6 +161,89 @@ export const MAX_RESPONSE_BYTES = 1_048_576;
 /** Where the emitted artifacts land. `artifacts/` is gitignored, so nothing here is ever committed. */
 export const ARTIFACT_ROOT = 'artifacts/benchmark';
 
+// ---- bounded transport-fault retry: the constants ----------------------------------------------
+
+/**
+ * ## The distinction this section is built on, and which it must never blur
+ *
+ * A **refusal** is a statement that the model or the request was WRONG: a truncated answer, a
+ * substituted model, a missing cost, an unsanitized eval set, a registry-class error. Retrying one of
+ * those would re-ask a question whose answer was already unacceptable, and a loop around it is exactly
+ * how "the first failure aborts" decays into "keep going until something passes". Refusals therefore
+ * still halt IMMEDIATELY, with no attempt, and that rule is unchanged below.
+ *
+ * A **transport fault** says nothing whatsoever about the model: a 5xx from the provider or from its
+ * gateway, a connection reset at TLS read, a socket timeout, a rate limit. Re-asking the SAME question
+ * over a NEW connection is not a second chance at a bad answer — it is the first delivery of the
+ * question. That is the only class retried here.
+ *
+ * ## Why this lives in the runner and not in the shared reader
+ *
+ * `providerResponseReader.ts` is shared with the agent's model port. Adding a retry there would change
+ * the agent path's halt-on-everything behaviour as a side effect of a benchmark decision. So the retry
+ * sits ABOVE the reader, wrapping the injected transport: a fault is absorbed before the reader ever
+ * sees it, and anything the classifier does not recognise as transport-class is handed to the reader
+ * verbatim, where it refuses exactly as it does today.
+ *
+ * ## Why bounded, and why two bounds rather than one
+ *
+ * Measured on 2026-08-11 over eight recorded attempts: roughly one transient per 38 calls against the
+ * 438 consecutive calls a full run needs, which puts the probability of a clean single invocation near
+ * 1e-5 and has forfeited 57,419 micro-USD. A per-case cap alone would let a systematically broken
+ * upstream grind through 438 cases x 3 attempts while charging for every partial answer. A whole-run
+ * budget alone would let one hopeless case consume it. Both, so a transient is survived and a broken
+ * upstream still STOPS the run.
+ */
+
+/** Attempts per case, first attempt included. 3 means at most two retries for any one case. */
+export const MAX_ATTEMPTS_PER_CASE = 3;
+
+/**
+ * The whole-run transport-fault budget, across every model and every case.
+ *
+ * 40 against ~12 expected transients (438 calls at one per 38) is roughly 3.5x the measured rate — wide
+ * enough that an ordinary run finishes, narrow enough that an upstream failing on most calls exhausts
+ * it inside the first model rather than dragging the full eval set through a doomed loop.
+ */
+export const RUN_TRANSPORT_FAULT_BUDGET = 40;
+
+/** First backoff, whole milliseconds. Doubles per attempt up to {@link BACKOFF_CEILING_MS}. */
+export const BACKOFF_BASE_MS = 1_000;
+
+/** The backoff ceiling, whole milliseconds. Modest on purpose: the run is one process and it waits. */
+export const BACKOFF_CEILING_MS = 8_000;
+
+/** An advertised retry interval is honoured up to this bound, so a hostile header cannot stall a run. */
+export const MAX_HONOURED_RETRY_AFTER_MS = 30_000;
+
+/**
+ * Errnos that describe a broken CONNECTION rather than a bad answer. `ETIMEDOUT` also covers this
+ * runner's own socket-timeout path, which tags its error with that code for exactly this reason.
+ */
+export const TRANSPORT_FAULT_ERRNOS = Object.freeze(['ECONNRESET', 'ETIMEDOUT', 'EPIPE']);
+
+/** The two codes this runner raises once a bound is reached. Both are handled by `main`'s `code` switch. */
+export const TRANSPORT_RETRIES_EXHAUSTED = 'LIVE_TRANSPORT_RETRIES_EXHAUSTED';
+export const TRANSPORT_BUDGET_EXHAUSTED = 'LIVE_TRANSPORT_BUDGET_EXHAUSTED';
+
+/**
+ * A bound was reached. Carries a `code` so `main` discriminates on it like every other refusal, and a
+ * `detail` of counts and reasons only — no body text, no header value, no credential.
+ */
+export class TransportFaultError extends Error {
+  /**
+   * @param {string} code
+   * @param {string} message
+   * @param {Record<string, string>} detail
+   */
+  constructor(code, message, detail = {}) {
+    super(`NIZAM live benchmark run: ${message}`);
+    this.name = 'TransportFaultError';
+    this.code = code;
+    this.detail = Object.freeze({ ...detail });
+  }
+}
+
 // ---- the explicit environment ------------------------------------------------------------------
 
 /**
@@ -236,6 +319,11 @@ export function httpsTransport({ requestTimeoutMs }) {
                 status: incoming.statusCode ?? 0,
                 bodyText: Buffer.concat(chunks).toString('utf8'),
                 latencyMs: Date.now() - startedAt,
+                // An ADVERTISED retry interval, whole milliseconds, or null. An extra field the
+                // reader does not read: `readProviderResponse` consumes `status`, `bodyText` and
+                // `latencyMs` only, so carrying this alongside them changes nothing downstream and
+                // saves the retry wrapper from having to re-open the response.
+                retryAfterMs: retryAfterMsFromHeader(incoming.headers['retry-after']),
               }),
             );
           });
@@ -244,11 +332,185 @@ export function httpsTransport({ requestTimeoutMs }) {
       );
 
       outbound.setTimeout(requestTimeoutMs, () => {
-        outbound.destroy(new Error('the provider did not answer within the request timeout'));
+        // Tagged `ETIMEDOUT` so the classifier reads a code rather than matching on prose. A socket
+        // timeout is a transport fault; the message is not the contract, the code is.
+        const timedOut = new Error('the provider did not answer within the request timeout');
+        timedOut.code = 'ETIMEDOUT';
+        outbound.destroy(timedOut);
       });
       outbound.on('error', refuse);
       outbound.end(body);
     });
+}
+
+// ---- the classifier ----------------------------------------------------------------------------
+
+/**
+ * An advertised retry interval read from a `retry-after` header, whole milliseconds, or null.
+ *
+ * Both documented forms are accepted: delta-seconds, and an HTTP-date. Clamped to
+ * {@link MAX_HONOURED_RETRY_AFTER_MS} so an implausible or hostile value slows a run rather than
+ * stalling it, and floored at 0 so a date already in the past means "now" instead of a negative wait.
+ *
+ * @param {string | string[] | undefined} raw
+ * @returns {number | null}
+ */
+export function retryAfterMsFromHeader(raw) {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof value !== 'string' || value.trim().length === 0) return null;
+  const trimmed = value.trim();
+  if (/^\d+$/.test(trimmed)) {
+    return Math.min(Number.parseInt(trimmed, 10) * 1_000, MAX_HONOURED_RETRY_AFTER_MS);
+  }
+  const at = Date.parse(trimmed);
+  if (Number.isNaN(at)) return null;
+  return Math.min(Math.max(at - Date.now(), 0), MAX_HONOURED_RETRY_AFTER_MS);
+}
+
+/** True for a status the provider itself, or a gateway in front of it, could not serve. */
+function isTransportStatus(status) {
+  return status === 429 || (status >= 500 && status <= 599);
+}
+
+/**
+ * Is a THROWN transport failure transport-class? A reason string, or null for "not transport".
+ *
+ * Only a connection-level errno qualifies. Anything else — including every `LiveRunError` the reader
+ * raises about the CONTENT of an answer — returns null and therefore halts, unretried.
+ *
+ * @param {unknown} error
+ * @returns {{ reason: string, retryAfterMs: number | null } | null}
+ */
+export function transportFaultOfThrown(error) {
+  if (!(error instanceof Error)) return null;
+  const errno = 'code' in error ? String(error.code) : '';
+  if (TRANSPORT_FAULT_ERRNOS.includes(errno)) return { reason: errno, retryAfterMs: null };
+  // `ECONNRESET` at TLS read arrives wrapped on some Node paths, with the errno on `cause`.
+  const cause = error.cause;
+  if (cause instanceof Error && 'code' in cause && TRANSPORT_FAULT_ERRNOS.includes(String(cause.code))) {
+    return { reason: String(cause.code), retryAfterMs: null };
+  }
+  return null;
+}
+
+/**
+ * Is a RETURNED provider answer transport-class? A reason string, or null for "not transport".
+ *
+ * Three shapes, and the third is the one that has actually been costing runs:
+ *
+ *  1. A 429 status — a rate limit, with any advertised interval honoured.
+ *  2. A 5xx status — the provider or its gateway could not serve the request.
+ *  3. A **2xx carrying a provider error object** whose own `code` is 5xx or 429. This is the observed
+ *     `LIVE_PROVIDER_ERROR_IN_BODY` with `providerErrorCode: 504`: an upstream gateway timeout wrapped
+ *     in a success status. The reader is right to refuse it — the body is not an answer — but the fact
+ *     it reports is a dead gateway, not a bad model, so it is retried here BEFORE the reader sees it.
+ *
+ * A provider error whose code is 4xx other than 429 (a malformed request, a moderation refusal, an
+ * authorization problem) is NOT transport-class: re-sending it would produce the same refusal.
+ * `error.message` is never read — the provider's moderation metadata can carry an excerpt of the
+ * request text, and nothing here may put that in a `detail`.
+ *
+ * @param {{ status: number, bodyText: string, retryAfterMs?: number | null }} answer
+ * @returns {{ reason: string, retryAfterMs: number | null } | null}
+ */
+export function transportFaultOfAnswer(answer) {
+  const advertised = answer.retryAfterMs ?? null;
+  if (isTransportStatus(answer.status)) {
+    return { reason: `http_${answer.status}`, retryAfterMs: advertised };
+  }
+  if (answer.status < 200 || answer.status > 299) return null;
+  let body;
+  try {
+    body = JSON.parse(answer.bodyText);
+  } catch {
+    // An unparseable body is a refusal (`LIVE_PROVIDER_BODY_UNPARSEABLE`), not a transport fault.
+    return null;
+  }
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) return null;
+  const error = body.error;
+  if (typeof error !== 'object' || error === null || Array.isArray(error)) return null;
+  // The same field `providerResponseReader.ts` surfaces as `detail.providerErrorCode`, read from the
+  // same place rather than from the rendered detail, so the two never drift.
+  const raw = error.code;
+  const code = typeof raw === 'number' ? raw : typeof raw === 'string' && /^\d+$/.test(raw) ? Number.parseInt(raw, 10) : null;
+  if (code === null || !isTransportStatus(code)) return null;
+  return { reason: `provider_error_in_body_${code}`, retryAfterMs: advertised };
+}
+
+/** The wait before attempt `attempt` (1-based), whole milliseconds, honouring an advertised interval. */
+export function backoffMs(attempt, advertisedMs) {
+  if (typeof advertisedMs === 'number' && advertisedMs > 0) {
+    return Math.min(advertisedMs, MAX_HONOURED_RETRY_AFTER_MS);
+  }
+  return Math.min(BACKOFF_BASE_MS * 2 ** (attempt - 1), BACKOFF_CEILING_MS);
+}
+
+const sleep = (ms) => new Promise((settle) => setTimeout(settle, ms));
+
+/**
+ * Wrap a transport so a TRANSPORT-CLASS fault is re-asked over a new connection, within both bounds.
+ *
+ * What it does not do, stated because each absence is load-bearing: it never retries a refusal, never
+ * continues past one, never substitutes a different model (the model id is inside the body it re-sends
+ * unchanged), never fabricates an exchange, and never returns a synthesized answer. Every retry is
+ * counted into `tally` so the run's provenance reports what happened instead of hiding it.
+ *
+ * @param {{
+ *   transport: Function,
+ *   modelId: string,
+ *   budget: { used: number, limit: number },
+ *   tally: Map<string, number>,
+ *   report?: (line: string) => void,
+ *   wait?: (ms: number) => Promise<void>,
+ * }} options
+ */
+export function withTransportRetry({ transport, modelId, budget, tally, report = () => {}, wait = sleep }) {
+  return async (liveRequest, credential) => {
+    for (let attempt = 1; ; attempt += 1) {
+      let fault = null;
+      let answer = null;
+      try {
+        answer = await transport(liveRequest, credential);
+        fault = transportFaultOfAnswer(answer);
+        // Not transport-class: hand it to the reader verbatim. If the answer is bad, the reader
+        // refuses, and that refusal halts the run exactly as it did before this wrapper existed.
+        if (fault === null) return answer;
+      } catch (error) {
+        fault = transportFaultOfThrown(error);
+        // A thrown failure that is not transport-class is re-raised untouched.
+        if (fault === null) throw error;
+      }
+
+      if (attempt >= MAX_ATTEMPTS_PER_CASE) {
+        throw new TransportFaultError(
+          TRANSPORT_RETRIES_EXHAUSTED,
+          'a transport-class fault recurred through every permitted attempt for one case, so the run halts rather than retrying without bound',
+          {
+            modelId,
+            reason: fault.reason,
+            attempts: String(attempt),
+            budgetUsed: String(budget.used),
+            budgetLimit: String(budget.limit),
+          },
+        );
+      }
+      if (budget.used >= budget.limit) {
+        throw new TransportFaultError(
+          TRANSPORT_BUDGET_EXHAUSTED,
+          'the whole-run transport-fault budget is spent, which reads as a systematically broken upstream rather than a transient, so the run stops instead of grinding',
+          { modelId, reason: fault.reason, budgetUsed: String(budget.used), budgetLimit: String(budget.limit) },
+        );
+      }
+
+      budget.used += 1;
+      tally.set(modelId, (tally.get(modelId) ?? 0) + 1);
+      const waitMs = backoffMs(attempt, fault.retryAfterMs);
+      report(
+        `transport fault on ${modelId}: ${fault.reason}; retrying attempt ${attempt + 1} of ${MAX_ATTEMPTS_PER_CASE} after ${waitMs} ms (run budget ${budget.used}/${budget.limit})`,
+      );
+      await wait(waitMs);
+    }
+  };
 }
 
 // ---- the pre-flight estimate: integer micro-USD, rounded up ------------------------------------
@@ -307,9 +569,11 @@ export function preflightEstimateMicroUsd({ cases, modelIds, maxOutputTokens }) 
  * send. An unsanitized case sent to a third party is the one failure a live run can commit that a
  * fixture run cannot, and no later refusal undoes it.
  *
- * Failures halt. There is no retry loop, no per-case fallback and no continue-on-error: a run with a
- * hole in it is not a measurement, and a loop that keeps trying after a refusal is how a narrow
- * exception becomes an open channel.
+ * REFUSALS halt. There is no per-case fallback and no continue-on-error: a run with a hole in it is not
+ * a measurement, and a loop that keeps trying after a refusal is how a narrow exception becomes an open
+ * channel. A TRANSPORT FAULT is different in kind and is retried within two bounds — see
+ * {@link withTransportRetry}, which sits between this loop and the injected transport and re-asks the
+ * same question over a new connection without ever weakening what counts as an acceptable answer.
  *
  * @param {{
  *   grant?: object,
@@ -352,6 +616,27 @@ export function reportForfeitedSpend(report, spentByModel) {
   report(
     `ABORTED — total forfeited: ${totalMicroUsd} micro-USD across ${spentByModel.size} model(s); the run produced no measurement, so this charge bought nothing`,
   );
+}
+
+/**
+ * Report the transport retries a run used, per model, whether the run finished or aborted.
+ *
+ * A registry earned over 12 retries is a genuine measurement — every case was answered by the model
+ * that was asked, and nothing was substituted or invented. But the reader is owed the fact, so a run's
+ * provenance states it rather than hiding a rough passage behind a clean total. Zero is reported
+ * explicitly too: "the upstream held" and "we did not look" are different claims.
+ *
+ * @param {(line: string) => void} report
+ * @param {Map<string, number>} tally
+ * @param {{ used: number, limit: number }} budget
+ */
+export function reportTransportRetries(report, tally, budget) {
+  if (budget.used === 0) {
+    report('transport retries: 0 — every provider call was answered on its first attempt');
+    return;
+  }
+  for (const [modelId, count] of tally) report(`transport retries on ${modelId}: ${count}`);
+  report(`transport retries total: ${budget.used} of a ${budget.limit} whole-run budget`);
 }
 
 export async function earnRegistry(input) {
@@ -421,13 +706,27 @@ export async function earnRegistry(input) {
   // mid-run refusal returned a code and no accounting, and the operator had no way to read what the
   // attempt had already charged. The progress observed here is the whole remedy: it adds no retry, no
   // continue-on-error, no checkpoint and no resume path, and it never carries a witness.
+  //
+  // The retry wrapper sits HERE, between the loop and the injected transport, so `runLiveModelCalls`
+  // keeps its own first-failure-aborts contract untouched: it never learns that a call was re-asked.
+  // The budget is shared across models — a broken upstream is a property of the run, not of a model —
+  // while the tally is per model, because that is what a reader of the registry needs to know.
   const spentByModel = new Map();
+  const transportRetries = new Map();
+  const budget = { used: 0, limit: input.transportFaultBudget ?? RUN_TRANSPORT_FAULT_BUDGET };
   const runs = [];
   try {
     for (const modelId of modelIds) {
       const run = await runLiveModelCalls({
         grant,
-        transport,
+        transport: withTransportRetry({
+          transport,
+          modelId,
+          budget,
+          tally: transportRetries,
+          report,
+          ...(input.wait === undefined ? {} : { wait: input.wait }),
+        }),
         resolved,
         modelId,
         cases,
@@ -440,10 +739,13 @@ export async function earnRegistry(input) {
         },
       });
       runs.push(run);
-      report(`${modelId}: ${run.witness.casesAnswered} cases answered, ${run.witness.actualCostMicroUsd} micro-USD reported`);
+      report(
+        `${modelId}: ${run.witness.casesAnswered} cases answered, ${run.witness.actualCostMicroUsd} micro-USD reported, ${transportRetries.get(modelId) ?? 0} transport retries`,
+      );
     }
   } catch (error) {
     reportForfeitedSpend(report, spentByModel);
+    reportTransportRetries(report, transportRetries, budget);
     throw error;
   }
 
@@ -459,7 +761,8 @@ export async function earnRegistry(input) {
     evalSet: cases,
   });
 
-  return { emitted, runs, estimateMicroUsd };
+  reportTransportRetries(report, transportRetries, budget);
+  return { emitted, runs, estimateMicroUsd, transportRetries, transportFaultBudget: budget };
 }
 
 // ---- phase 9: writing the artifacts ----------------------------------------------------------
@@ -525,7 +828,7 @@ export async function main(processEnv = process.env, log = console.log) {
   const serverRuntimeMarker = processEnv[SERVER_RUNTIME_MARKER_ENTRY] ?? null;
 
   try {
-    const { emitted, estimateMicroUsd } = await earnRegistry({
+    const { emitted, estimateMicroUsd, transportRetries, transportFaultBudget } = await earnRegistry({
       serverRuntimeMarker,
       transport: httpsTransport({ requestTimeoutMs: REQUEST_TIMEOUT_MS }),
       environment: explicitEnvironment(entries),
@@ -548,6 +851,12 @@ export async function main(processEnv = process.env, log = console.log) {
     log(`cases answered: ${casesAnswered}`);
     log(`models graded: ${emitted.results.length}`);
     log(`actual cost: ${emitted.actualCostMicroUsd} micro-USD (estimate was ${estimateMicroUsd})`);
+    for (const modelId of DEFAULT_ALLOWED_MODEL_IDS) {
+      log(`transport retries used on ${modelId}: ${transportRetries.get(modelId) ?? 0}`);
+    }
+    log(
+      `transport retries used total: ${transportFaultBudget.used} of ${transportFaultBudget.limit}`,
+    );
     log(`emitted: ${join(ARTIFACT_ROOT, emitted.fileName)} (${written.length} artifacts)`);
     return 0;
   } catch (error) {
@@ -580,15 +889,31 @@ export async function main(processEnv = process.env, log = console.log) {
       case 'PREFLIGHT_NO_MODELS':
       case 'PREFLIGHT_NO_CASES':
       case 'PREFLIGHT_MODEL_NOT_DEFAULT_ALLOWED':
-      case 'PREFLIGHT_ESTIMATE_NOT_BELOW_CAP': {
+      case 'PREFLIGHT_ESTIMATE_NOT_BELOW_CAP':
+      // The two bounded-retry codes. Before they existed, a transport failure — `ECONNRESET` at TLS
+      // read in particular — reached `default:` and was re-raised out of `main`, past the process's
+      // only handler, and CRASHED with an uncaught exception. That path lost the forfeited-spend
+      // accounting and the exit code both. It now exits through this arm like every other refusal.
+      case TRANSPORT_RETRIES_EXHAUSTED:
+      case TRANSPORT_BUDGET_EXHAUSTED: {
         // `detail` carries counts, gate names, model ids, entry names and micro-USD figures only.
         // Nothing is added to it here.
         const detail = /** @type {{ detail?: Record<string, string> }} */ (error).detail ?? {};
         log(`REFUSED ${code} ${JSON.stringify(detail)}`);
         return 1;
       }
-      default:
+      default: {
+        // The belt behind the arms above: a raw connection-level errno that somehow reached here
+        // without passing the retry wrapper is still a transport fault, and a transport fault must
+        // not leave this function as an uncaught exception. Classified by the SAME function the
+        // wrapper uses, so there is one definition of transport-class and not two.
+        const fault = transportFaultOfThrown(error);
+        if (fault !== null) {
+          log(`REFUSED ${TRANSPORT_RETRIES_EXHAUSTED} ${JSON.stringify({ reason: fault.reason, at: 'transport' })}`);
+          return 1;
+        }
         throw error;
+      }
     }
   }
 }

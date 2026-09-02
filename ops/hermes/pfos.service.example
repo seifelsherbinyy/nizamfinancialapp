@@ -1,0 +1,22 @@
+# Rollback profile: do not install while nizam-ingress is active.
+[Unit]
+Description=PFOS internal Hermes profile (rollback; not active while ingress runs)
+After=<NETWORK_READY_TARGET>
+Wants=<NETWORK_READY_TARGET>
+
+[Service]
+Type=simple
+User=<HERMES_USER>
+Environment=HERMES_HOME=<PFOS_HERMES_HOME>
+EnvironmentFile=<PFOS_HERMES_ENV_PATH>
+ExecStart=<HERMES_EXECUTABLE> gateway run
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=<PFOS_HERMES_HOME>
+
+[Install]
+WantedBy=<MULTI_USER_TARGET>

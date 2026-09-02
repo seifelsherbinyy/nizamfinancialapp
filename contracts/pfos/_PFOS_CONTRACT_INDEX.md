@@ -130,6 +130,52 @@ expected to evolve here, so no SHA is pinned that would silently go stale.
 
 Requirement identifiers refer to `.kiro/specs/06-two-agent-vps/requirements.md`.
 
+## Wave 1 v1.4 production-controller delta — PROPOSED, NOT YET SUPERSEDING
+
+`13_NIZAM_v1.4_Production_Controller_Delta.md` records the owner's newer two-agent production direction
+and the evidence vocabulary for the approved Wave 1. It is NIZAM-derived, sanitized, and explicitly
+non-superseding: v1.3 remains authoritative until the owner separately accepts this delta as a contract
+revision. No requirement range is changed by this entry.
+
+## Single-window Telegram ingress — IN FORCE for the live window only, 2026-08-24
+
+`14_NIZAM_Single_Window_Telegram_Ingress.md` records the owner's Option B decision: one new primary
+Telegram bot (`BOT_NIZAM_TOKEN`) is the live conversational window, while internal `nizam` / `pfos`
+profiles, stores, caps, and PFOS financial authority remain isolated. It is NIZAM-derived. It does
+not supersede Contract 12 isolation or money/Drive invariants. `BOT_A_TOKEN` and `BOT_B_TOKEN` are
+`DEPRECATED_PENDING_REVOKE` for live polling. No human gate is completed by this entry.
+
+## Daily transaction capture — IN FORCE for the capture surface only, 2026-09-02
+
+`15_NIZAM_Daily_Transaction_Capture_and_Candidate_Staging.md` governs the owner's D7 requirement that
+the agentic Hermes **asks** the owner each owner-local day what moved and **captures** the reply. It is
+NIZAM-derived, authored 2026-09-02, and was authored *before* any code in its area because the
+capability was absent from every tier of `ops/HERMES_CAPABILITY_EXPANSION_REGISTER.md` — not permitted,
+not forbidden, simply ungoverned.
+
+**What it grants.** One new *channel* on the first stage of ADR-0003 AD-6's intake pipeline: a
+deterministic daily prompt, a verbatim `source_events` row, a fixed capture grammar, and rows in the
+**engine-excluded** `transactionCandidates` collection. Nothing later in that pipeline changes and no
+stage is skipped.
+
+**What it does not grant.** No canonical ledger write, no promotion, no `approved: true`, no schema
+migration, no new Hermes tool, no transfer or spend, no new credential or endpoint, no FX at capture,
+and no human gate. `money-rules.md` and `drive-db.md` are preserved exactly. It does not supersede
+Contract 02's state model, Contract 06's schema, Contract 12's isolation, or Contract 14's ingress
+drawing.
+
+**Why it is not a tool.** `src/server/hermes/runtimeAdapter.ts` already refuses any bounded tool payload
+key matching `amount|balance|currency|milliunit|money|price|cost|financial`, so a monetary field is
+unrepresentable across the Hermes tool boundary. A capture *tool* would have required weakening that
+guard. It is not weakened, `HERMES_TOOL_NAMES` is unchanged, and the capability is deterministic
+ingestion on the path Contract 14 §5 already defines. The register records this as its new Tier 5.
+
+**Two findings are recorded rather than invented** (contract §10): `ImportInfo.sourceType` has no `chat`
+member and widening that closed enum is a schema change under owner sign-off, so `manual` is used and
+the widening is left unapplied; and the register's "Contract 14 (Calendar)" / "Contract 15 (External
+Data)" recommendations collided with the real 14 and 15, so the register's numbers moved to 16 and 17
+rather than this contract taking a colliding number.
+
 **Owning-requirement range, reconciled 2026-08-10.** Contract 12's row above read `R6-R24` while the spec
 already carried **R25** (the allowlist delimiter, authored with the transport value ledger), so the range had
 drifted by one before this increment. Phase 10 then added **R26, R26.1, R27, R28, R29 and R30** - mode-aware

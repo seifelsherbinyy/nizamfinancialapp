@@ -69,7 +69,7 @@ const COMPOSE_PATH = 'ops/docker-compose.yml';
  *  cannot satisfy by accident, so it is written out rather than derived. */
 const AUTHORED_ENTRY_COUNT: Readonly<Record<DeploymentService, number>> = {
   life: 19,
-  finance: 17,
+  finance: 22,
   proxy: 7,
   bus: 3,
   scheduler: 5,
@@ -308,8 +308,15 @@ describe('the aggregate refusal names EVERY missing entry in one message (R27, l
 });
 
 describe('an absent allowlist is a decision; an unfilled one is a mistake (R25)', () => {
-  it('is the only entry whose absence is not a finding', () => {
-    expect([...ABSENCE_IS_A_DECISION]).toEqual([SHARED_ENTRIES.allowedSenderIds]);
+  it('lists only deliberate optional capabilities and the closed allowlist', () => {
+    expect([...ABSENCE_IS_A_DECISION]).toEqual([
+      SHARED_ENTRIES.allowedSenderIds,
+      'KNOWLEDGE_DRIVE_ROOT_ID',
+      'KNOWLEDGE_DRIVE_REFRESH_TOKEN',
+      'KNOWLEDGE_DRIVE_CLIENT_ID',
+      'KNOWLEDGE_DRIVE_CLIENT_SECRET',
+      'KNOWLEDGE_DRIVE_TOKEN_URL',
+    ]);
   });
 
   it('reports nothing when the allowlist is absent, empty, or whitespace-only', () => {

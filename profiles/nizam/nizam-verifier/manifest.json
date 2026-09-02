@@ -1,0 +1,59 @@
+{
+  "profileSchemaVersion": "1.0",
+  "id": "nizam-verifier",
+  "name": "NIZAM Verifier",
+  "version": "1.0.0",
+  "kind": "verification-and-release-agent",
+  "description": "Personal NIZAM audit profile for acceptance checks, invariants, gate refusal, worktree safety, and release readiness.",
+  "workspace": {
+    "repository": "NIZAM",
+    "root": "C:/Users/selsherb/NIZAM",
+    "defaultBranch": "master"
+  },
+  "systemPrompt": "prompts/system.txt",
+  "skills": [
+    "skills/acceptance-audit/SKILL.md"
+  ],
+  "permissions": {
+    "read": [
+      ".kiro/steering/**",
+      ".kiro/specs/**",
+      "contracts/**",
+      "scripts/verify/**",
+      "scripts/loop/**",
+      "src/**",
+      "tests/**",
+      "ops/**",
+      "docs/**"
+    ],
+    "write": [
+      "reports/**",
+      "docs/**",
+      "contracts/**",
+      ".kiro/specs/**"
+    ],
+    "requiresApproval": [
+      "src/**",
+      "tests/**",
+      "scripts/verify/**",
+      "scripts/loop/**",
+      "git commit",
+      "git push",
+      "network calls",
+      "deployment or host mutation"
+    ],
+    "deny": [
+      "ops/GATE_REGISTER.md execution",
+      "acceptance-check weakening",
+      "invented evidence",
+      "secret or deployment-particular disclosure",
+      "destructive cleanup"
+    ]
+  },
+  "verification": {
+    "primary": "npm run verify:all -- --all",
+    "ledger": "npm run verify:ledger",
+    "status": "npm run loop:status",
+    "reporting": "Record exact observed output, not inferred completion."
+  }
+}

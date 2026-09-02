@@ -32,6 +32,7 @@ function txn(partial: Partial<Transaction> & Pick<Transaction, 'accountId' | 'da
     categoryId: null,
     memo: '',
     cleared: 'cleared',
+    currency: 'EGP',
     approved: true,
     transferAccountId: null,
     transferTransactionId: null,
@@ -50,6 +51,7 @@ function fixtureDb(): NizamDb {
       name: 'CIB Current',
       type: 'CIB_DEBIT',
       onBudget: true,
+      currency: 'EGP',
       balance: 0,
       clearedBalance: 0,
       accountIdentifier: '1111',
@@ -63,6 +65,7 @@ function fixtureDb(): NizamDb {
       name: 'HSBC Card',
       type: 'HSBC_CC',
       onBudget: true,
+      currency: 'EGP',
       balance: 0,
       clearedBalance: 0,
       accountIdentifier: '2222',
@@ -343,7 +346,13 @@ describe('phase 3.5 — credit-card payment automation', () => {
 describe('phase 3.5 — goals / targets', () => {
   it('monthly target progress + remaining', () => {
     const db = fixtureDb();
-    db.categories[0]!.target = { type: 'monthly', amount: 50_000, targetMonth: null };
+    db.categories[0]!.target = {
+      type: 'monthly_funding',
+      amount: 50_000,
+      targetMonth: null,
+      rollover: 'set_aside',
+      obligationId: null,
+    };
     setAssigned(db, '2026-03', 'cat_groc', 30_000);
     const m = computeMonth(db, '2026-03');
     const g = goalProgress(db.categories[0]!, '2026-03', m.categories['cat_groc']);
@@ -352,9 +361,15 @@ describe('phase 3.5 — goals / targets', () => {
     expect(g?.suggestedPerMonth).toBe(50_000);
   });
 
-  it('target_by_date suggests integer per-month funding (ceil)', () => {
+  it('target_balance_by_date suggests integer per-month funding (ceil)', () => {
     const db = fixtureDb();
-    db.categories[0]!.target = { type: 'target_by_date', amount: 100_000, targetMonth: '2026-06' };
+    db.categories[0]!.target = {
+      type: 'target_balance_by_date',
+      amount: 100_000,
+      targetMonth: '2026-06',
+      rollover: 'refill',
+      obligationId: null,
+    };
     setAssigned(db, '2026-03', 'cat_groc', 10_000);
     const m = computeMonth(db, '2026-03');
     const g = goalProgress(db.categories[0]!, '2026-03', m.categories['cat_groc']);

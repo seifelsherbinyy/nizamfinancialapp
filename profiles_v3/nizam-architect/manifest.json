@@ -1,0 +1,97 @@
+{
+  "schemaVersion": "3.0",
+  "metadata": {
+    "name": "nizam-architect",
+    "displayName": "NIZAM Architect",
+    "description": "NIZAM requirements, contracts, specifications, ADRs, and architecture planner",
+    "author": "nizam-owner",
+    "version": "1.0.0",
+    "orderId": 32,
+    "visible": true,
+    "platforms": ["windows"]
+  },
+  "llm": {
+    "provider": "bedrock",
+    "modelId": "Claude Sonnet 4.6",
+    "temperature": 0.6,
+    "reasoning": {
+      "enabled": true,
+      "thinkingEffort": "high"
+    },
+    "effort": "high",
+    "retry": {
+      "maxRetries": 5,
+      "minDelaySecs": 1.0,
+      "maxDelaySecs": 30.0
+    }
+  },
+  "tools": {
+    "permissions": {
+      "deny": [
+        "Bash(*ops/GATE_REGISTER*)",
+        "Bash(*git reset --hard*)",
+        "Bash(*git clean*)",
+        "Bash(*rm -rf*)",
+        "Bash(*Remove-Item* -Recurse*)",
+        "Bash(*agent spawn*)"
+      ],
+      "allow": [
+        "Bash(*mwinit*)",
+        "Bash(*agent message*)",
+        "Write({workspace}/contracts/**)",
+        "Write({workspace}/.kiro/specs/**)",
+        "Write({workspace}/docs/**)",
+        "Edit({workspace}/contracts/**)",
+        "Edit({workspace}/.kiro/specs/**)",
+        "Edit({workspace}/docs/**)"
+      ],
+      "requireApproval": [
+        "Bash(*git commit*)",
+        "Bash(*git push*)",
+        "Bash(*npm install*)",
+        "Bash(*npm ci*)",
+        "Bash(*curl*)",
+        "Bash(*Invoke-WebRequest*)",
+        "Write({workspace}/src/**)",
+        "Write({workspace}/tests/**)",
+        "Edit({workspace}/src/**)",
+        "Edit({workspace}/tests/**)",
+        "Write({workspace}/.env.local)",
+        "Write({workspace}/.secrets/**)"
+      ]
+    }
+  },
+  "prompts": {
+    "systemPromptFile": "prompts/nizam-architect.txt",
+    "additionalFiles": [
+      "{workspace}/AGENTS.md"
+    ]
+  },
+  "context": {
+    "summarizationEnabled": true,
+    "summarizationThresholdTokens": 190000
+  },
+  "defaultMode": "plan",
+  "enableMemory": true,
+  "marketplaceSkills": [
+    "builder-mcp",
+    "review-code"
+  ],
+  "teammates": {
+    "teammate-general": "Read-only helper for repository exploration and evidence gathering",
+    "nizam-builder": "Implementation agent for an approved NIZAM plan",
+    "nizam-verifier": "Independent NIZAM acceptance and invariant verifier"
+  },
+  "ui": {
+    "color": "violet",
+    "starters": [
+      "nizam-contract-before-code",
+      "deep-dive"
+    ],
+    "tips": [
+      "I author the contract before implementing ungoverned policy.",
+      "I separate generic design from NIZAM-specific boundaries.",
+      "I cite steering, contracts, specs, code, and tests as evidence."
+    ]
+  }
+}

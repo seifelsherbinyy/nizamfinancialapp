@@ -1,6 +1,8 @@
 /**
  * NIZAM · Zustand store — app state, actions, sync triggers
  * Implemented by: KIRO Contract 2 / Phase 2.4
+ * Repaired by: KIRO Contract 2 / Phase 2.4 — never substitute local or remote
+ *   for an absent merge base; pass null through to the sync engine.
  * Depends on: lib/drive/*, lib/db/*
  *
  * Data flow: mutate() -> new immutable NizamDb in memory -> Dexie cache (dirty)
@@ -60,7 +62,7 @@ export const useNizamStore = create<NizamState>((set, get) => {
     set({ syncStatus: 'pushing', syncError: null });
     try {
       const outcome = await pushDb(
-        { client: createDriveClient(), handle, getBase: () => baseDb ?? db },
+        { client: createDriveClient(), handle, getBase: () => baseDb },
         db,
       );
       const newHandle: DriveDbHandle = { ...handle, version: outcome.version };
@@ -101,7 +103,7 @@ export const useNizamStore = create<NizamState>((set, get) => {
       if (db) {
         set({
           db,
-          baseDb: syncPoint?.baseDb ?? db,
+          baseDb: syncPoint?.baseDb ?? null,
           handle: syncPoint
             ? { fileId: syncPoint.fileId, folderId: syncPoint.folderId, version: syncPoint.version }
             : null,
@@ -134,7 +136,7 @@ export const useNizamStore = create<NizamState>((set, get) => {
             {
               client,
               handle: { ...handle, version: latest.version },
-              getBase: () => get().baseDb ?? latest.db,
+              getBase: () => get().baseDb,
             },
             local,
           );

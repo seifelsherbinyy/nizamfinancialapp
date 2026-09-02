@@ -1,0 +1,59 @@
+{
+  "currency": "EGP",
+  "milliunitsPerEgp": 1000,
+  "safeEdges": {
+    "minimum": "-9007199254740991",
+    "maximum": "9007199254740991"
+  },
+  "envelopeValues": {
+    "amount": "-1000",
+    "inflow": "0",
+    "maximum": "9007199254740991",
+    "oneEgp": "1000",
+    "outflow": "1000"
+  },
+  "envelope": "{\"amount\":\"-1000\",\"inflow\":\"0\",\"maximum\":\"9007199254740991\",\"oneEgp\":\"1000\",\"outflow\":\"1000\"}",
+  "signedFlows": [
+    {
+      "amount": "-1000",
+      "outflow": "1000",
+      "inflow": "0",
+      "wire": "{\"amount\":\"-1000\",\"inflow\":\"0\",\"outflow\":\"1000\"}"
+    },
+    {
+      "amount": "1000",
+      "outflow": "0",
+      "inflow": "1000",
+      "wire": "{\"amount\":\"1000\",\"inflow\":\"1000\",\"outflow\":\"0\"}"
+    },
+    {
+      "amount": "0",
+      "outflow": "0",
+      "inflow": "0",
+      "wire": "{\"amount\":\"0\",\"inflow\":\"0\",\"outflow\":\"0\"}"
+    }
+  ],
+  "decimalCases": [
+    {
+      "text": "1",
+      "milliunits": "1000",
+      "formatted": "1.000"
+    },
+    {
+      "text": "-1.000",
+      "milliunits": "-1000",
+      "formatted": "-1.000"
+    },
+    {
+      "text": "9007199254740.991",
+      "milliunits": "9007199254740991",
+      "formatted": "9007199254740.991"
+    }
+  ],
+  "invalidMilliunitText": [
+    "1.0",
+    "1e3",
+    "9007199254740992",
+    "-9007199254740992"
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "profileSchemaVersion": "1.0",
+  "id": "nizam-architect",
+  "name": "NIZAM Architect",
+  "version": "1.0.0",
+  "kind": "architecture-and-specification-agent",
+  "description": "Personal NIZAM architecture profile for requirements, contracts, ADRs, data boundaries, and implementation planning.",
+  "workspace": {
+    "repository": "NIZAM",
+    "root": "C:/Users/selsherb/NIZAM",
+    "defaultBranch": "master"
+  },
+  "systemPrompt": "prompts/system.txt",
+  "skills": [
+    "skills/contract-before-code/SKILL.md"
+  ],
+  "permissions": {
+    "read": [
+      "README.md",
+      "INDEX.md",
+      "BUILD_PLAN.md",
+      ".kiro/steering/**",
+      ".kiro/specs/**",
+      "contracts/**",
+      "docs/**",
+      "src/**",
+      "tests/**"
+    ],
+    "write": [
+      "contracts/**",
+      ".kiro/specs/**",
+      "docs/adr/**",
+      "docs/architecture/**",
+      "docs/**",
+      "profiles/nizam/**"
+    ],
+    "requiresApproval": [
+      "src/**",
+      "tests/**",
+      "scripts/**",
+      "ops/**",
+      "git commit",
+      "git push",
+      "live or external changes"
+    ],
+    "deny": [
+      "policy hidden only in implementation code",
+      "invented NIZAM rules",
+      "secrets or deployment particulars",
+      "execution of ops/GATE_REGISTER.md",
+      "destructive cleanup"
+    ]
+  },
+  "verification": {
+    "requiredArtifacts": [
+      "requirements.md",
+      "design.md",
+      "tasks.md",
+      "ADR when the decision is architectural"
+    ],
+    "implementationGate": "npm run verify:all -- --all"
+  }
+}

@@ -216,6 +216,31 @@ export function mulRatio(a: Money, num: number, den: number): Money {
   return assertMoney(Number(q + bump), 'mulRatio result');
 }
 
+/**
+ * Exact ceiling division of a NON-NEGATIVE money amount by a positive integer
+ * divisor. BigInt intermediate, so the result never depends on float rounding.
+ *
+ * Why this exists: scheduling a target ("fund 90000 over 4 months") needs the
+ * smallest integer per-period amount whose repetition reaches the total. The
+ * obvious `Math.ceil(a / den)` is a float divide on money, which money-rules
+ * rule 1 forbids, and it can round a mathematically-exact quotient up by one
+ * near the safe-integer ceiling. Negative amounts are rejected rather than
+ * given a sign convention nobody asked for.
+ */
+export function divCeil(a: Money, den: number): Money {
+  assertMoney(a);
+  if (a < 0) {
+    throw new TypeError(`NIZAM money: divCeil needs a non-negative amount, got ${a}`);
+  }
+  if (!Number.isSafeInteger(den) || den <= 0) {
+    throw new TypeError(`NIZAM money: divCeil needs a positive integer divisor, got ${den}`);
+  }
+  const n = BigInt(a);
+  const d = BigInt(den);
+  const q = n / d;
+  return assertMoney(Number(n % d === 0n ? q : q + 1n), 'divCeil result');
+}
+
 export function sum(values: readonly Money[]): Money {
   let total = 0;
   for (const v of values) total += assertMoney(v);

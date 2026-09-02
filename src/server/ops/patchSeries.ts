@@ -11,7 +11,7 @@
  *   no-deployment-particular scan, so a later widening of R24 moves every artifact at once)
  *
  * WHY THIS EXISTS. Steering section 6 forbids this repository's agent from cloning, fetching,
- * reading, modifying or pushing the life agent's repository. Three changes are nevertheless needed
+ * reading, modifying or pushing the life agent's repository. Four changes are nevertheless needed
  * there, so they are emitted HERE as reviewable text and applied LATER by a human in a session
  * opened on that repository. That arrangement has one characteristic failure mode, and it is not a
  * technical one: text that was written without a checkout can quietly start to read as though it had
@@ -61,15 +61,21 @@ import { scanForParticulars, type ComposeFinding } from './composeTemplate.ts';
 // The series, and what each artifact claims about itself
 // ---------------------------------------------------------------------------------------------
 
-/** The three changes, in apply order. The numbering IS the order (README section two). */
-export const PATCH_IDS = ['001', '002', '003'] as const;
+/** The four changes, in apply order. The numbering IS the order (README section two). */
+export const PATCH_IDS = ['001', '002', '003', '004'] as const;
 export type PatchId = (typeof PATCH_IDS)[number];
+
+/** The first three artifacts use the numbered specification shape; 004 is an explicitly labelled
+ * handoff note because its target paths must be reconciled against the real checkout first. */
+export const SPEC_IDS = ['001', '002', '003'] as const;
+export type SpecificationId = (typeof SPEC_IDS)[number];
 
 /** Relative to `ops/nizamcore-patches/`. One spelling, shared by the entry point and the tests. */
 export const PATCH_FILES: Readonly<Record<PatchId, string>> = {
   '001': '001-fastapi-wrapper.patch',
   '002': '002-dedup-per-bot.patch',
   '003': '003-signalbus-egress-target.patch',
+  '004': '004-hermes-profile-adapter.md',
 };
 
 export const PATCH_SUBDIR = 'nizamcore-patches';
@@ -144,8 +150,8 @@ export const REQUIRED_HEADER_FIELDS: readonly string[] = [
 ];
 
 /**
- * The five sections every specification must carry, in this order. A reviewer reads one shape three
- * times rather than three shapes once, and the order is the argument: why this is not a diff, what
+ * The five sections every numbered specification must carry, in this order. A reviewer reads one
+ * shape three times rather than three shapes once, and the order is the argument: why this is not a diff, what
  * must not change, the change, what a human must check, what the suite should do.
  */
 export const REQUIRED_SECTIONS: readonly string[] = [
@@ -383,6 +389,7 @@ export const DECLARED_DOTTED_TOKENS: readonly string[] = [
   '001-fastapi-wrapper.patch',
   '002-dedup-per-bot.patch',
   '003-signalbus-egress-target.patch',
+  '004-hermes-profile-adapter.md',
   'cross-repo-001.diff',
   'two-agent-vps.md',
   'NIZAM_TWO_AGENT_VPS_ARCHITECTURE.md',
@@ -594,6 +601,7 @@ const CONTENT_RULES: Readonly<Record<PatchId, readonly ContentRule[]>> = {
       why: 'a reviewer approving a new egress target needs to see what can travel through it',
     },
   ],
+  '004': [],
 };
 
 /**
@@ -672,7 +680,11 @@ export function auditPatchSeries(input: PatchSeriesAuditInput): readonly PatchFi
       note('ARTIFACT_UNREADABLE', `${id}: ${input.unreadable?.[id] ?? 'no source was supplied, so nothing about it was checked'}`);
       continue;
     }
-    auditOneSpecification(id, source, note);
+    if (SPEC_IDS.includes(id as SpecificationId)) {
+      auditOneSpecification(id as SpecificationId, source, note);
+    } else {
+      auditHermesHandoff(source, note);
+    }
   }
 
   if (input.readme === undefined) {
@@ -682,6 +694,30 @@ export function auditPatchSeries(input: PatchSeriesAuditInput): readonly PatchFi
   }
 
   return findings;
+}
+
+function auditHermesHandoff(source: string, note: (code: PatchFindingCode, detail: string) => void): void {
+  const id = '004';
+  auditParticulars(id, source, note);
+  auditAssignments(id, source.split(/\r?\n/), note);
+  auditApplicabilityClaims(id, flowOf(source), note);
+
+  const required = [
+    'Cross-repository change 004: Hermes profile adapter',
+    'Target repository:',
+    'Target branch:',
+    'Source commit inspected:',
+    'Status: locally tested in a temporary clone, not committed and not pushed',
+    'The existing local capture path remains active',
+    'The request body is supplied over stdin, never as a process argument',
+    'No key value belongs in source, arguments, logs, this patch note, or Drive.',
+    'Apply this change in the nizamcore repository, run its full test suite, and inspect the resulting',
+  ];
+  for (const anchor of required) {
+    if (!source.includes(anchor)) {
+      note('ARTIFACT_OUTSIDE_SUBSET', `${id} handoff note is missing the required boundary statement: ${anchor}`);
+    }
+  }
 }
 
 function auditParticulars(where: string, source: string, note: (code: PatchFindingCode, detail: string) => void): void {

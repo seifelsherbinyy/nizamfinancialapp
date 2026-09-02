@@ -15,6 +15,7 @@ import type { Obligation } from '@/features/obligations/obligation.types';
 import { DEFAULT_POLICY, type FinancialPolicy } from '@/features/safeToSpend/policy.types';
 import type { DecisionRecord } from '@/features/decisions/decisionRecord.types';
 import { DEFAULT_MACRO, type Asset, type FxRate, type MacroContext } from '@/features/netWorth/netWorth.types';
+import type { TransactionCandidate } from '@/lib/db/schema';
 
 interface KvRow {
   key: string;
@@ -72,6 +73,8 @@ export const KV = {
   assets: 'assets',
   fxRates: 'fxRates',
   macro: 'macro',
+  /** Step 6: candidate staging tier. */
+  transactionCandidates: 'transactionCandidates',
 } as const;
 
 export async function getKv<T>(cache: NizamCache, key: string): Promise<T | undefined> {
@@ -114,6 +117,7 @@ export async function writeDbToCache(cache: NizamCache, db: NizamDb): Promise<vo
       await cache.kv.put({ key: KV.assets, value: db.assets });
       await cache.kv.put({ key: KV.fxRates, value: db.fxRates });
       await cache.kv.put({ key: KV.macro, value: db.macro });
+      await cache.kv.put({ key: KV.transactionCandidates, value: db.transactionCandidates });
     },
   );
 }
@@ -136,6 +140,7 @@ export async function readDbFromCache(cache: NizamCache): Promise<NizamDb | null
   const assets = (await getKv<Asset[]>(cache, KV.assets)) ?? [];
   const fxRates = (await getKv<FxRate[]>(cache, KV.fxRates)) ?? [];
   const macro = (await getKv<MacroContext>(cache, KV.macro)) ?? { ...DEFAULT_MACRO };
+  const transactionCandidates = (await getKv<TransactionCandidate[]>(cache, KV.transactionCandidates)) ?? [];
   const db: NizamDb = {
     schemaVersion: SCHEMA_VERSION,
     meta,
@@ -151,6 +156,7 @@ export async function readDbFromCache(cache: NizamCache): Promise<NizamDb | null
     assets: assets.sort((a, b) => a.id.localeCompare(b.id)),
     fxRates: fxRates.sort((a, b) => a.currency.localeCompare(b.currency)),
     macro,
+    transactionCandidates,
   };
   return validateDb(db);
 }

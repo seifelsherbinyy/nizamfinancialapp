@@ -565,7 +565,7 @@ export function documentsBuildPath(record: string, recipe: string, reference: st
 // ---------------------------------------------------------------------------------------------
 
 export interface PortPostureInput {
-  /** `ops/GATE_REGISTER.md` - where the firewall posture and the resolution are recorded. */
+  /** `ops/DEPLOYMENT_CONTROL.md` - where the firewall posture and resolution are recorded. */
   readonly register: string;
   /** `ops/docker-compose.yml` - what is actually bound. */
   readonly compose: string;
@@ -760,7 +760,7 @@ export function auditImageOwnershipFiles(root: string): ImageOwnershipReport {
 /** The R30 audit against the real tree. An unreadable artifact yields the empty string, which fails closed. */
 export function auditPortPostureFiles(root: string): readonly ImageOwnershipFinding[] {
   return auditPortPosture({
-    register: readOrNull(join(root, 'ops/GATE_REGISTER.md')) ?? '',
+    register: readOrNull(join(root, 'ops/DEPLOYMENT_CONTROL.md')) ?? '',
     compose: readOrNull(join(root, 'ops/docker-compose.yml')) ?? '',
     proxyConfig: readOrNull(join(root, 'ops/Caddyfile')) ?? '',
     record: readOrNull(join(root, 'ops/IMAGE_BUILD.md')) ?? '',

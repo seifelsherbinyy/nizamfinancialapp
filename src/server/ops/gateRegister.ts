@@ -1,5 +1,5 @@
 /**
- * NIZAM · Structural audit of the human gate register (ops/GATE_REGISTER.md)
+ * NIZAM · Structural audit of the deployment control record (ops/DEPLOYMENT_CONTROL.md)
  * Implemented by: PFOS Contract 12 / Phase 9.3 (spec 06-two-agent-vps)
  * Owning requirements: R23 (a human gate is recorded with its reason, its steps and its
  *   verification, and is never attempted or claimed done), R24 (no deployment particular, and in
@@ -9,7 +9,7 @@
  *   and `parseEnvTemplate` - the ONE environment vocabulary, read rather than restated). The audit
  *   itself is a pure function over text, with the on-disk existence probe injected.
  *
- * WHY THIS EXISTS. The register is read today by `./runbookTemplate` for its gate list and scanned
+ * WHY THIS EXISTS. The control record is read today by `./runbookTemplate` for its gate list and scanned
  * by `./deploymentParticulars` for a deployment particular, and neither of those holds it to the
  * standard the document is written to meet: a competent human, holding only this file, can stand
  * the deployment up. Nothing checked that the gates were all still there, that each still carried
@@ -730,8 +730,8 @@ function auditPerformedClaims(doc: RegisterDoc, note: (code: GateRegisterFinding
 // The file entry point
 // ---------------------------------------------------------------------------------------------
 
-/** One spelling of the register's file name, shared by the entry point and the tests. */
-export const GATE_REGISTER_FILE = 'GATE_REGISTER.md';
+/** One spelling of the active control record, shared by the entry point and the tests. */
+export const DEPLOYMENT_CONTROL_FILE = 'DEPLOYMENT_CONTROL.md';
 /** The environment template directory, relative to `ops/`. */
 export const ENV_SUBDIR = 'env';
 
@@ -762,7 +762,7 @@ export function readEnvTemplates(envDir: string): Readonly<Record<string, string
  * than no checker, because the harness still reports green.
  */
 export function auditGateRegisterFiles(opsDir: string, repoRoot: string): GateRegisterReport {
-  const path = join(opsDir, GATE_REGISTER_FILE);
+  const path = join(opsDir, DEPLOYMENT_CONTROL_FILE);
   let source: string | null = null;
   let unreadable: string | undefined;
   try {

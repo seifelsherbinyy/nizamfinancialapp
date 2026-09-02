@@ -4,6 +4,7 @@
  * Depends on: lib/money/money.ts
  */
 import type { Money } from '@/lib/money/money';
+import type { CurrencyCode } from '@/lib/money/currency';
 
 /** Account types. The first three mirror the user's real accounts (steering tech.md). */
 export const ACCOUNT_TYPES = [
@@ -28,6 +29,12 @@ export interface Account {
   type: AccountType;
   /** On-budget accounts participate in the zero-based budget; tracking accounts do not. */
   onBudget: boolean;
+  /**
+   * Native denomination of this account. Every `Money` on this account is an
+   * integer count of milliunits OF THIS CURRENCY (C6 I1.1-I1.2). Required, never
+   * inferred: an absent currency silently read as EGP would misstate money.
+   */
+  currency: CurrencyCode;
   /** Cached working balance (signed milliunits) — derived from transactions. */
   balance: Money;
   /** Cached cleared balance (signed milliunits). */

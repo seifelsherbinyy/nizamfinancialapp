@@ -1,0 +1,18 @@
+# Hermes ingress configuration template for the single-window NIZAM Slack gateway.
+# All deployment values (channel IDs, allowed users) remain in the protected environment file.
+model:
+  default: xiaomi/mimo-v2.5
+  provider: openrouter
+slack:
+  require_mention: true
+  unauthorized_dm_behavior: ignore
+platforms:
+  slack:
+    reply_to_mode: first
+    extra:
+      reply_in_thread: true
+      reply_broadcast: false
+      allow_bots: none
+      rich_blocks: true
+      feedback_buttons: true
+      assistant_thread_titles: true

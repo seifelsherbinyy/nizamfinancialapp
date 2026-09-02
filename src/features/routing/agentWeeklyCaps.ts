@@ -39,7 +39,7 @@
  *  - `loadAgentModelBinding` reads `FINANCE_WEEKLY_CAP` / `LIFE_WEEKLY_CAP` as `weeklyCapMicroUsd` — a
  *    **bare run of digits** in the ledger's integer accounting unit, where a decimal is **refused
  *    rather than rounded**, because there is no floating-point money in this repository.
- *  - `ops/GATE_REGISTER.md` G4 step 2 interpolates the **same placeholder** into the provider's
+ *  - `ops/DEPLOYMENT_CONTROL.md` G4 step 2 interpolates the **same placeholder** into the provider's
  *    key-creation body as `"limit": <FINANCE_WEEKLY_CAP>`, where the provider's field takes a
  *    **decimal** amount.
  *
@@ -62,7 +62,7 @@
  * The provider-facing name is deliberately **not** an environment entry: it is a value the operator
  * interpolates into one gate command and never stores, so adding it to `ops/env/*.env.example` would
  * create a seventh unowned entry in a file set the value ledger enumerates exactly.
- * `ops/GATE_REGISTER.md` was **not edited** — it outranks this module on gate verification. The
+ * `ops/DEPLOYMENT_CONTROL.md` was **not edited** — it outranks this module on gate verification. The
  * one-line change its G4 step needs is recorded as a recommendation for the owner in the build log.
  */
 import { WEEKLY_BUDGET_USD } from './modelPolicy.ts';

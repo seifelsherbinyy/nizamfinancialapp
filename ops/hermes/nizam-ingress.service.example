@@ -1,0 +1,22 @@
+# Install only after the activation checklist is complete and legacy Telegram pollers are stopped.
+[Unit]
+Description=NIZAM single-window Hermes Slack gateway
+After=<NETWORK_READY_TARGET>
+Wants=<NETWORK_READY_TARGET>
+
+[Service]
+Type=simple
+User=<HERMES_USER>
+Environment=HERMES_HOME=<NIZAM_INGRESS_HERMES_HOME>
+EnvironmentFile=<NIZAM_INGRESS_HERMES_ENV_PATH>
+ExecStart=<HERMES_EXECUTABLE> gateway run
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=<NIZAM_INGRESS_HERMES_HOME>
+
+[Install]
+WantedBy=<MULTI_USER_TARGET>

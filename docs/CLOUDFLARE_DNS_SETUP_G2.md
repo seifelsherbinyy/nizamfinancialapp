@@ -1,6 +1,6 @@
 # Point the two hostnames at the host (gate G2) - operator walkthrough
 
-> **Register:** `ops/GATE_REGISTER.md` section G2 is the authority on what this gate means and how it is
+> **Control record:** `ops/DEPLOYMENT_CONTROL.md` section G2 is the authority on what this gate means and how it is
 > verified. This file is the click-by-click half the register deliberately does not carry.
 > **Contract:** PFOS 12 section 2.2.1 to 2.2.4 (one public port, automatic TLS, two hostnames, and the
 > secret path segment that must not reach a proxy log), section 3.1 (one environment file per service).
@@ -36,7 +36,7 @@ verify by resolution rather than by looking at the console.
 3. **"Is G2 done?" is answered by resolution, not by this file.** Two `dig` answers that equal the host
    address recorded in the untracked particulars file, and nothing else. A document asserting a gate is
    complete is not evidence.
-4. **If this file disagrees with `ops/GATE_REGISTER.md`, `ops/Caddyfile`, or `ops/env/proxy.env.example`,
+4. **If this file disagrees with `ops/DEPLOYMENT_CONTROL.md`, `ops/Caddyfile`, or `ops/env/proxy.env.example`,
    those win** and this file is the bug. Report the disagreement, do not reconcile it silently.
 
 ## Before you start

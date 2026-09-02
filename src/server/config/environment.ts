@@ -601,6 +601,11 @@ export const SERVICE_ENTRY_NAMES: Readonly<Record<DeploymentService, readonly st
     'FINANCE_WEEKLY_CAP',
     'MODEL_ELIGIBILITY_REGISTRY_PATH',
     'BUS_INTERNAL_ENDPOINT',
+    'KNOWLEDGE_DRIVE_ROOT_ID',
+    'KNOWLEDGE_DRIVE_REFRESH_TOKEN',
+    'KNOWLEDGE_DRIVE_CLIENT_ID',
+    'KNOWLEDGE_DRIVE_CLIENT_SECRET',
+    'KNOWLEDGE_DRIVE_TOKEN_URL',
     'KILL_SENTINEL_PATH',
     'NIZAM_KILL_ALL',
   ]),
@@ -662,13 +667,20 @@ export function serviceEntryNames(service: DeploymentService): readonly string[]
 /**
  * Entries whose ABSENCE is a decision rather than a mistake, and therefore not a finding.
  *
- * `ALLOWED_USER_IDS` is the whole of this list and R25 is why: an absent, empty, or whitespace-only
- * allowlist parses to an EMPTY list, and `senderIsAllowlisted` refuses every sender under it — so
- * the unconfigured case is already closed, and refusing the boot as well would refuse a
- * configuration that means "nobody". An UNFILLED PLACEHOLDER is still a finding here, because that
- * is a template nobody completed rather than a list somebody emptied.
+ * The allowlist is a decision because an absent, empty, or whitespace-only value parses to an EMPTY
+ * list, and `senderIsAllowlisted` refuses every sender under it. The Drive knowledge entries are
+ * optional capability inputs: when all five are absent, the finance agent deliberately runs in
+ * offline-knowledge mode. A partial Drive set or an UNFILLED PLACEHOLDER is still a finding here,
+ * because it is a configuration someone started but did not complete.
  */
-export const ABSENCE_IS_A_DECISION: readonly string[] = Object.freeze([SHARED_ENTRIES.allowedSenderIds]);
+export const ABSENCE_IS_A_DECISION: readonly string[] = Object.freeze([
+  SHARED_ENTRIES.allowedSenderIds,
+  'KNOWLEDGE_DRIVE_ROOT_ID',
+  'KNOWLEDGE_DRIVE_REFRESH_TOKEN',
+  'KNOWLEDGE_DRIVE_CLIENT_ID',
+  'KNOWLEDGE_DRIVE_CLIENT_SECRET',
+  'KNOWLEDGE_DRIVE_TOKEN_URL',
+]);
 
 // ---------------------------------------------------------------------------------------------
 // The aggregate refusal: every finding named in ONE message (R27)

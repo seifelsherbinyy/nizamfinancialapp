@@ -599,7 +599,7 @@ ops/env/*.env.example          one per service, placeholders only
 ops/backup/                    consistent snapshot, public-key encrypt, shred, verified upload
 ops/restore/                   decrypt off-host, integrity check, throwaway boot
 ops/systemd/                   unit and timer templates
-ops/GATE_REGISTER.md           the human-gated items, with exact steps (§9)
+ops/DEPLOYMENT_CONTROL.md      the human-gated items, with exact steps (§9)
 ops/nizamcore-patches/         reviewable patch series for the other repository (steering §6)
 ```
 
@@ -642,7 +642,7 @@ Rules:
 Steering §2 relocates the wall from *the area* to *the network and secret boundary*. Everything behind
 that boundary is buildable now. Everything on it requires a human.
 
-**These items must appear in `ops/GATE_REGISTER.md` with their exact steps, must never be attempted by
+**These items must appear in `ops/DEPLOYMENT_CONTROL.md` with their exact steps, must never be attempted by
 an automated agent, and must never be reported as done.** Marking a gated item complete is the single
 most damaging thing an agent could do here, because it converts a known gap into an invisible one.
 
@@ -1189,7 +1189,7 @@ Appendix A, Appendix B;
       "type": "object",
       "required": ["path", "gated", "closed_wont_do", "attempt_permitted", "report_as_done_permitted", "invent_secret_permitted", "weaken_gate_permitted"],
       "properties": {
-        "path": {"const": "ops/GATE_REGISTER.md"},
+        "path": {"const": "ops/DEPLOYMENT_CONTROL.md"},
         "gated": {
           "type": "array",
           "minItems": 7,

@@ -129,6 +129,17 @@ export {
   type TelegramTransportClient,
   type TelegramUpdateBatch,
 } from './liveTransport.ts';
+// UPOI task 5.1 — authenticated operator composition over the existing Telegram and queue paths.
+export {
+  createDurableOperatorQueueAdapter,
+  createOperatorMessagePort,
+  OPERATOR_DELIVERY_REFUSED,
+  type DurableOperatorQueueAdapter,
+  type OperatorAcceptDecision,
+  type OperatorMessagePort,
+  type OperatorMessagePortContext,
+  type OperatorRefusalCode,
+} from './operatorMessagePort.ts';
 // Spec 07 task B4 (seams S1/S2) — the ONE outbound messaging request. The socket is a parameter, so
 // importing this grants no ability to reach anything; `gatedProviderRequest` is what the process
 // wires until G3 and G6 are done. There is deliberately no exported request function that dials.

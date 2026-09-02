@@ -68,7 +68,7 @@ that the cadence does not support.
 ## The rebuild path
 
 The order is §7.5's, and each step is gated where the contract gates it. Steps 1, 3 and 5 are
-**human gates** from `ops/GATE_REGISTER.md` and must not be attempted by an automated agent, nor
+**human gates** from `ops/DEPLOYMENT_CONTROL.md` and must not be attempted by an automated agent, nor
 reported as done (**R23**).
 
 ### Step 1 - Provision a fresh host and harden it (gate G1)
@@ -77,7 +77,7 @@ The whole hardening checklist, to the end, finishing with the root-owned configu
 that will hold the environment files. G1 is the trust root; a rebuild that skips part of it produces
 a host that is running but not trustworthy, which is the harder failure to notice.
 
-**VERIFY:** every line of the G1 verification block in `ops/GATE_REGISTER.md` holds on the new host,
+**VERIFY:** every line of the G1 verification block in `ops/DEPLOYMENT_CONTROL.md` holds on the new host,
 including the negative one - a password login attempt from another machine is refused rather than
 prompted.
 

@@ -5877,3 +5877,30 @@ an unknown identity with `ENV_AGENT_UNKNOWN` rather than defaulting it.
 no gate performed or claimed. What remains between a delivered message and a model-generated reply is now
 **only** the owner's: **G3** (the bot token), **G4** (the model credential) and **D-BENCH** → **B8** (one
 authorised pass, a measured registry). No code change is needed when any of them lands.
+## Wave 1 — Authority and contract reconciliation · COMPLETE · 2026-08-15
+
+The approved production-controller Wave 1 added the NIZAM-derived, non-superseding v1.4 delta
+(`13_NIZAM_v1.4_Production_Controller_Delta.md`), a sanitized Phase 0 runtime inventory, an expected-
+versus-actual gap matrix, a HIMAYAH classification, a Drive-safe packet, and a THABAT continuity receipt.
+The delta preserves v1.3 authority until separately accepted and does not change any human-only gate.
+
+Evidence observed in this wave: the local repository gate reached 18 of 20, with only working-tree
+cleanliness and push-readiness failing; a read-only probe reached the existing OVHcloud host; no Hermes
+runtime, NIZAM/PFOS checkout, application container, application service, JavaScript runtime, or application
+listener was observed. The artifacts contain no secrets, credentials, identifiers, hostnames, addresses,
+webhook paths, personal ledgers, raw journals, or strict-local content.
+
+The deliberate tamper proof was performed in memory: forbidden deployment/secret claims were injected into
+the packet and detected, then the original content was restored without leaving a tampered artifact. The
+sanitized packet was classified `review_before_commit` and is eligible for Drive-safe mirror with mandatory
+destination read-back. G1–G8 were not performed or marked complete; G7 remains WONT-DO.
+
+
+## Contract 14 single-window ingress and Option B router · 2026-08-24
+
+Owner approved Option B: one new primary Telegram bot as the live window, with internal dual
+profiles retained. Added the NIZAM-derived Contract 14, the non-secret alias registry, ingress
+Hermes templates, ingress policy, and a deterministic ingress router with tests. Legacy
+`BOT_A_TOKEN` / `BOT_B_TOKEN` are documented `DEPRECATED_PENDING_REVOKE` and are not revoked by
+this increment. No secret value was read, written, or committed. G1–G8 were not performed.
+No VPS mutation, no nizamcore mutation, no commit, and no `NIZAM_UNIFIED_RUNTIME_READY` claim.

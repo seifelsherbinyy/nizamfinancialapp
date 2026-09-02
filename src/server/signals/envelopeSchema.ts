@@ -44,6 +44,9 @@ export { CONSENT_SCOPES, SIGNAL_DIRECTIONS, SIGNAL_KINDS, SIGNAL_LEVELS, SIGNAL_
 /** The vendored document's identifier. A URN, because the repository holds no absolute URI. */
 export const SIGNAL_ENVELOPE_SCHEMA_ID = 'urn:nizam:signalbus:envelope:1';
 
+/** The vendored envelope's explicit version, kept beside its schema identifier. */
+export const SIGNAL_ENVELOPE_SCHEMA_VERSION = 1 as const;
+
 /** The vendored document's file name, beside this module. Both agents read this same file. */
 export const SIGNAL_ENVELOPE_SCHEMA_FILE = 'nizam-signalbus.envelope.schema.json';
 

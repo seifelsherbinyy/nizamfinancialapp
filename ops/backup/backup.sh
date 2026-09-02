@@ -60,7 +60,7 @@
 # write-ahead-logged database must be able to write that database's shared-memory index sidecar. A
 # read-only mount does not permit that, and §3.2.2 requires the mount to be read-only. The two rules
 # meet here. The resolution is an operator determination at the first-backup step of
-# ops/GATE_REGISTER.md, and it has exactly two acceptable outcomes, now RANKED:
+# ops/DEPLOYMENT_CONTROL.md, and it has exactly two acceptable outcomes, now RANKED:
 #
 #   OUTCOME B - THE DOCUMENTED DEFAULT. The snapshot statement is issued from inside the owning
 #   service, which already holds the shared-memory sidecar as its single writer, and the resulting

@@ -316,6 +316,15 @@ export const ENTRY_SPECS: Readonly<Record<string, EntrySpec>> = {
     why: 'the bus listens on it and the two agents are its only clients (BUS_NETWORK_BINDING item 4); it is an internal-network address on a network with no gateway, so it is unreachable from outside by construction rather than by secrecy',
   },
 
+  // --- the optional finance-agent Drive knowledge reader ------------------------------------
+  // This is a separate optional owner capability, not the backup consent gate. Keeping it under
+  // `operator` preserves the human-only G5 register and prevents the two Drive grants being mixed.
+  KNOWLEDGE_DRIVE_ROOT_ID: { owners: [FINANCE_TEMPLATE], gate: 'operator', secret: false },
+  KNOWLEDGE_DRIVE_REFRESH_TOKEN: { owners: [FINANCE_TEMPLATE], gate: 'operator', secret: true },
+  KNOWLEDGE_DRIVE_CLIENT_ID: { owners: [FINANCE_TEMPLATE], gate: 'operator', secret: false },
+  KNOWLEDGE_DRIVE_CLIENT_SECRET: { owners: [FINANCE_TEMPLATE], gate: 'operator', secret: true },
+  KNOWLEDGE_DRIVE_TOKEN_URL: { owners: [FINANCE_TEMPLATE], gate: 'operator', secret: false },
+
   // --- the bus -------------------------------------------------------------------------------
   SIGNALS_DATA_DIR: { owners: [BUS_TEMPLATE], gate: 'G1', secret: false },
   SIGNALS_STORE_FILE: { owners: [BUS_TEMPLATE], gate: 'operator', secret: false },
@@ -369,6 +378,9 @@ export const PORT_SOURCE_FILES: readonly string[] = [
   'ports/signalBus.ts',
   'ports/whoop.ts',
   'ports/drive.ts',
+  'ingest/driveKnowledge.ts',
+  'ingest/googleDriveKnowledgeClient.ts',
+  'config/knowledgeEnvironment.ts',
   'db/connection.ts',
 ];
 
@@ -387,6 +399,11 @@ export const CODE_BINDINGS: readonly CodeBinding[] = [
   { entry: KILL_SENTINEL_ENTRY, source: 'ports/openrouter.ts', field: 'killSwitchSentinelPathRef' },
   { entry: 'MODEL_ELIGIBILITY_REGISTRY_PATH', source: 'ports/openrouter.ts', field: 'eligibilityRegistryPathRef' },
   { entry: 'BUS_INTERNAL_ENDPOINT', source: 'ports/signalBus.ts', field: 'internalEndpointRef' },
+  { entry: 'KNOWLEDGE_DRIVE_ROOT_ID', source: 'ingest/driveKnowledge.ts', field: 'rootFolderId' },
+  { entry: 'KNOWLEDGE_DRIVE_REFRESH_TOKEN', source: 'config/knowledgeEnvironment.ts', field: 'refreshToken' },
+  { entry: 'KNOWLEDGE_DRIVE_CLIENT_ID', source: 'config/knowledgeEnvironment.ts', field: 'clientId' },
+  { entry: 'KNOWLEDGE_DRIVE_CLIENT_SECRET', source: 'config/knowledgeEnvironment.ts', field: 'clientSecret' },
+  { entry: 'KNOWLEDGE_DRIVE_TOKEN_URL', source: 'config/knowledgeEnvironment.ts', field: 'tokenUrl' },
   { entry: 'WHOOP_API_BASE', source: 'ports/whoop.ts', field: 'apiBaseUrlRef' },
   { entry: 'WHOOP_ACCESS_TOKEN', source: 'ports/whoop.ts', field: 'accessTokenRef' },
   { entry: 'BACKUP_FOLDER_REF', source: 'ports/drive.ts', field: 'folderRef' },
@@ -764,7 +781,7 @@ function auditEntry(template: string, entry: EnvEntry, note: (code: EnvFindingCo
   if (gate !== null && gate !== '' && gate !== spec.gate) {
     note(
       'ENTRY_GATE_UNKNOWN',
-      `${at} names gate "${gate}" but ops/GATE_REGISTER.md supplies it at ${spec.gate}; a value attributed to the wrong gate is a value the operator looks for in the wrong place`,
+      `${at} names gate "${gate}" but ops/DEPLOYMENT_CONTROL.md supplies it at ${spec.gate}; a value attributed to the wrong gate is a value the operator looks for in the wrong place`,
     );
   }
 }

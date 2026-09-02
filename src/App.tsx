@@ -38,6 +38,7 @@ const NAV: { path: RoutePath; label: string }[] = [
 function SyncBadge() {
   const sessionStatus = useNizamStore((s) => s.sessionStatus);
   const syncStatus = useNizamStore((s) => s.syncStatus);
+  const sessionError = useNizamStore((s) => s.sessionError);
   const connectDrive = useNizamStore((s) => s.connectDrive);
   const disconnect = useNizamStore((s) => s.disconnect);
 
@@ -59,6 +60,13 @@ function SyncBadge() {
           {sessionStatus === 'signingIn' ? 'Connecting…' : 'Connect Google Drive'}
         </button>
       )}
+      {/* connectDrive() records the failure reason in sessionError; without this the
+          button silently returns to its resting label and the cause is unreadable. */}
+      {sessionStatus !== 'signedIn' && sessionError !== null ? (
+        <p className="sidebar-footer-error" role="alert">
+          {sessionError}
+        </p>
+      ) : null}
     </div>
   );
 }

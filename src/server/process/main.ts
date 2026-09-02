@@ -60,6 +60,7 @@ import {
   processEnvSource,
   type EnvSource,
 } from '../config/environment.ts';
+import { loadKnowledgeDriveConfig } from '../config/knowledgeEnvironment.ts';
 import { probeExitCode, probeReadiness, reportForRefusedInvocation, type ReadinessReport } from '../ops/healthProbe.ts';
 import { createModelChannel } from '../routing/turnDispatch.ts';
 import { TELEGRAM_SECRET_TOKEN_HEADER } from '../telegram/auth.ts';
@@ -80,6 +81,8 @@ import {
 } from '../model/modelProvider.ts';
 import { openFinanceStore } from '../db/store.ts';
 import { createRedactedLogger } from '../ops/redactedLogger.ts';
+import { createGoogleDriveKnowledgeClient } from '../ingest/googleDriveKnowledgeClient.ts';
+import { createDriveKnowledgeManager } from '../ingest/driveKnowledge.ts';
 import type { TelegramAcceptDecision, TelegramDelivery } from '../ports/telegram.ts';
 import type { ModelRequest, ModelResult, OpenRouterPort } from '../ports/openrouter.ts';
 import {
@@ -381,6 +384,20 @@ export function selectModelDial(env: EnvSource): ModelDialFn {
 export function financeAgentDependenciesFromHost(botId: string): FinanceAgentDependencies {
   const env = processEnvSource();
   const sentinelPath = String(env.KILL_SENTINEL_PATH ?? '');
+  let knowledge: FinanceAgentDependencies['knowledge'];
+  let knowledgeConfigError: Error | undefined;
+  try {
+    const knowledgeConfig = loadKnowledgeDriveConfig(env);
+    knowledge = knowledgeConfig === null
+      ? undefined
+      : createDriveKnowledgeManager({
+          client: createGoogleDriveKnowledgeClient(knowledgeConfig),
+          rootFolderId: knowledgeConfig.rootFolderId,
+          now: wallClock,
+        });
+  } catch (cause) {
+    knowledgeConfigError = cause instanceof Error ? cause : new Error(String(cause));
+  }
   // Task B6 (seam S3): the real model provider module, in place of the port that threw for every
   // request. It composes the body, resolves this agent's credential through the loader that owns its
   // entry name, judges the answer with the SHARED benchmark-path reader, and records what §6.4 permits
@@ -475,7 +492,12 @@ export function financeAgentDependenciesFromHost(botId: string): FinanceAgentDep
       // `readInboundTurn` is pure, so reading it once per seam is the same read twice.
       planTurnRequest: (item) => {
         const turn = readInboundTurn(item);
-        return turnRequestPlanner({ agent: FINANCE_AGENT, turnRef: turn.turnRef, text: turn.text });
+        return turnRequestPlanner({
+          agent: FINANCE_AGENT,
+          turnRef: turn.turnRef,
+          text: turn.text,
+          knowledgeContext: knowledge?.contextFor(turn.text ?? ''),
+        });
       },
     }),
     listenerHost: createNodeHttpListenerHost(wallClock, botId),
@@ -499,6 +521,8 @@ export function financeAgentDependenciesFromHost(botId: string): FinanceAgentDep
     send: SEND_RETRY_POLICY,
     retry: WORK_RETRY_POLICY,
     modelChannel: channel,
+    knowledge,
+    knowledgeConfigError,
   };
 }
 

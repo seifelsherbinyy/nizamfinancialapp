@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "3.0",
+  "metadata": {
+    "name": "nizam-builder",
+    "displayName": "NIZAM Builder",
+    "description": "Personal NIZAM developer — systematic, offline-first, test-driven, safety-first",
+    "author": "nizam-owner",
+    "version": "1.0.0",
+    "orderId": 30,
+    "visible": true,
+    "platforms": ["windows"]
+  },
+  "llm": {
+    "provider": "bedrock",
+    "modelId": "Claude Sonnet 4.6",
+    "temperature": 0.4,
+    "reasoning": {
+      "enabled": true,
+      "thinkingEffort": "medium"
+    },
+    "effort": "medium",
+    "retry": {
+      "maxRetries": 5,
+      "minDelaySecs": 1.0,
+      "maxDelaySecs": 30.0
+    }
+  },
+  "tools": {
+    "permissions": {
+      "deny": [
+        "Bash(*ops/GATE_REGISTER*)",
+        "Bash(*setWebhook*)",
+        "Bash(*git reset --hard*)",
+        "Bash(*git clean*)",
+        "Bash(*rm -rf*)",
+        "Bash(*Remove-Item* -Recurse*)",
+        "Bash(*agent spawn*)"
+      ],
+      "allow": [
+        "Bash(*mwinit*)",
+        "Bash(*agent message*)",
+        "Write({workspace}/src/**)",
+        "Write({workspace}/tests/**)",
+        "Write({workspace}/docs/**)",
+        "Write({workspace}/contracts/**)",
+        "Write({workspace}/.kiro/specs/**)"
+      ],
+      "requireApproval": [
+        "Bash(*git commit*)",
+        "Bash(*git push*)",
+        "Bash(*npm install*)",
+        "Bash(*npm ci*)",
+        "Bash(*curl*)",
+        "Bash(*Invoke-WebRequest*)",
+        "Bash(*Start-Process*)",
+        "Write({workspace}/.env.local)",
+        "Write({workspace}/.secrets/**)",
+        "Edit({workspace}/.env.local)",
+        "Edit({workspace}/.secrets/**)"
+      ]
+    }
+  },
+  "prompts": {
+    "systemPromptFile": "prompts/nizam-builder.txt",
+    "additionalFiles": [
+      "{workspace}/AGENTS.md"
+    ]
+  },
+  "context": {
+    "summarizationEnabled": true,
+    "summarizationThresholdTokens": 190000
+  },
+  "defaultMode": "act",
+  "enableMemory": true,
+  "marketplaceSkills": [
+    "verify",
+    "write-tests",
+    "review-code"
+  ],
+  "teammates": {
+    "teammate-general": "General-purpose helper for bounded repository tasks",
+    "nizam-verifier": "Independent NIZAM acceptance and invariant verifier",
+    "nizam-architect": "NIZAM contracts, specifications, and architecture planner"
+  },
+  "ui": {
+    "color": "teal",
+    "starters": [
+      "start-coding",
+      "nizam-task-scoping",
+      "nizam-verify-change"
+    ],
+    "tips": [
+      "I follow Research → Plan → Implement → Verify.",
+      "I preserve NIZAM's integer-money, privacy, and human-gate boundaries.",
+      "I use deterministic mocks for external integrations."
+    ]
+  }
+}

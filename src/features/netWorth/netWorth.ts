@@ -16,32 +16,43 @@ import type { Account } from '@/features/accounts/accounts.types';
 import { isCreditType } from '@/features/accounts/accounts.types';
 import type { Money } from '@/lib/money/money';
 import { add, sub, sum, mulRatio, cmp } from '@/lib/money/money';
+import { type Conversion, convertMoney, describeUnconvertible } from '@/lib/money/fx';
 import { reserveFor } from '@/features/obligations/obligation.types';
 import type { Asset, FxRate, MacroContext, CurrencyCode } from './netWorth.types.ts';
 import { BASE_CURRENCY, DEFAULT_MACRO } from './netWorth.types.ts';
 
 const BPS = 10_000;
 
+/**
+ * Throwing adapter over the money core's FX policy (`@/lib/money/fx`).
+ *
+ * Step 3 moved rate selection, provenance and refusal into the money core, so no FX arithmetic
+ * lives in this feature any more; there is one code path. These three wrappers keep the original
+ * signatures and the original "never silently zero, throw instead" behaviour for existing callers.
+ * A caller that wants to RENDER an unconvertible figure rather than crash should call
+ * `convertMoney` directly and read the `Unconvertible` branch.
+ */
+function orThrow(result: Conversion, from: CurrencyCode, to: CurrencyCode): Money {
+  if (result.ok) return result.amount;
+  throw new Error(`NIZAM net-worth: no FX rate for ${from}->${to} — ${describeUnconvertible(result)}`);
+}
+
 /** Convert `amount` (milliunits of `from`) into EGP milliunits via the rate table. */
 export function toEgp(amount: Money, from: CurrencyCode, fx: readonly FxRate[]): Money {
-  if (from === BASE_CURRENCY) return amount;
-  const rate = fx.find((r) => r.currency === from);
-  if (!rate) throw new Error(`NIZAM net-worth: no FX rate for ${from}->${BASE_CURRENCY}`);
-  return mulRatio(amount, rate.perUnitNum, rate.perUnitDen);
+  return orThrow(convertMoney(amount, from, BASE_CURRENCY, fx), from, BASE_CURRENCY);
 }
 
 /** Convert EGP milliunits into `to` milliunits (inverse rate). */
 export function fromEgp(egp: Money, to: CurrencyCode, fx: readonly FxRate[]): Money {
-  if (to === BASE_CURRENCY) return egp;
-  const rate = fx.find((r) => r.currency === to);
-  if (!rate) throw new Error(`NIZAM net-worth: no FX rate for ${BASE_CURRENCY}->${to}`);
-  return mulRatio(egp, rate.perUnitDen, rate.perUnitNum);
+  return orThrow(convertMoney(egp, BASE_CURRENCY, to, fx), BASE_CURRENCY, to);
 }
 
-/** Convert between any two currencies through the EGP base. */
+/**
+ * Convert between any two currencies. Unlike the pre-Step-3 version this does NOT round through
+ * EGP on the way: a cross rate composes one integer ratio and rounds once.
+ */
 export function convert(amount: Money, from: CurrencyCode, to: CurrencyCode, fx: readonly FxRate[]): Money {
-  if (from === to) return amount;
-  return fromEgp(toEgp(amount, from, fx), to, fx);
+  return orThrow(convertMoney(amount, from, to, fx), from, to);
 }
 
 /** On-budget, non-credit, non-tracking, open accounts hold reference cash (already EGP). */

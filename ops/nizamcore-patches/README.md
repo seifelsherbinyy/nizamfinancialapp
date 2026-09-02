@@ -8,7 +8,7 @@
 
 ## What these files are, and what they are not
 
-Three changes are needed in the OTHER repository - the life agent's - before the two-agent
+Four changes are needed in the OTHER repository - the life agent's - before the two-agent
 deployment can stand up. Steering section 6 says the agent working in this repository must not
 clone, fetch, read, modify or push that repository. So the changes are emitted here, as reviewable
 text, and applied later by a human in a session opened on that repository.
@@ -18,6 +18,7 @@ text, and applied later by a human in a session opened on that repository.
 | `001-fastapi-wrapper.patch` | Serve the existing update handler over an ASGI application; add a readiness endpoint | change specification |
 | `002-dedup-per-bot.patch` | Key the dedup store on the pair `(bot_id, update_id)` rather than the identifier alone | change specification |
 | `003-signalbus-egress-target.patch` | Add a `signalbus` egress target for the two narrow tiers only | change specification |
+| `004-hermes-profile-adapter.md` | Replace the coordinator stub with a fail-closed Hermes one-shot boundary | locally tested handoff note |
 
 **They are not applicable diffs, and they do not pretend to be.** A unified diff needs three
 things: the target paths, the changed lines, and enough surrounding context to locate each hunk.
@@ -45,7 +46,7 @@ policy document. Those are the reconciliation points, not afterthoughts.
 
 ## Apply order, and why this order
 
-**001, then 002, then 003.** The numbering is the order. It is not arbitrary and it is not
+**001, then 002, then 003, then 004.** The numbering is the order. It is not arbitrary and it is not
 alphabetical convenience.
 
 **001 first, because it is purely additive.** It creates two new files and adds two dependency
@@ -59,16 +60,24 @@ dedup file changes shape, and a format change wants to land when the surface abo
 settled and green. Applying it before 001 would mean changing a call site inside a request handler
 that is about to be replaced - doing the same edit twice, with two chances to get it wrong.
 
-**003 last, for two reasons.** It is independent of the transport entirely: it touches the governor
-and the policy document, not the relay, so nothing in 001 or 002 blocks it and nothing in it blocks
-them. And it is the only change in the series that **widens what may leave the machine**. It should
-land when the two mechanical changes are already green, so that if an egress regression ever
-appears, a bisect lands on a one-concern change instead of on a commit that also moved the
+**003 third, for two reasons.** It is independent of the transport entirely: it touches the
+governor and the policy document, not the relay, so nothing in 001 or 002 blocks it and nothing in
+it blocks them. And it is the only change in the series that **widens what may leave the machine**.
+It should land when the two mechanical changes are already green, so that if an egress regression
+ever appears, a bisect lands on a one-concern change instead of on a commit that also moved the
 transport.
+
+**004 fourth, because it is the final runtime capability boundary.** It replaces the coordinator
+stub with a Hermes one-shot adapter only after the relay, deduplication, and egress changes have
+been reconciled and tested. The target session must re-read the real files first: this handoff note
+was authored without reading that checkout. Its verification must preserve local capture fallback,
+fail-closed live mode, stdin-only/non-shell execution, absolute profile validation, model
+validation, bounded execution, and secret-free unavailable results.
 
 **Do not reorder to get a green suite faster.** If 002 is applied first, its expected call-site
 failures and 001's import questions arrive at the same time, and telling them apart costs more than
-the ordering saves.
+the ordering saves. Do not apply 004 before 001-003: its coordinator boundary depends on the
+transport and policy behavior being settled first.
 
 ## How to apply and verify each one
 
@@ -130,6 +139,25 @@ pre-existing tiers, and the family classification still has an **empty** egress 
 itself, not only the test result. Its key appears in 003 as `<FAMILY_CLASSIFICATION>`; substitute it
 from the policy document, because this repository is public and does not write that key down.
 
+### 004 - the Hermes profile adapter
+
+```
+git switch -c cross-repo/004-hermes-profile-adapter
+# Re-read the real coordinator, relay, and test files before editing them.
+# Add the adapter and its tests under the relay tree, and update the coordinator per section 3
+# of the specification. Preserve the existing local-capture path and status ledger contract.
+# Stage only the files actually changed after inspection; do not invent paths or use git add -A.
+python -m pytest -q
+git commit -m "feat(relay): add the fail-closed Hermes profile adapter"
+```
+
+**Verify:** with the live flag absent, the local-capture path still works. With live mode enabled,
+the request reaches the subprocess through stdin only, with no shell and no positional arguments;
+the profile home is absolute and configured, the model is valid, and timeout, process failure,
+empty output, or secret-shaped output yields `unavailable` without model evidence. Confirm the
+coordinator ledger records only `local_capture`, `ok`, or `unavailable`, then inspect the diff and
+let the owner decide whether to commit or push.
+
 ### If you would rather work with a diff
 
 Convert a specification's section 3 into a unified diff **in the target repository**, where the
@@ -157,8 +185,10 @@ note as stale rather than the suite as wrong.
 | 001 | 7 | **0** - two new files, no existing module touched | 62 |
 | 002 | 7 | **not zero** - every existing dedup call site fails until updated to pass the pair | 69 |
 | 003 | 5 | **0 for the logic**; any test asserting the complete set of tiers or targets by equality will fail and must be extended | 74 |
+| 004 | not asserted from this repository | coordinator and new adapter tests; re-read the target suite first | no predicted total |
 
-Subtests stay at 14 throughout; none of the three changes touches a parameterized suite.
+Do not predict the 004 total from this repository; re-read the target suite and record the actual
+delta after applying and testing it.
 
 Three honest notes on that table:
 
@@ -172,8 +202,11 @@ Three honest notes on that table:
 3. **Every total in that table is a prediction from a session that could not run the suite.** They
    are there so a human can tell an expected delta from a surprise, not so anyone can report them
    as achieved.
+4. **004 is a runtime-boundary change, not a secret-management change.** Its provider credential
+   remains supplied through the separately managed Hermes profile environment; no secret belongs
+   in the target repository or in this handoff series.
 
-Nothing in any of the three changes may be made green by skipping a test. An unskipped failure is
+Nothing in any of the four changes may be made green by skipping a test. An unskipped failure is
 information; a skipped one is a guard nobody notices is missing.
 
 ## Where this is applied
@@ -208,4 +241,4 @@ Concretely, that means the session which wrote these files:
   the handler without the constant-time token comparison, the allowlist, or the dedup call is not a
   wrapper - it is a regression that presents as an open door.
 - **Do not report any of these as done here.** Applying them is a human step in another repository;
-  until it happens, the correct status of all three is *emitted, unapplied*.
+  until it happens, the correct status of all four is *emitted, unapplied*.

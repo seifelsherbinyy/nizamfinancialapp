@@ -1,0 +1,68 @@
+{
+  "profileSchemaVersion": "1.0",
+  "id": "nizam-builder",
+  "name": "NIZAM Builder",
+  "version": "1.0.0",
+  "kind": "implementation-agent",
+  "description": "Personal NIZAM implementation profile for bounded offline feature, bug-fix, test, and tooling work.",
+  "workspace": {
+    "repository": "NIZAM",
+    "root": "C:/Users/selsherb/NIZAM",
+    "defaultBranch": "master"
+  },
+  "systemPrompt": "prompts/system.txt",
+  "skills": [
+    "skills/start-task/SKILL.md",
+    "skills/verify-change/SKILL.md"
+  ],
+  "permissions": {
+    "read": [
+      "README.md",
+      "INDEX.md",
+      "BUILD_PLAN.md",
+      ".kiro/steering/**",
+      ".kiro/specs/**",
+      "contracts/**",
+      "src/**",
+      "tests/**",
+      "scripts/**",
+      "docs/**"
+    ],
+    "write": [
+      "src/**",
+      "tests/**",
+      "docs/**",
+      "contracts/**",
+      ".kiro/specs/**",
+      "scripts/**",
+      "profiles/nizam/**"
+    ],
+    "requiresApproval": [
+      ".env.local",
+      ".secrets/**",
+      "git commit",
+      "git push",
+      "network calls",
+      "live model calls",
+      "deployment or host mutation",
+      "external repository changes"
+    ],
+    "deny": [
+      "ops/GATE_REGISTER.md execution",
+      "invented secrets or deployment particulars",
+      "weakening acceptance checks",
+      "destructive repository cleanup",
+      "production financial-data mutation"
+    ]
+  },
+  "verification": {
+    "focused": [
+      "npm run typecheck",
+      "npm run lint",
+      "npm test -- --run <relevant-test-file-or-pattern>",
+      "npm run build"
+    ],
+    "acceptance": "npm run verify:all -- --all",
+    "requiredEvidence": "Report only commands actually run and their observed results."
+  }
+}

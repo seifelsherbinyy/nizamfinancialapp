@@ -118,7 +118,7 @@ services:
   # redirect hosts that would otherwise stand up on the cleartext port. The firewall posture and
   # these bindings therefore agree - one port, opened in one place. The decision, its criterion and
   # the rejected alternative are recorded in ops/IMAGE_BUILD.md; the resolution itself is recorded
-  # in G1 of ops/GATE_REGISTER.md, which is what R30 requires and which is the one edit R30 obliges.
+  # in G1 of ops/DEPLOYMENT_CONTROL.md, which is what R30 requires and which is the one edit R30 obliges.
   # src/server/ops/imageOwnership.ts re-reads all three on every test run and reports a finding if
   # any one of them stops agreeing with the other two, in either direction.
   # ---------------------------------------------------------------------------------------------

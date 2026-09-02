@@ -13,6 +13,7 @@ const CHECKS = [
   { id: "AC10", label: "source files declare their contract and phase", cmd: [node, ["scripts/verify/headers.mjs"]] },
   { id: "AC01", label: "no placeholders remain in src", cmd: [node, ["scripts/verify/placeholders.mjs"]] },
   { id: "AC07", label: "money stays integral", cmd: [node, ["scripts/verify/money-invariant.mjs"]] },
+  { id: "AC19", label: "protected repository invariants are fail closed", cmd: [node, ["scripts/verify/protected-invariants.mjs"]] },
   { id: "AC08", label: "drive scope is per file only", cmd: [node, ["scripts/verify/drive-scope.mjs"]] },
   { id: "AC08b", label: "ingestion tooling and server tier stay isolated", cmd: [node, ["scripts/verify/ingest-isolation.mjs"]] },
   { id: "AC09", label: "no secrets or real ledgers tracked", cmd: [node, ["scripts/verify/secret-scan.mjs"]] },

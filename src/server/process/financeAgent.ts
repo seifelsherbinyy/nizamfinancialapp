@@ -87,6 +87,7 @@ import type { ModelRequest, ModelResult } from '../ports/openrouter.ts';
 import type { SignalDraft, StoredSignalReceipt } from '../ports/signalBus.ts';
 import type { ModelInvocationGrant } from '../routing/turnClassifier.ts';
 import type { ModelChannel } from '../routing/turnDispatch.ts';
+import type { DriveKnowledgeManager } from '../ingest/driveKnowledge.ts';
 import {
   acceptDelivery,
   TELEGRAM_ACCEPT_REJECTED,
@@ -235,6 +236,10 @@ export interface FinanceAgentDependencies {
   readonly retry: WorkRetryPolicy;
   /** The one door to the model port. Absent means this process cannot call a model at all. */
   readonly modelChannel?: ModelChannel;
+  /** Optional owner-approved Drive knowledge capability; absent means offline knowledge only. */
+  readonly knowledge?: DriveKnowledgeManager;
+  /** Configuration parsing is deferred to boot so the normal refusal path reports it safely. */
+  readonly knowledgeConfigError?: Error;
   /** The consent bus. Absent means this process cannot publish at all. */
   readonly publish?: (draft: SignalDraft) => Promise<StoredSignalReceipt>;
   readonly offsets?: TelegramOffsetStore;
@@ -353,6 +358,7 @@ export async function bootFinanceAgent(deps: FinanceAgentDependencies): Promise<
   // 1. Fail closed on an incomplete environment, naming every finding in one message (R29, R27).
   //    No try, no catch, no degraded mode.
   requireServiceEnvironment({ service: FINANCE_SERVICE, env: deps.env });
+  if (deps.knowledgeConfigError !== undefined) throw deps.knowledgeConfigError;
 
   const logger = createRedactedLogger(FINANCE_AGENT, deps.logSink, deps.now);
 
@@ -390,6 +396,22 @@ export async function bootFinanceAgent(deps: FinanceAgentDependencies): Promise<
   const open = deps.openStore ?? openFinanceStore;
   const { handle } = open({ dataDir, fileName, busyTimeoutMs, storeName: FINANCE_STORE_NAME });
   logger.log('info', 'store_opened', { storeLabel: { kind: 'enum', value: FINANCE_STORE_NAME } });
+
+  if (deps.knowledge !== undefined) {
+    try {
+      await deps.knowledge.refresh({
+        handle,
+        now: deps.now,
+        actor: 'finance-knowledge',
+        newId: deps.newId,
+      });
+    } catch {
+      logger.log('warn', 'knowledge_refresh_refused', {
+        component: { kind: 'enum', value: 'knowledge' },
+        failure: { kind: 'enum', value: 'unavailable' },
+      });
+    }
+  }
 
   const auditSink = (line: TelegramAcceptAuditLine): void => {
     logger.log('warn', 'update_accepted', {

@@ -82,7 +82,7 @@ describe('BudgetView', () => {
     render(<BudgetView />);
     fireEvent.click(screen.getByRole('button', { name: /edit target for groceries/i }));
     fireEvent.change(screen.getByRole('combobox', { name: /target type/i }), {
-      target: { value: 'monthly' },
+      target: { value: 'monthly_funding' },
     });
     const amount = screen.getByRole('textbox', { name: /target amount/i });
     fireEvent.change(amount, { target: { value: '100' } });
@@ -91,7 +91,13 @@ describe('BudgetView', () => {
 
     // Persisted through the store:
     const cat = useNizamStore.getState().db!.categories.find((c) => c.id === 'cat_groc');
-    expect(cat?.target).toEqual({ type: 'monthly', amount: 100_000, targetMonth: null });
+    expect(cat?.target).toEqual({
+      type: 'monthly_funding',
+      amount: 100_000,
+      targetMonth: null,
+      rollover: 'set_aside',
+      obligationId: null,
+    });
     // Assigned 60 of 100 -> 60% goal badge:
     const badge = screen.getByRole('status', { name: /goal for groceries/i });
     expect(badge.textContent).toContain('60%');
@@ -101,7 +107,13 @@ describe('BudgetView', () => {
     const db = seededDb();
     // Need 100 available by 3 months from now; currently 35 available (60 assigned − 25 spent).
     const target = nextMonth(nextMonth(THIS_MONTH));
-    db.categories[0]!.target = { type: 'target_by_date', amount: 100_000, targetMonth: target };
+    db.categories[0]!.target = {
+      type: 'target_balance_by_date',
+      amount: 100_000,
+      targetMonth: target,
+      rollover: 'refill',
+      obligationId: null,
+    };
     bootStore(db);
     render(<BudgetView />);
     const badge = screen.getByRole('status', { name: /goal for groceries/i });
@@ -115,7 +127,7 @@ describe('BudgetView', () => {
     render(<BudgetView />);
     fireEvent.click(screen.getByRole('button', { name: /edit target for groceries/i }));
     fireEvent.change(screen.getByRole('combobox', { name: /target type/i }), {
-      target: { value: 'monthly' },
+      target: { value: 'monthly_funding' },
     });
     fireEvent.click(screen.getByRole('button', { name: /save target/i }));
     expect(screen.getByRole('alert').textContent).toMatch(/positive/i);
@@ -124,7 +136,13 @@ describe('BudgetView', () => {
 
   it('clears a target by choosing "No target"', () => {
     const db = seededDb();
-    db.categories[0]!.target = { type: 'monthly', amount: 50_000, targetMonth: null };
+    db.categories[0]!.target = {
+      type: 'monthly_funding',
+      amount: 50_000,
+      targetMonth: null,
+      rollover: 'set_aside',
+      obligationId: null,
+    };
     bootStore(db);
     render(<BudgetView />);
     fireEvent.click(screen.getByRole('button', { name: /edit target for groceries/i }));

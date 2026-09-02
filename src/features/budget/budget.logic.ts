@@ -16,42 +16,18 @@ import type { MonthKey, Category, CategoryTarget } from '@/features/budget/budge
 import type { NizamDb } from '@/lib/db/schema';
 import { isCreditType } from '@/features/accounts/accounts.types';
 import { monthOf } from '@/lib/ledger/ledgerStore';
+import { monthRange } from '@/features/budget/month';
+import { targetFunding } from '@/features/budget/targets';
+import type { Obligation } from '@/features/obligations/obligation.types';
 
 // ---------------------------------------------------------------------------
 // Month utilities
 // ---------------------------------------------------------------------------
 
-export function nextMonth(month: MonthKey): MonthKey {
-  const y = Number(month.slice(0, 4));
-  const m = Number(month.slice(5, 7));
-  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
-}
-
-export function prevMonth(month: MonthKey): MonthKey {
-  const y = Number(month.slice(0, 4));
-  const m = Number(month.slice(5, 7));
-  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
-}
-
-/** Inclusive count of months from `from` to `to`; 0 when to < from. */
-export function monthsBetween(from: MonthKey, to: MonthKey): number {
-  const fy = Number(from.slice(0, 4)),
-    fm = Number(from.slice(5, 7));
-  const ty = Number(to.slice(0, 4)),
-    tm = Number(to.slice(5, 7));
-  const diff = (ty - fy) * 12 + (tm - fm) + 1;
-  return Math.max(0, diff);
-}
-
-export function monthRange(from: MonthKey, to: MonthKey): MonthKey[] {
-  const out: MonthKey[] = [];
-  let m = from;
-  while (m <= to) {
-    out.push(m);
-    m = nextMonth(m);
-  }
-  return out;
-}
+// Month arithmetic moved to ./month.ts in Step 7 (the target engine needs it too and
+// importing it back from here would be a cycle). Re-exported unchanged so every
+// existing `import { nextMonth } from './budget.logic'` keeps resolving.
+export { nextMonth, prevMonth, monthsBetween, monthRange, addMonths } from '@/features/budget/month';
 
 // ---------------------------------------------------------------------------
 // Income detection
@@ -356,29 +332,37 @@ export interface GoalProgress {
   suggestedPerMonth: Money | null;
 }
 
+/**
+ * Legacy three-figure view of a category target, PRESERVED for existing callers.
+ *
+ * Step 7 turned this into a thin adapter over `targetFunding`, which deleted two
+ * defects that lived here:
+ *  - `if (target.type === 'monthly')` treated every OTHER type as a date target, so
+ *    the widened vocabulary would have been silently mis-funded;
+ *  - `Math.ceil(remaining / monthsLeft)` was a float divide on money, now the exact
+ *    BigInt `divCeil`.
+ *
+ * Field meanings are unchanged: `remaining` is the shortfall, `suggestedPerMonth` is
+ * the level per-month RATE (for a monthly target that is the monthly amount itself, not
+ * the amount left to assign). The sharper "assign this much now" figure is
+ * `TargetFunding.nextContribution`; prefer `targetFunding` in new code, and note that
+ * obligation-linked targets need the Obligation, which this signature cannot accept.
+ */
 export function goalProgress(
   category: Category,
   month: MonthKey,
   computed: ComputedCategoryMonth | undefined,
+  obligation: Obligation | null = null,
 ): GoalProgress | null {
   const target = category.target;
   if (!target) return null;
-  const assigned = computed?.assigned ?? 0;
-  const available = computed?.available ?? 0;
-
-  if (target.type === 'monthly') {
-    const remaining = Math.max(0, target.amount - assigned);
-    const progress = target.amount <= 0 ? 1 : Math.min(1, Math.max(0, assigned / target.amount));
-    return { target, progress, remaining, suggestedPerMonth: target.amount };
-  }
-
-  // target_by_date
-  const remaining = Math.max(0, target.amount - available);
-  const monthsLeft = target.targetMonth ? monthsBetween(month, target.targetMonth) : 1;
-  const suggested =
-    monthsLeft <= 0 ? remaining : Math.ceil(remaining / monthsLeft);
-  const progress = target.amount <= 0 ? 1 : Math.min(1, Math.max(0, available / target.amount));
-  return { target, progress, remaining, suggestedPerMonth: suggested };
+  const f = targetFunding(target, month, computed, obligation);
+  return {
+    target,
+    progress: f.progress,
+    remaining: f.underfunded,
+    suggestedPerMonth: f.monthlyRate,
+  };
 }
 
 // ---------------------------------------------------------------------------

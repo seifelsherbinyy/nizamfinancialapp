@@ -10,7 +10,7 @@ a ruling. Nothing here contains a deployment particular - those are in the untra
 `outputs/DEPLOYMENT_PARTICULARS.local.md` (gitignored). This repo is public; keep it that way.
 
 Authoritative sources this summarises, in fetch order for a Kiro session:
-1. `ops/GATE_REGISTER.md` - gate meaning, steps, verification (a G1 recorded observation was added).
+1. `ops/DEPLOYMENT_CONTROL.md` - gate meaning, steps, verification (a G1 recorded observation was added).
 2. `.kiro/specs/06-two-agent-vps/OPERATOR_STATE_2026-08-09.md` - machine-readable state + build findings.
 3. `outputs/OPERATOR_URL_WORKSHEET.md` - every console URL, what to click, what value returns (untracked).
 4. `outputs/DEPLOYMENT_PARTICULARS.local.md` - the host facts (untracked).

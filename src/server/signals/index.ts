@@ -29,6 +29,7 @@ export {
   STORED_ENVELOPE_KEYS,
   TEMPORAL_FIELD_TOKENS,
   UTC_INSTANT,
+  SIGNAL_ENVELOPE_SCHEMA_VERSION,
 } from './envelopeSchema.ts';
 export {
   deidentificationBreaches,
@@ -96,3 +97,12 @@ export {
   type SignalAuditEvent,
   type SignalStoreTable,
 } from './signalStoreSchema.ts';
+export {
+  appendSignalDraftWithReceipt,
+  appendSignalWithReceipt,
+  SIGNAL_RECEIPT_SCHEMA_ID,
+  SIGNAL_RECEIPT_SCHEMA_VERSION,
+  SIGNAL_STORE_SCHEMA_VERSION,
+  type SignalAppendReceipt,
+  type SignalSchemaReceipt,
+} from './signalAdapter.ts';

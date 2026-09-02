@@ -111,12 +111,11 @@ if (!ignored) {
 // ---------------------------------------------------------------------------
 
 /**
- * Directory prefixes that are tested modules or a separate runtime tier, never part of
- * the browser bundle. A list rather than a constant so a later phase can claim
- * `src/features/benchmark` and `src/features/routing` under the same mechanism without
- * rewriting the walk.
+ * Directory prefixes that are tested modules or separate runtime tiers, never part of the shipped
+ * browser bundle. The three protected tiers are listed explicitly so a missing exclusion cannot
+ * be hidden behind a generic directory walk.
  */
-const EXCLUDED_TIERS = ["src/server"];
+const EXCLUDED_TIERS = ["src/server", "src/features/routing", "src/features/benchmark"];
 
 /**
  * The browser entry points. `main.tsx` is what `index.html` loads, so it is the true
@@ -138,15 +137,17 @@ const ENTRY_SEEDS = ["src/main.tsx", "src/App.tsx", "src/app", "src/state"];
  * false negative therefore surfaces as a harness failure rather than as silence.
  */
 const BUNDLE_PROBES = [
-  "raw_payload_pruned_at", // src/server/db/schema.ts, migration 002 DDL
-  "decisions_append_only_delete", // src/server/db/schema.ts, migration 004 trigger
-  "spend_ledger_append_only_update", // src/server/db/schema.ts, migration 005 trigger
-  "STORE_PATH_ESCAPES_DATA_DIR", // src/server/db/paths.ts, typed error code
-  "MIGRATION_CHECKSUM_MISMATCH", // src/server/db/errors.ts, typed error code
-  "TURN_MODEL_GRANT_NOT_MINTED", // src/server/routing/turnDispatch.ts, typed error code
-  "ELIGIBILITY_REGISTRY_PROVISIONAL_FLAG_ABSENT", // src/server/routing/eligibilityRegistry.ts, typed error code
-  "queue_worker_not_reporting", // src/server/ops/healthProbe.ts, readiness failure code (task 7.5)
-  "no_field_beyond_the_record_shape", // src/server/ops/redactedLogger.ts, log line claim (task 7.5)
+  { tier: "src/server", value: "raw_payload_pruned_at" }, // src/server/db/schema.ts, migration 002 DDL
+  { tier: "src/server", value: "decisions_append_only_delete" }, // src/server/db/schema.ts, migration 004 trigger
+  { tier: "src/server", value: "spend_ledger_append_only_update" }, // src/server/db/schema.ts, migration 005 trigger
+  { tier: "src/server", value: "STORE_PATH_ESCAPES_DATA_DIR" }, // src/server/db/paths.ts, typed error code
+  { tier: "src/server", value: "MIGRATION_CHECKSUM_MISMATCH" }, // src/server/db/errors.ts, typed error code
+  { tier: "src/server", value: "TURN_MODEL_GRANT_NOT_MINTED" }, // src/server/routing/turnDispatch.ts, typed error code
+  { tier: "src/server", value: "ELIGIBILITY_REGISTRY_PROVISIONAL_FLAG_ABSENT" }, // src/server/routing/eligibilityRegistry.ts, typed error code
+  { tier: "src/server", value: "queue_worker_not_reporting" }, // src/server/ops/healthProbe.ts, readiness failure code
+  { tier: "src/server", value: "no_field_beyond_the_record_shape" }, // src/server/ops/redactedLogger.ts, log line claim
+  { tier: "src/features/routing", value: "SPEND_TOTAL_UNREPRESENTABLE" }, // routing read-model refusal
+  { tier: "src/features/benchmark", value: "LIVE_API_BASE_URL_UNRESOLVED" }, // benchmark live-path refusal
 ];
 
 const SOURCE_EXTS = [".ts", ".tsx"];
@@ -192,7 +193,7 @@ function resolveModule(base) {
   return candidates.find((c) => existsSync(c) && !c.endsWith("/")) ?? null;
 }
 
-const serverTierBefore = findings.length;
+const excludedTierBefore = findings.length;
 
 // 1. The tier must exist and be non empty. An empty tier makes every later assertion vacuous.
 const tierFiles = EXCLUDED_TIERS.flatMap((t) => walk(t, SOURCE_EXTS));
@@ -212,12 +213,13 @@ const tierText = tierFiles.map((f) => ({ f, text: readOrFail(f, "collecting tier
 const nonTierText = nonTierSrc.map((f) => ({ f, text: readOrFail(f, "collecting browser source") })).filter((x) => x.text !== null);
 
 for (const probe of BUNDLE_PROBES) {
-  if (!tierText.some((x) => x.text.includes(probe))) {
-    findings.push('built output probe "' + probe + '" no longer appears in ' + EXCLUDED_TIERS.join(", ") + "; it can no longer detect a bundled tier and must be replaced");
+  const probeTierText = tierText.filter((x) => x.f === probe.tier || x.f.startsWith(probe.tier + "/"));
+  if (!probeTierText.some((x) => x.text.includes(probe.value))) {
+    findings.push('built output probe "' + probe.value + '" no longer appears in ' + EXCLUDED_TIERS.join(", ") + "; it can no longer detect a bundled tier and must be replaced");
   }
-  const ambiguous = nonTierText.filter((x) => x.text.includes(probe)).map((x) => x.f);
+  const ambiguous = nonTierText.filter((x) => x.text.includes(probe.value)).map((x) => x.f);
   if (ambiguous.length) {
-    findings.push('built output probe "' + probe + '" also appears in browser source (' + ambiguous.slice(0, 3).join(", ") + "); it cannot distinguish a bundled tier and must be replaced");
+    findings.push('built output probe "' + probe.value + '" also appears in browser source (' + ambiguous.slice(0, 3).join(", ") + "); it cannot distinguish a bundled tier and must be replaced");
   }
 }
 
@@ -323,8 +325,8 @@ if (!existsSync("dist")) {
     if (text === null) continue;
     scanned += 1;
     for (const probe of BUNDLE_PROBES) {
-      if (text.includes(probe)) {
-        findings.push(f + ' contains the server tier symbol "' + probe + '", so ' + EXCLUDED_TIERS.join(" or ") + " was bundled into the browser output");
+      if (text.includes(probe.value)) {
+        findings.push(f + ' contains the excluded tier symbol "' + probe.value + '" from ' + probe.tier + ', so it was bundled into the browser output');
       }
     }
   }
@@ -334,8 +336,8 @@ if (!existsSync("dist")) {
   notes.push("built output scanned: " + scanned + " text asset(s) (" + distJs.length + " script) against " + BUNDLE_PROBES.length + " server tier probe(s)");
 }
 
-if (findings.length === serverTierBefore) {
-  notes.push("server tier isolated: no browser module imports " + EXCLUDED_TIERS.join(" or ") + ", and no server tier symbol reached dist");
+if (findings.length === excludedTierBefore) {
+  notes.push("excluded non-browser tiers isolated: no browser module imports " + EXCLUDED_TIERS.join(" or ") + ", and no excluded-tier symbol reached dist");
 }
 
-verdict("ingestion tooling and the server tier stay out of the application bundle", findings, notes);
+verdict("ingestion tooling and excluded non-browser tiers stay out of the application bundle", findings, notes);

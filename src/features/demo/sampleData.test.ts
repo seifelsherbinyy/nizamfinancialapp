@@ -35,6 +35,7 @@ function debit(cash: Money): Account {
     name: 'Main',
     type: 'CIB_DEBIT',
     onBudget: true,
+    currency: 'EGP',
     balance: cash,
     clearedBalance: cash,
     accountIdentifier: null,
