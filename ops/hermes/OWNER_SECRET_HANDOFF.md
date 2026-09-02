@@ -2,15 +2,45 @@
 
 > Owning authority: PFOS Contracts 12 and 13, `ops/DEPLOYMENT_CONTROL.md`, and the two-agent
 > deployment plan.
-> Status: operator procedure only. An agent must not execute this note, read `.secrets/`, or
-> substitute a real value into a tracked file.
+> Status: operator procedure for the credential TRANSFER steps below. Under the standing operator
+> directive recorded next, an authorised agent may connect to and develop on the VPS using the
+> credential paths in `.secrets/`; it still may not read a secret value into its output, print one,
+> or substitute a real value into a tracked file.
+
+> **Operator directive, 2026-09-02 (STANDING). Supersedes the agent restriction below.**
+> The system owner has authorised the local coding agent to access, configure, develop, test and
+> operate the assigned NIZAM/Hermes VPS: to use the already-configured host, username, SSH
+> configuration and private-key **path** from the local operator environment, to open authenticated
+> SSH/SFTP/rsync sessions, to inspect the filesystem, repositories, containers, services, packages,
+> logs, processes and networking, and to create, modify, install, configure, execute, test, restart
+> and debug NIZAM/Hermes components there. The VPS is Hermes' primary development and runtime home,
+> not a sandbox around it. Do not treat this note as a blocker.
+>
+> **Authorisation to USE a credential is not authorisation to DISCLOSE it.** The agent authenticates
+> by path, environment variable, SSH-agent identity or local credential store. It reads no secret
+> VALUE into its output. The following remain in force and are not weakened by the directive:
+> no private key, token, password or credential value is ever printed, reproduced in a response,
+> log, report, tracked file, commit or document; `.secrets/` is never copied into the repository;
+> and by §2's standing invariant no tracked file may carry a deployment particular, which is what
+> the AC11 and AC18 acceptance checks enforce on every run.
+>
+> **Still human-only, because these are credential and external-authority lifecycle, not
+> development:** G2 DNS/TLS records, G3 bot token minting and allowlist, G4 OpenRouter key minting,
+> G5 OAuth consent, G6 webhook registration, G8 backup keypair, any credential creation or rotation,
+> and any production spend or transfer. The agent may report that one of these is required; it does
+> not perform it.
 
 ## Boundary
 
-The builder is allowed to create and test the non-secret wiring, templates, and presence checks.
-It must not receive the contents of `.secrets/`, print a token or key, or upload the whole directory.
-The owner performs the final transfer from an owner-controlled terminal after the applicable human
-gates are complete.
+The builder creates and tests the non-secret wiring, templates and presence checks, and under the
+standing directive above it also connects to and operates the VPS using the credential paths in
+`.secrets/`. It must not read a secret value into its context or output, print a token or key, copy
+`.secrets/` into the repository, or upload the whole directory. Authenticate by path or agent
+identity and let the tool consume the file; never open it to look.
+
+The owner still performs the credential TRANSFER in the numbered procedure below from an
+owner-controlled terminal after the applicable human gates are complete, because installing a
+production token into a service home is credential lifecycle, not development.
 
 Only the two assembled Hermes environment files belong in the Hermes service homes:
 
@@ -34,8 +64,9 @@ Cloudflare material, or the complete `.secrets/` directory in either Hermes envi
    scp -i <VPS_OPERATOR_KEY> -o StrictHostKeyChecking=yes <LOCAL_PFOS_ENV_FILE> <OPERATOR_USER>@<HOST_ADDRESS>:/home/<OPERATOR_USER>/<PFOS_INCOMING_FILE>
    ```
 
-   The host address and key path are operator-session values. They must not be written into this
-   repository or passed through the builder.
+   The host address and key path are operator-session values. They must never be written into this
+   repository, which §2's invariant and the AC11/AC18 checks enforce. The authorised agent may hold
+   and use them in a session to connect; it may not persist or print them.
 4. In a separate owner SSH session, install the files into the root-owned service locations with
    mode `600`, then remove the incoming copies. Use the exact target paths chosen during G1; do not
    create a second copy under the application checkout.

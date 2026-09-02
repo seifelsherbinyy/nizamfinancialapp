@@ -298,12 +298,12 @@ No contract revision, addendum, or owner instruction can move them to agent-exec
 | OAuth consent completion | G5 | Consent must be given by the owner personally in their own browser session, per provider terms. |
 | Webhook registration | G6 | Registers the live inbound endpoint; a wrong registration breaks the entire message path. |
 | Backup encryption key | G8 | The private key lives off-host deliberately. An agent that can rotate it can make previous backups unrestorable. |
-| `git commit` / `git push` | — | Immutable public record. Requires owner accountability. |
+| `git commit` / `git push` | — | Immutable public record. Requires owner accountability. **Owner-authorised per instruction 2026-09-02 for the NIZAM repositories; the agent leak-scans every tracked file before any push and never force-pushes.** |
 | `git reset` / file deletion | — | Irreversible. No agent should have a destruction path. |
 | Credential creation or rotation | — | Key lifecycle is a human decision by definition. |
 | Production spend / transfer | — | Financial irreversibility. Agents propose; humans authorize. |
 | Database schema migration | — | Schema changes affect all existing data. Requires explicit owner sign-off per Contract 06. |
-| Server process restart or kill | — | Live service operation. Agent may signal intent; human executes. |
+| Server process restart or kill | — | Live service operation. **Opened on the assigned VPS by the standing operator directive of 2026-09-02: the agent may start, restart, stop and debug NIZAM/Hermes services there as part of development.** Unchanged for any host it was not assigned, and for anything touching a credential's lifecycle. |
 
 ---
 

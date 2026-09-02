@@ -69,7 +69,13 @@ The wall is no longer "do not build the area". It is now a **network + secret bo
 - The turn classifier, router/scorer, spend ledger, telemetry store - all pure functions over injected state.
 - The consent gate + signal envelope validation + de-identification, with negative tests.
 - `ops/` artifacts as **text**: `docker-compose.yml`, `Caddyfile`, `.env.example` templates, systemd units,
-  backup/restore scripts. Writing them is allowed. **Running them is not.**
+  backup/restore scripts. Writing them is always allowed. **Running them was closed and is now open on
+  the assigned VPS only**, per the standing operator directive of 2026-09-02 recorded in
+  `ops/hermes/OWNER_SECRET_HANDOFF.md`: the authorised agent may execute, restart and debug these on
+  that host as its development and runtime home. What that directive did NOT open is the credential and
+  external-authority lifecycle below, which stays human: G2, G3, G4, G5, G6, G8, credential creation or
+  rotation, and production spend. The §2 invariant is untouched: a deployment particular still never
+  appears in a tracked file, and no secret value is ever printed or committed.
 - Contracts and specs (see §5).
 
 **GATED - STOP and record, never attempt (these need a human):**
