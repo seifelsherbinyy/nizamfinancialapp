@@ -1,10 +1,26 @@
 /**
  * NIZAM · Add/edit transaction — inflow/outflow, payee autocomplete, splits, transfers
  * Implemented by: KIRO Contract 4 / Phase 4.5
+ * Transfer editing is additionally governed by PFOS Contract 6 / Phase 6.4 invariant I4.6:
+ *   a transfer's two legs move as one unit, never one edited and its peer left stale.
  * Depends on: transaction.types.ts, state/actions.ts, components/MoneyInput
  *
  * Money enters as decimal text and is converted to integer milliunits at the
  * boundary by MoneyInput (fromDecimal). Split legs must sum EXACTLY to the total.
+ *
+ * ## Editing a transfer is a PATCH, never a second create
+ *
+ * `addTransfer` is now reachable only when there is no `editing` row. Routing an edit to it
+ * appended a whole second pair and left the original untouched, double-counting the movement in
+ * both account balances. The edit path sends `date`, `memo` and `amount` to `updateTransaction`,
+ * which resolves the peer before mutating anything and mirrors the amount negated, so the pair
+ * cannot be left half-changed (C6 I4.6). The three fields it does not send are the three a
+ * transfer leg has no honest place for: `payee` names the peer account, and a transfer carries
+ * neither a category nor an allocation set (vNext T1).
+ *
+ * The two accounts are fixed once a transfer exists: `TransactionPatch` carries no
+ * `transferAccountId`, so re-pointing one is a delete plus a re-add. The select is disabled in
+ * edit mode rather than accepting a change it would silently discard.
  */
 import { useMemo, useState } from 'react';
 import { useNizamStore } from '@/state/store';
@@ -46,13 +62,23 @@ export function TransactionForm(props: TransactionFormProps) {
   const [memo, setMemo] = useState(editing?.memo ?? '');
   const [outflow, setOutflow] = useState<Money>(editing && editing.amount < 0 ? -editing.amount : 0);
   const [inflow, setInflow] = useState<Money>(editing && editing.amount > 0 ? editing.amount : 0);
-  const [toAccountId, setToAccountId] = useState<string>('');
+  const [toAccountId, setToAccountId] = useState<string>(editing?.transferAccountId ?? '');
+  /**
+   * A transfer carries one magnitude, not an outflow/inflow pair, so it is held apart from
+   * `outflow`. That separation is what makes the RECEIVING leg editable: its amount is positive,
+   * so seeding only `outflow` left it at 0 and the `outflow <= 0` guard rejected the leg before
+   * it could be saved at all. The sign is restored from the leg being edited, never from which
+   * box was typed into.
+   */
+  const [transferAmount, setTransferAmount] = useState<Money>(editing ? Math.abs(editing.amount) : 0);
   const [splits, setSplits] = useState<SplitDraft[]>(
     editing?.splits?.map((s) => ({ categoryId: s.categoryId, amount: s.amount, memo: s.memo })) ?? [],
   );
   const [error, setError] = useState<string | null>(null);
 
   const amount: Money = inflow - outflow;
+  /** +1 when the row being edited is the receiving leg, -1 when it is the sending leg. */
+  const transferLegSign = editing && editing.amount > 0 ? 1 : -1;
   const splitTotal: Money = splits.reduce((t, s) => t + s.amount, 0);
   const splitsBalanced = splits.length === 0 || splitTotal === amount;
 
@@ -61,6 +87,15 @@ export function TransactionForm(props: TransactionFormProps) {
 
   const categories = db.categories.filter((c) => !c.hidden);
   const otherAccounts = db.accounts.filter((a) => !a.closed && a.id !== props.accountId);
+  // `otherAccounts` hides closed accounts, but a transfer's peer may have been closed since the
+  // pair was created. Without re-admitting it the disabled select would render blank and hide
+  // which account the pair actually points at.
+  const peerAccountId = editing?.transferAccountId ?? null;
+  const peerAccount = peerAccountId ? (db.accounts.find((a) => a.id === peerAccountId) ?? null) : null;
+  const transferTargets =
+    peerAccount && !otherAccounts.some((a) => a.id === peerAccount.id)
+      ? [...otherAccounts, peerAccount]
+      : otherAccounts;
 
   function submit() {
     setError(null);
@@ -69,20 +104,37 @@ export function TransactionForm(props: TransactionFormProps) {
         setError('Pick the account to transfer to.');
         return;
       }
-      if (outflow <= 0) {
-        setError('Enter a positive transfer amount in Outflow.');
+      if (transferAmount <= 0) {
+        setError('Enter a positive transfer amount.');
         return;
       }
-      mutate((draft) => {
-        addTransfer(draft, {
-          fromAccountId: props.accountId,
-          toAccountId,
-          amount: outflow,
-          date,
-          memo,
+      try {
+        mutate((draft) => {
+          if (editing) {
+            // A patch of the pair that already exists — NOT a second addTransfer.
+            // `updateTransaction` mirrors date and memo to the peer and mirrors the amount
+            // negated, so both legs move together or neither does (C6 I4.6).
+            updateTransaction(draft, editing.id, {
+              date,
+              memo,
+              amount: transferLegSign * transferAmount,
+            });
+          } else {
+            addTransfer(draft, {
+              fromAccountId: props.accountId,
+              toAccountId,
+              amount: transferAmount,
+              date,
+              memo,
+            });
+          }
         });
-      });
-      props.onClose();
+        props.onClose();
+      } catch (e) {
+        // A refusal — a reconciled leg, a cross-currency pair — has to reach the owner. `mutate`
+        // applies the change to a clone and commits only on success, so nothing is half-written.
+        setError(e instanceof Error ? e.message : String(e));
+      }
       return;
     }
 
@@ -157,18 +209,25 @@ export function TransactionForm(props: TransactionFormProps) {
               value={toAccountId}
               onChange={(e) => setToAccountId(e.target.value)}
               aria-label="Transfer to account"
+              disabled={editing !== null}
             >
               <option value="">— pick account —</option>
-              {otherAccounts.map((a) => (
+              {transferTargets.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
                 </option>
               ))}
             </select>
+            {editing ? (
+              <span className="muted">
+                A transfer's two accounts are fixed. To move it elsewhere, delete this transfer and
+                add a new one.
+              </span>
+            ) : null}
           </label>
           <label className="field">
             <span>Amount (EGP)</span>
-            <MoneyInput value={outflow} onCommit={setOutflow} aria-label="Transfer amount" />
+            <MoneyInput value={transferAmount} onCommit={setTransferAmount} aria-label="Transfer amount" />
           </label>
         </>
       ) : (
