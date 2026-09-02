@@ -74,3 +74,28 @@ data/store/
 *.db
 *.db-wal
 *.db-shm
+# --- REAL Slack credentials found loose in the working tree, 2026-09-02 ---
+# `slack-setup.txt` and `whoop-slack-setup.txt` are byte-identical 449-byte notes that hold a live
+# `xoxb-` bot token, a live `xapp-` app token, a signing secret and a channel identifier. None of
+# the rules above matched them: `.secrets/` needs the leading dot, `ops/env/*.env` needs that path,
+# and these two sit at the repository root under ordinary names. This repository is PUBLIC
+# (steering §0b), so one `git add -A` would have published production credentials irrecoverably.
+# Ignored rather than deleted, for the same reason as the scripts below: they are the owner's own
+# handoff notes and a build gate is not a licence to remove them. Their proper home is `.secrets/`
+# or a password manager, and per `ops/secrets/ALIAS_REGISTRY.md` a value never belongs in a file
+# that git can see at all.
+slack-setup.txt
+whoop-slack-setup.txt
+
+# Python bytecode and Hypothesis' example database: regenerable caches, never source.
+__pycache__/
+*.pyc
+.hypothesis/
+
+# The same keep-awake workstation script family already ignored above, in its timestamped-backup
+# and self-test variants (`awake.v3.<date>.bak.ps1`, `awake.tests.ps1`). Identical reasoning to
+# `awake.ps1`: one workstation, no importer, no project role, no secret, no deployment particular.
+# Committing another person's local pointer-nudging script to a public repository is the worse of
+# the two options, and deleting it is not mine to do.
+awake.v*.ps1
+awake.tests.ps1
