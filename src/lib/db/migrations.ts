@@ -479,6 +479,74 @@ export function downgradeV8toV7(raw: unknown): Record<string, unknown> {
 }
 
 /**
+ * v8 -> v9 (Step 4, Contract 6 Phase 6.4 — versioned allocations + correction links).
+ *
+ * Deliberately rewrites NO row. The three new fields (`allocationSetVersion`,
+ * `supersededAllocations`, `correction`) are optional and their absence is defined to mean
+ * "version 0, no superseded history, not a correction". Stamping `allocationSetVersion: 0`
+ * onto every existing transaction would add a field carrying no information and grow every
+ * stored document for nothing.
+ *
+ * The version number is therefore the entire point of this migration, and it is load-bearing
+ * rather than cosmetic: `zTransaction` is a `z.object`, which STRIPS unknown keys, so a v8
+ * client handed a v9 document would parse it happily, silently discard every superseded
+ * allocation set and correction link, and destroy audit history on its next write. Moving the
+ * version makes `migrate()` refuse that document instead (see the `version > SCHEMA_VERSION`
+ * guard below).
+ */
+function migrateV8toV9(raw: RawDb): RawDb {
+  return { ...raw, schemaVersion: 9 };
+}
+
+/**
+ * v9 -> v8 (non-destructive downgrade for testing; outside the forward `migrate()` chain).
+ *
+ * Refuses when any transaction or candidate carries Step 4 audit state, because v8 has
+ * nowhere to put it. Dropping a `correction` link would leave a reversal and a replacement
+ * in the ledger with no record of what they correct or that they belong together — two
+ * orphan rows that a reader would count as ordinary transactions. Dropping
+ * `supersededAllocations` would destroy the retained history that C6 I4.4 says is never
+ * destroyed. Silently losing either is worse than refusing to downgrade.
+ */
+export function downgradeV9toV8(raw: unknown): Record<string, unknown> {
+  const db = typeof raw === 'object' && raw !== null ? (raw as RawDb) : ({} as RawDb);
+  const offending: string[] = [];
+  for (const key of ['transactions', 'transactionCandidates'] as const) {
+    for (const row of asArray(db[key]).map(asRecord)) {
+      const id = str(row.id);
+      if (row.correction != null) offending.push(`${key}/${id}:correction`);
+      if (asArray(row.supersededAllocations).length > 0) {
+        offending.push(`${key}/${id}:supersededAllocations`);
+      }
+      if (typeof row.allocationSetVersion === 'number' && row.allocationSetVersion > 0) {
+        offending.push(`${key}/${id}:allocationSetVersion=${row.allocationSetVersion}`);
+      }
+    }
+  }
+  if (offending.length > 0) {
+    throw new Error(
+      `NIZAM downgrade v9->v8 refused: ${offending.length} row(s) carry Step 4 audit state that schema v8 cannot hold (${offending.join(', ')}). Downgrade is not possible without losing audit history.`,
+    );
+  }
+  const strip = (key: 'transactions' | 'transactionCandidates') =>
+    asArray(db[key]).map((r) => {
+      const {
+        allocationSetVersion: _v,
+        supersededAllocations: _s,
+        correction: _c,
+        ...rest
+      } = asRecord(r);
+      return rest;
+    });
+  return {
+    ...db,
+    schemaVersion: 8,
+    transactions: strip('transactions'),
+    transactionCandidates: strip('transactionCandidates'),
+  };
+}
+
+/**
  * Migrate any historical raw JSON value to the current schema and validate it.
  * Forward-only; idempotent (current-version input passes through untouched).
  */
@@ -513,6 +581,9 @@ export function migrate(rawValue: unknown): NizamDb {
   }
   if (version < 8) {
     raw = migrateV7toV8(raw);
+  }
+  if (version < 9) {
+    raw = migrateV8toV9(raw);
   }
   return validateDb(raw);
 }

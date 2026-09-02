@@ -19,11 +19,14 @@ import {
   type MonthBudget,
   type MonthCategoryBudget,
 } from '@/features/budget/budget.types';
-import type {
-  ClearedStatus,
-  ImportInfo,
-  Transaction,
-  TransactionSplit,
+import {
+  CORRECTION_ROLES,
+  type ClearedStatus,
+  type CorrectionLink,
+  type ImportInfo,
+  type SupersededAllocationSet,
+  type Transaction,
+  type TransactionSplit,
 } from '@/features/transactions/transaction.types';
 import {
   OBLIGATION_FREQUENCIES,
@@ -43,7 +46,15 @@ import { ASSET_KINDS, DEFAULT_MACRO, type Asset, type FxRate, type MacroContext 
 import { DUPLICATE_STATUSES, type DuplicateStatus } from '@/lib/ledger/ledger.types';
 import { CURRENCY_CODE_PATTERN } from '@/lib/money/currency';
 
-export const SCHEMA_VERSION = 8 as const;
+/**
+ * Bumped 8 -> 9 in Step 4 (Contract 6 Phase 6.4) for the versioned-allocation and
+ * correction fields. Those fields are OPTIONAL, so a v9 document would parse cleanly under
+ * the v8 validator — and that is exactly why the version must move: `z.object` STRIPS
+ * unknown keys, so a v8 reader would silently drop `supersededAllocations` and `correction`
+ * and destroy audit history on the next write. `migrate()` refusing a document newer than
+ * this constant is the only thing standing between an older client and that data loss.
+ */
+export const SCHEMA_VERSION = 9 as const;
 
 /** Integer milliunits guard — floats are schema violations. */
 export const zMoney = z.number().int().finite();
@@ -169,6 +180,25 @@ const zSplit: z.ZodType<TransactionSplit> = z.object({
   memo: z.string(),
 });
 
+/**
+ * Superseded allocation set (C6 I4.4). Legs are validated with the same `zSplit`, so the
+ * integrality guarantee on every leg amount is identical to the live set's — history cannot
+ * hold a money value the live set would have refused.
+ */
+const zSupersededAllocationSet: z.ZodType<SupersededAllocationSet> = z.object({
+  version: z.number().int().nonnegative(),
+  legs: z.array(zSplit),
+  supersededAt: zIsoDateTime,
+});
+
+/** Correction provenance (C6 I4.5, owner decision D4-A). */
+const zCorrectionLink: z.ZodType<CorrectionLink> = z.object({
+  correctsTransactionId: z.string().min(1),
+  role: z.enum(CORRECTION_ROLES),
+  correctionGroupId: z.string().min(1),
+  reason: z.string(),
+});
+
 const zImportInfo: z.ZodType<ImportInfo> = z.object({
   duplicateKey: z.string(),
   sourceFile: z.string(),
@@ -202,6 +232,10 @@ export const zTransaction: z.ZodType<Transaction> = z.object({
   transferTransactionId: z.string().nullable(),
   splits: z.array(zSplit).nullable(),
   importInfo: zImportInfo.nullable(),
+  // Step 4 optional fields — absent on pre-Step-4 rows, which is the documented default.
+  allocationSetVersion: z.number().int().nonnegative().optional(),
+  supersededAllocations: z.array(zSupersededAllocationSet).optional(),
+  correction: zCorrectionLink.nullable().optional(),
 });
 
 export interface Payee {
@@ -354,6 +388,10 @@ export const zTransactionCandidate: z.ZodType<TransactionCandidate> = z.object({
   transferTransactionId: z.string().nullable(),
   splits: z.array(zSplit).nullable(),
   importInfo: zImportInfo.nullable(),
+  // Step 4 optional fields — a candidate extends Transaction, so the shape must match.
+  allocationSetVersion: z.number().int().nonnegative().optional(),
+  supersededAllocations: z.array(zSupersededAllocationSet).optional(),
+  correction: zCorrectionLink.nullable().optional(),
   duplicateStatus: z.enum(DUPLICATE_STATUSES),
 });
 

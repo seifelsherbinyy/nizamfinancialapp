@@ -5,7 +5,14 @@
  */
 import { describe, it, expect } from 'vitest';
 import { SCHEMA_VERSION } from '@/lib/db/schema';
-import { migrate, downgradeV5toV4, downgradeV6toV5, downgradeV7toV6, downgradeV8toV7 } from './migrations.ts';
+import {
+  migrate,
+  downgradeV5toV4,
+  downgradeV6toV5,
+  downgradeV7toV6,
+  downgradeV8toV7,
+  downgradeV9toV8,
+} from './migrations.ts';
 import { createEmptyDb } from './schema.ts';
 
 /** The v0 example shape from data/ledgers/nizam_db.example.json. */
@@ -520,7 +527,10 @@ function v7WithFxFixture(): Record<string, unknown> {
 describe('v7 -> v8 FxRate.asOf -> observedAt widening (owner decision D1, 2026-09-02)', () => {
   it('appends T00:00:00Z to every fxRates[].asOf and renames the field to observedAt', () => {
     const db = migrate(v7WithFxFixture());
-    expect(db.schemaVersion).toBe(8);
+    // `migrate()` always advances to the CURRENT version, so this pins SCHEMA_VERSION
+    // rather than the literal 8. Pinning 8 made the test fail the moment Step 4 added v9
+    // even though the v7->v8 widening it actually covers was untouched.
+    expect(db.schemaVersion).toBe(SCHEMA_VERSION);
     expect(db.fxRates.map((r) => r.observedAt)).toEqual(['2026-03-15T00:00:00Z', '2026-03-16T00:00:00Z']);
     expect(db.fxRates.every((r) => !('asOf' in (r as unknown as Record<string, unknown>)))).toBe(true);
   });
@@ -562,5 +572,202 @@ describe('v7 -> v8 FxRate.asOf -> observedAt widening (owner decision D1, 2026-0
     modified.fxRates[0].observedAt = '2026-03-15T14:32:07Z';
     expect(() => downgradeV8toV7(modified)).toThrow(/refused/i);
     expect(() => downgradeV8toV7(modified)).toThrow(/USD@2026-03-15T14:32:07Z/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// v8 -> v9: versioned allocations + correction links (Step 4, C6 Phase 6.4,
+// owner decision D4-A, 2026-09-02)
+// ---------------------------------------------------------------------------
+
+/** A v8-shaped store carrying one plain transaction, built on the v4 fixture chain. */
+function v8WithTransactionFixture(): Record<string, unknown> {
+  const current = migrate(v4Fixture()) as unknown as Record<string, unknown>;
+  const raw = JSON.parse(JSON.stringify(current)) as Record<string, unknown>;
+  raw.schemaVersion = 8;
+  return raw;
+}
+
+/** Deep-clone a migrated store back to a raw record so a test can mutate it. */
+function rawClone(db: unknown): Record<string, unknown> {
+  return JSON.parse(JSON.stringify(db)) as Record<string, unknown>;
+}
+
+/**
+ * Index into a raw fixture row list, failing loudly if the row is absent.
+ *
+ * `noUncheckedIndexedAccess` is on, and a silent `?.` here would let a fixture that lost its
+ * rows pass a test that then asserts nothing.
+ */
+function rowAt(rows: Record<string, unknown>[], i: number): Record<string, unknown> {
+  const row = rows[i];
+  if (!row) throw new Error(`fixture has no row at index ${i}`);
+  return row;
+}
+
+describe('v8 -> v9 versioned allocations + correction links (owner decision D4-A)', () => {
+  it('advances the version and rewrites NO transaction row — absence means version 0', () => {
+    const before = v8WithTransactionFixture();
+    const beforeTxns = JSON.parse(JSON.stringify(before.transactions));
+    const db = migrate(before);
+    expect(db.schemaVersion).toBe(SCHEMA_VERSION);
+    // The whole point: the new fields are optional and absent, so the rows are byte-identical.
+    expect(db.transactions).toEqual(beforeTxns);
+    for (const t of db.transactions) {
+      const row = t as unknown as Record<string, unknown>;
+      expect('allocationSetVersion' in row).toBe(false);
+      expect('supersededAllocations' in row).toBe(false);
+      expect('correction' in row).toBe(false);
+    }
+  });
+
+  it('moves no money at all', () => {
+    const before = v8WithTransactionFixture();
+    const sumBefore = (before.transactions as { amount: number }[]).reduce((s, t) => s + t.amount, 0);
+    const db = migrate(before);
+    expect(db.transactions.reduce((s, t) => s + t.amount, 0)).toBe(sumBefore);
+  });
+
+  it('accepts a v9 row that DOES carry the new fields', () => {
+    const raw = v8WithTransactionFixture();
+    const txns = raw.transactions as Record<string, unknown>[];
+    txns[0] = {
+      ...txns[0],
+      allocationSetVersion: 2,
+      supersededAllocations: [
+        {
+          version: 1,
+          legs: [{ id: 'spl_a', categoryId: null, amount: -1000, memo: 'was' }],
+          supersededAt: '2026-09-02T10:00:00Z',
+        },
+      ],
+      correction: null,
+    };
+    const db = migrate(raw);
+    const t = db.transactions[0] as unknown as Record<string, unknown>;
+    expect(t.allocationSetVersion).toBe(2);
+    expect((t.supersededAllocations as unknown[]).length).toBe(1);
+  });
+
+  it('rejects a fractional leg amount inside superseded history — integrality is not relaxed by age', () => {
+    const raw = v8WithTransactionFixture();
+    const txns = raw.transactions as Record<string, unknown>[];
+    txns[0] = {
+      ...txns[0],
+      supersededAllocations: [
+        {
+          version: 1,
+          legs: [{ id: 'spl_a', categoryId: null, amount: -1000.5, memo: 'float' }],
+          supersededAt: '2026-09-02T10:00:00Z',
+        },
+      ],
+    };
+    expect(() => migrate(raw)).toThrow();
+  });
+
+  it('rejects a superseded set whose supersededAt is a bare date, not a datetime', () => {
+    const raw = v8WithTransactionFixture();
+    const txns = raw.transactions as Record<string, unknown>[];
+    txns[0] = {
+      ...txns[0],
+      supersededAllocations: [{ version: 1, legs: [], supersededAt: '2026-09-02' }],
+    };
+    expect(() => migrate(raw)).toThrow();
+  });
+
+  it('rejects a correction link with an unknown role', () => {
+    const raw = v8WithTransactionFixture();
+    const txns = raw.transactions as Record<string, unknown>[];
+    txns[0] = {
+      ...txns[0],
+      correction: {
+        correctsTransactionId: 'txn_x',
+        role: 'amendment',
+        correctionGroupId: 'cor_1',
+        reason: 'why',
+      },
+    };
+    expect(() => migrate(raw)).toThrow();
+  });
+
+  it('round-trips v8 -> v9 -> v8 with no loss when no row carries Step 4 state', () => {
+    const v9 = migrate(v8WithTransactionFixture());
+    const back = downgradeV9toV8(rawClone(v9));
+    expect(back.schemaVersion).toBe(8);
+    expect(back.transactions).toEqual(JSON.parse(JSON.stringify(v9.transactions)));
+  });
+
+  it('downgradeV9toV8 REFUSES when a row carries a correction link', () => {
+    const modified = rawClone(migrate(v8WithTransactionFixture()));
+    const txns = modified.transactions as Record<string, unknown>[];
+    rowAt(txns, 0).correction = {
+      correctsTransactionId: 'txn_original',
+      role: 'reversal',
+      correctionGroupId: 'cor_1',
+      reason: 'statement said 250, ledger said 205',
+    };
+    expect(() => downgradeV9toV8(modified)).toThrow(/refused/i);
+    expect(() => downgradeV9toV8(modified)).toThrow(/correction/);
+  });
+
+  it('downgradeV9toV8 REFUSES when a row carries superseded allocation history', () => {
+    const modified = rawClone(migrate(v8WithTransactionFixture()));
+    const txns = modified.transactions as Record<string, unknown>[];
+    rowAt(txns, 0).allocationSetVersion = 1;
+    rowAt(txns, 0).supersededAllocations = [
+      {
+        version: 0,
+        legs: [{ id: 'spl_a', categoryId: null, amount: -1000, memo: 'was' }],
+        supersededAt: '2026-09-02T10:00:00Z',
+      },
+    ];
+    expect(() => downgradeV9toV8(modified)).toThrow(/refused/i);
+    expect(() => downgradeV9toV8(modified)).toThrow(/supersededAllocations/);
+  });
+
+  it('downgradeV9toV8 REFUSES on a candidate too, not only a canonical transaction', () => {
+    const modified = rawClone(migrate(v8WithTransactionFixture()));
+    modified.transactionCandidates = [
+      {
+        id: 'cand_1',
+        accountId: 'acc_1',
+        date: '2026-09-01',
+        payee: 'p',
+        categoryId: null,
+        memo: '',
+        amount: -1000,
+        currency: 'EGP',
+        cleared: 'uncleared',
+        approved: false,
+        transferAccountId: null,
+        transferTransactionId: null,
+        splits: null,
+        importInfo: null,
+        duplicateStatus: 'ambiguous',
+        allocationSetVersion: 3,
+      },
+    ];
+    expect(() => downgradeV9toV8(modified)).toThrow(/refused/i);
+    expect(() => downgradeV9toV8(modified)).toThrow(/transactionCandidates/);
+  });
+
+  it('downgradeV9toV8 does NOT refuse on an explicit allocationSetVersion of 0', () => {
+    const modified = rawClone(migrate(v8WithTransactionFixture()));
+    const txns = modified.transactions as Record<string, unknown>[];
+    rowAt(txns, 0).allocationSetVersion = 0;
+    rowAt(txns, 0).correction = null;
+    rowAt(txns, 0).supersededAllocations = [];
+    const back = downgradeV9toV8(modified);
+    expect(back.schemaVersion).toBe(8);
+    const out = rowAt(back.transactions as Record<string, unknown>[], 0);
+    expect('allocationSetVersion' in out).toBe(false);
+    expect('correction' in out).toBe(false);
+    expect('supersededAllocations' in out).toBe(false);
+  });
+
+  it('running the v8->v9 step twice is a no-op (idempotent)', () => {
+    const once = migrate(v8WithTransactionFixture());
+    const twice = migrate(rawClone(once));
+    expect(twice).toEqual(once);
   });
 });
