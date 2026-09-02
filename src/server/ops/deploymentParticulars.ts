@@ -69,7 +69,7 @@ import type { ComposeFinding } from './composeTemplate.ts';
  * outside the scan set is `FIXTURE_OUTSIDE_SCAN_SET`. A glob can be wrong silently; that assertion
  * cannot.
  */
-export const SCAN_ROOTS: readonly string[] = ['ops', 'src/server/mocks/fixtures'];
+export const SCAN_ROOTS: readonly string[] = ['ops', 'src/server/mocks/fixtures', 'tests/fixtures'];
 
 /** The tree the two named bans below are held over. */
 export const SERVER_ROOT = 'src/server';
