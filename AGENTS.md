@@ -36,4 +36,4 @@ npm run build
 npm run verify:all -- --all
 ```
 
-Report only commands actually run and observed results. The current acceptance harness is expected to report 20 of 20 checks when the repository baseline is healthy.
+Report only commands actually run and observed results. The current acceptance harness is expected to report 21 of 21 checks when the repository baseline is healthy.

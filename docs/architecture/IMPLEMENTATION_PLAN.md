@@ -28,6 +28,13 @@ failure was attributed before any code changed:
 | AC14 / AC15 | 204 uncommitted entries incl. the 52 deletions | Mostly pre-existing; unpassable without a commit |
 
 All 6 failing tests are whole-tree scanners tripping on two untracked files, not application logic.
+
+**Update, later on 2026-09-02.** That baseline has since been repaired and the row above is kept as
+the dated record of what was found, not as the current state. `npm run verify:all -- --all` now
+reports **21 of 21** with every check green: the ops runbook tokens were declared, the money-parity
+fixture's vocabulary was declared to the particular scan, the contract index row was corrected, the
+implementation surface was committed, and the harness order became a declared dependency so a fresh
+clone passes on its first run. No check was weakened to reach it.
 Separately flagged to the owner: `ops/hermes/WORKSPACE_MOUNT.md:18` names the excluded classification
 tier that `src/server/signals/exclusion.test.ts` forbids outside refusal tests. Not edited here.
 

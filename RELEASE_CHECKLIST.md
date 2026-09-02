@@ -56,7 +56,8 @@ go from the owner (steering: never push until the user provides the remote).
 ### Note on the dated sections above
 The 0.1.0 section records 123 tests and 17 checks — the true figures at the 0.1.0 tag. The
 2026-08-05 section records 135 tests and 19 checks — the true figures at that release. **The tree
-now measures 1714 tests and 20 checks** (AC18, added by Phase 9.0, is the twentieth). The older
+now measures 2929 tests and 21 checks** (AC18, added by Phase 9.0, is the twentieth; AC19,
+added with the tracked implementation surface, is the twenty-first). The older
 numbers are left intact on purpose: those sections are dated release records, not a live dashboard.
 The live figure is the one in this paragraph and in `.kiro/steering/pfos-current.md`.
 

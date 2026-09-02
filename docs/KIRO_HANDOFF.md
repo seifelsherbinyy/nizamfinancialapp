@@ -15,9 +15,9 @@
 | Branch | `master` (**not** `main`) |
 | Local | this folder is the repo, clean and synced with origin |
 | Toolchain | Node 24 (`.nvmrc`), `node:sqlite` available natively; deps installed |
-| Gate | `npm run verify:all -- --all` must print `20 of 20 executed checks passed` |
+| Gate | `npm run verify:all -- --all` must print `21 of 21 executed checks passed` |
 
-First action: run the gate to prove the baseline. If it is not 20/20, stop and report.
+First action: run the gate to prove the baseline. If it is not 21/21, stop and report.
 Never force-push; never rewrite `master` history. Push each green increment.
 
 Because the repo is PUBLIC, a secret in any **tracked** file leaks to the world.
@@ -99,9 +99,10 @@ ledger (AC12) — do **not** edit them; PFOS work is logged in `contracts/pfos/`
 - Integer-money core: `src/lib/money` (minor units only). AC07 forbids float money
   (`parseFloat`, `.toFixed(`, decimal literals on money fields) everywhere else.
 - Drive-JSON store (`src/lib/db/schema.ts`, `NizamDb`) — the current Profile-A DB.
-- 333 tests / 37 files at the 2026-08-06 handoff, when the gate was 19/19. The gate is **20/20**
-  now (AC18 added by Phase 9.0) and the suite has grown well past that figure; the numbers on this
-  line are the dated handoff state, not a live count.
+- 333 tests / 37 files at the 2026-08-06 handoff, when the gate was 19/19. The gate is **21/21**
+  now (AC18 added by Phase 9.0, AC19 with the tracked implementation surface) and the suite has
+  grown well past that figure; the numbers on this line are the dated handoff state, not a live
+  count.
 
 ---
 
@@ -149,7 +150,7 @@ as `benchmark`/`routing`). Reuse `src/lib/money` for all money.
 
 ```
 spec → implement → npm run typecheck → npm run lint → npm test
-     → npm run verify:all -- --all          (must stay 20/20)
+     → npm run verify:all -- --all          (must stay 21/21)
      → tick tasks.md
      → append contracts/pfos/_PFOS_BUILD_LOG.md
      → git commit → git push origin master

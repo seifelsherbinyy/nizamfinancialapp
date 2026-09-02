@@ -1,7 +1,7 @@
 # KIRO Loop Protocol (how to run the contracts)
 
 > **STATUS 2026-08-06: contracts 1-5 are DONE.** The active work is the PFOS layer
-> (`contracts/pfos/`). The acceptance gate is now **`npm run verify:all -- --all` = 20/20**;
+> (`contracts/pfos/`). The acceptance gate is now **`npm run verify:all -- --all` = 21/21**;
 > typecheck/test/build alone are no longer sufficient. See `.kiro/steering/pfos-current.md`,
 > which takes precedence over this file.
 Execute contracts **in order 1 -> 5**. For each contract, for each phase:

@@ -40,7 +40,7 @@ npm run dev           # local dev server
 npm run test          # vitest (unit + component suites)
 npm run build         # static SPA + service worker in dist/
 npm run preview       # serve the production build locally
-npm run verify:all    # full acceptance harness (17 checks)
+npm run verify:all    # full acceptance harness (21 checks)
 ```
 
 The app runs fully offline/local out of the box (data stays in your browser's
