@@ -262,6 +262,9 @@ export const DECLARED_DOTTED_TOKENS: readonly string[] = [
   'toolBoundary.ts',
   'profilePolicy.ts',
   'knowledgeBoundary.ts',
+  // Tier 5 (T5-A daily transaction capture, Contract 15) names the guard that makes a
+  // monetary tool payload key unrepresentable, so the register cites this file by name.
+  'runtimeAdapter.ts',
   'Number.isSafeInteger',
   'calendar.readonly',
   'nizamcore.read',
