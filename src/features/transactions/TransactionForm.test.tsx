@@ -1,7 +1,8 @@
 /**
  * NIZAM · TransactionForm tests — splits sum exactly, transfers, decimal boundary, refusal
  * Implemented by: KIRO Contract 4 / Phase 4.5
- * The transfer-edit suite is governed by PFOS Contract 6 / Phase 6.4 invariant I4.6
+ * The transfer-edit suite is governed by Contract 6 (multicurrency ledger integrity)
+ *   / Phase 6.4 invariant I4.6
  *   (a transfer's two legs move as one unit).
  */
 import 'fake-indexeddb/auto';

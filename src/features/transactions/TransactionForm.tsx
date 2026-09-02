@@ -1,7 +1,8 @@
 /**
  * NIZAM · Add/edit transaction — inflow/outflow, payee autocomplete, splits, transfers
  * Implemented by: KIRO Contract 4 / Phase 4.5
- * Transfer editing is additionally governed by PFOS Contract 6 / Phase 6.4 invariant I4.6:
+ * Transfer editing is additionally governed by Contract 6 (multicurrency ledger integrity)
+ *   / Phase 6.4 invariant I4.6:
  *   a transfer's two legs move as one unit, never one edited and its peer left stale.
  * Depends on: transaction.types.ts, state/actions.ts, components/MoneyInput
  *
