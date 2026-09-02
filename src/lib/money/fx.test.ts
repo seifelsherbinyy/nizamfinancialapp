@@ -17,8 +17,8 @@ import {
   describeUnconvertible,
   selectObservation,
   sumSameCurrency,
-} from './fx';
-import { mulRatio } from './money';
+} from './fx.ts';
+import { mulRatio } from './money.ts';
 
 const M = 1000; // one EGP in milliunits
 

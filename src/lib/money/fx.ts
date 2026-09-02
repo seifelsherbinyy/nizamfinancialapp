@@ -26,9 +26,9 @@
  * DETERMINISM: no clock, no network, no LLM, no float. Given the same rows and the same
  * requested date this returns the same integer every time.
  */
-import type { Money } from './money';
-import { assertMoney, mulRatio } from './money';
-import { BASE_CURRENCY, type CurrencyCode } from './currency';
+import type { Money } from './money.ts';
+import { assertMoney, mulRatio } from './money.ts';
+import { BASE_CURRENCY, type CurrencyCode } from './currency.ts';
 
 /**
  * Structural view of one stored rate row: one unit of `currency` costs
