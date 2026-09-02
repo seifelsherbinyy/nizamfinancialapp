@@ -85,7 +85,7 @@ export const SERVER_ROOT = 'src/server';
 export const FIXTURE_SHAPED_PATH = /(?:^|\/)fixtures?\/|\.fixtures?\./;
 
 /** Extensions that are not text. Reading one as text would produce a meaningless scan. */
-const BINARY_EXTENSIONS: readonly string[] = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.pdf', '.zip', '.gz', '.age'];
+const BINARY_EXTENSIONS: readonly string[] = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.pdf', '.zip', '.gz', '.age', '.pyc'];
 
 // ---------------------------------------------------------------------------------------------
 // The dotted-token vocabulary
@@ -109,10 +109,29 @@ const DOTTED_TOKEN = /(?<![A-Za-z0-9<>_-])([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)(?!
  * they cannot drift apart unobserved.
  */
 export const DECLARED_DOTTED_TOKENS: readonly string[] = [
+  // ingress template file names referenced by ops/hermes/README.md
+  'nizam-ingress.config.yaml.example',
+  'nizam-ingress.env.example',
+  'nizam-ingress.service.example',
+  // internal and rollback profile template names
+  'nizam.service.example',
+  'nizam.env.example',
+  'nizam.config.yaml.example',
+  'pfos.service.example',
+  'pfos.env.example',
+  'pfos.config.yaml.example',
+  // config and env file names referenced by Hermes deployment docs
+  'config.yaml',
+  'config.yaml.example',
+  'nizam-ingress.env',
+  // Google Drive file scope and .env.local — named in security boundaries
+  'drive.file',
+  'env.local',
   // artifacts of this repository named by an ops document
   '001-fastapi-wrapper.patch',
   '002-dedup-per-bot.patch',
   '003-signalbus-egress-target.patch',
+  '004-hermes-profile-adapter.md',
   'cross-repo-001.diff',
   'two-agent-vps.md',
   'NIZAM_TWO_AGENT_VPS_ARCHITECTURE.md',
@@ -126,7 +145,6 @@ export const DECLARED_DOTTED_TOKENS: readonly string[] = [
   'updateDedupRepo.ts',
   'backup.sh',
   'restore.sh',
-  'env.example',
   'docker-compose.yml',
   'ROLLBACK.md',
   'drive-db.md',
@@ -143,7 +161,6 @@ export const DECLARED_DOTTED_TOKENS: readonly string[] = [
   'appServer.ts',
   'main.ts',
   'migrations.ts',
-  'modelPolicy.ts',
   'probe.ts',
   'runbookTemplate.ts',
   'scheduler.ts',
@@ -152,6 +169,7 @@ export const DECLARED_DOTTED_TOKENS: readonly string[] = [
   'signalBus.ts',
   'signalStore.ts',
   'start.ts',
+  'telegram.ts',
   // the two files a build recipe copies, named by the recipe and by the build path that produces it
   'package.json',
   'package-lock.json',
@@ -182,6 +200,7 @@ export const DECLARED_DOTTED_TOKENS: readonly string[] = [
   'test_dedup.py',
   'classifier.py',
   'test_classifier.py',
+  'auth.py',
   'PRIVACY_CLASSIFICATION.json',
   // attribute access in quoted source
   'SignalBusPortConfig.internalEndpointRef',
@@ -198,6 +217,8 @@ export const DECLARED_DOTTED_TOKENS: readonly string[] = [
   'os.fsync',
   'os.W_OK',
   'os.R_OK',
+  're.compile',
+  're.IGNORECASE',
   'json.loads',
   'json.load',
   'json.dump',
@@ -229,6 +250,54 @@ export const DECLARED_DOTTED_TOKENS: readonly string[] = [
   'entries.items',
   'raw.get',
   'path.write_text',
+  'path.is',
+  'path.read',
+  'item.get',
+  'values.append',
+  'packet.get',
+  'labels.append',
+  'value.lower',
+  'label.lower',
+  // file names and tool namespace prefixes introduced by ops/HERMES_CAPABILITY_EXPANSION_REGISTER.md
+  'toolBoundary.ts',
+  'profilePolicy.ts',
+  'knowledgeBoundary.ts',
+  'Number.isSafeInteger',
+  'calendar.readonly',
+  'nizamcore.read',
+  'nizamcore.append',
+  'nizamcore.request',
+  'nizamcore.update',
+  'nizamcore.schedule',
+  'pfos.read',
+  'pfos.run',
+  'pfos.query',
+  'pfos.compute',
+  'pfos.request',
+  'signalbus.publish',
+  'signalbus.read',
+  'signalbus.query',
+  'knowledge.read',
+  'knowledge.load',
+  'knowledge.list',
+  'knowledge.search',
+  'knowledge.propose',
+  'calendar.read',
+  'calendar.create',
+  'integrations.fetch',
+  // WHOOP personal-health ops runbook script names, event types, and env files.
+  // Added per owner decision D8 (2026-09-02): these are legitimate ops artifact
+  // references, not deployment hostnames. The tokens appear in ops/hermes/WHOOP_RUNBOOK.md.
+  'reconcile.py',
+  'reconcile.sh',
+  'cron.log',
+  'env.mcp',
+  'recovery.updated',
+  'sql.gz',
+  'urllib.parse',
+  'urllib.parse.urlencode',
+  'secrets.token',
+  'tokens.json',
 ];
 
 /** Replace every declared token with a dotless stand-in, longest first so a shorter token cannot
@@ -500,7 +569,7 @@ export function auditDeploymentParticulars(input: ParticularScanInput, scan: Par
 // The file entry point
 // ---------------------------------------------------------------------------------------------
 
-const SKIP_DIRECTORIES = new Set(['node_modules', '.git', 'dist', 'coverage', '.vite', 'outputs', '.loop']);
+const SKIP_DIRECTORIES = new Set(['node_modules', '.git', 'dist', 'coverage', '.vite', 'outputs', '.loop', '__pycache__']);
 
 /** Collect text files under `dir`, or return null when the directory is not there. */
 export function collectFiles(dir: string): readonly string[] | null {
