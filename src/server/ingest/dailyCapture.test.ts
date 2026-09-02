@@ -1,7 +1,7 @@
 /**
  * NIZAM · Daily transaction capture — acceptance suite for Contract 15 §9.1
  * Owning contract: PFOS Contract 15 (Daily Transaction Capture and Candidate Staging).
- * Phase: D7 capture surface — owner decision D7, 2026-09-02.
+ * Phase: Phase 15 — the owner daily capture surface (owner decision D7, 2026-09-02).
  * Depends on: ./dailyCapture.ts, ../db/repositories/sourceEventsRepository.ts (types only).
  *
  * Every fixture is synthetic. No real account, payee, figure or identifier appears here.

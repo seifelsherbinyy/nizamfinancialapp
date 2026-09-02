@@ -4,7 +4,7 @@
  *   subordinate to Contract 02 §5 (ingestion, state model, dedup), Contract 03 (the deterministic
  *   engine is the sole source of monetary truth), Contract 06 (store schema and the money
  *   persistence boundary), Contract 14 §5 (deterministic-first routing), and money-rules.md.
- * Phase: D7 capture surface — owner decision D7, 2026-09-02.
+ * Phase: Phase 15 — the owner daily capture surface (owner decision D7, 2026-09-02).
  * Depends on: node:crypto (digest only), ../../lib/money/money.ts, ../../lib/money/currency.ts,
  *   and TYPES ONLY from ../../lib/db/schema.ts and ../../features/transactions/transaction.types.ts.
  *

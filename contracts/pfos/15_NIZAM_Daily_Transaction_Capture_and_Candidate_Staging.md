@@ -16,6 +16,14 @@
 > state model, Contract 06's schema, Contract 12's isolation, Contract 14's ingress drawing, or any
 > money/Drive invariant. It grants **no** new authority over canonical ledger data — see §8.
 >
+> **Implementation phase: Phase 15 — the owner daily capture surface.** Named here so that the
+> `Phase:` line every implementing file must carry (`AGENTS.md`; enforced by
+> `scripts/verify/headers.mjs`) cites a designation this contract actually declares rather than an
+> invented number. This follows the Contract 14 precedent, where the surface contract number and the
+> implementation phase number are the same. Phase 15 opens nothing in an earlier phase and closes
+> nothing: Contract 02 §5 ingestion, Contract 06 store topology and the Phase 2.5 Hermes tool
+> boundary all remain exactly as their own phases left them.
+>
 > **Why it had to be authored before code.** The capability is absent from every tier of
 > `ops/HERMES_CAPABILITY_EXPANSION_REGISTER.md`: it is not Tier 1 (no existing contract covers an
 > agent-originated transaction write), not Tier 2 or 3 (no entry existed), and not Tier 4 (it is not
