@@ -20,6 +20,11 @@
  * each must RETURN a finding: a thrown error is not a fired gate, and a tamper reporting zero findings
  * is a false pass. The coverage test at the end fails if a code is added without a row.
  *
+ * The module adds exactly two judgements of its own - an absolute address whose authority is a
+ * placeholder, and the money-contract vocabulary inside the declared money-parity fixture. Each has
+ * its own describe block below carrying BOTH directions: the case it permits, and the neighbouring
+ * case it must still refuse. An allowance tested only in the direction that passes is not tested.
+ *
  * Every forbidden shape below is assembled from fragments, so this file holds no contiguous copy of
  * anything the scans forbid and never trips them.
  */
@@ -34,6 +39,7 @@ import { DECLARED_DOTTED_TOKENS as PATCH_DECLARED_TOKENS } from './patchSeries.t
 import {
   DECLARED_DOTTED_TOKENS,
   FIXTURE_SHAPED_PATH,
+  MONEY_VOCABULARY_ARTIFACTS,
   PARTICULAR_FINDING_CODES,
   SCAN_ROOTS,
   SERVER_ROOT,
@@ -42,8 +48,10 @@ import {
   collectFiles,
   dottedTokensIn,
   mapParticularFindings,
+  maskDeclaredMoneyVocabulary,
   maskPlaceholderAuthority,
   normalizeForScan,
+  normalizeForScanOf,
   type Artifact,
   type ParticularFindingCode,
   type ParticularScanInput,
@@ -63,6 +71,11 @@ const UNDECLARED_TOKEN = 'module' + '.' + 'attribute';
 const ROW_APPEND_NAME = 'ins' + 'ert';
 const ROW_APPEND_SHORT = 'i' + 'n' + 's';
 const SECOND_STORE_KEYWORD = 'AT' + 'TACH';
+const MONEY_ARTIFACT = MONEY_VOCABULARY_ARTIFACTS[0] ?? '';
+const MONEY_SAFE_EDGE = '90071992' + '54740991';
+const MONEY_SAFE_EDGE_PAST = '90071992' + '54740992';
+const MONEY_CURRENCY = 'EG' + 'P';
+const ALL_MONEY_VOCABULARY = `"currency":"${MONEY_CURRENCY}","max":"${MONEY_SAFE_EDGE}","refused":"${MONEY_SAFE_EDGE_PAST}"`;
 
 /** A synthetic input whose non-overridden parts are healthy, so each case breaks exactly one thing. */
 function inputWith(overrides: Partial<ParticularScanInput> = {}): ParticularScanInput {
@@ -87,6 +100,15 @@ function opsCarrying(text: string): Partial<ParticularScanInput> {
 /** A server artifact carrying one injected line. */
 function serverCarrying(line: string): Partial<ParticularScanInput> {
   return { serverArtifacts: [{ path: 'src/server/probe.ts', text: `// a clean line\n${line}\n` }] };
+}
+
+/**
+ * The DECLARED money artifact, carrying the whole declared vocabulary plus one injected shape. The
+ * whole vocabulary is present on purpose: a case that omitted a token would fire
+ * `DECLARED_MONEY_TOKEN_UNUSED` and mask what the case is actually about.
+ */
+function moneyArtifactCarrying(text: string): Partial<ParticularScanInput> {
+  return { artifacts: [{ path: MONEY_ARTIFACT, text: `{${ALL_MONEY_VOCABULARY}}\n${text}\n` }] };
 }
 
 interface NegativeCase {
@@ -176,6 +198,12 @@ const NEGATIVE_CASES: readonly NegativeCase[] = [
     why: 'an entry that matches nothing in the tree is an entry nobody is reading, and it could be admitting a host name',
     overrides: opsCarrying('nothing declared appears here'),
   },
+  // --- the money-contract vocabulary, kept honest the same way ------------------------------------
+  {
+    code: 'DECLARED_MONEY_TOKEN_UNUSED',
+    why: 'an allowance whose token appears in no declared money artifact is groundless, which is exactly what a renamed or deleted fixture would leave standing',
+    overrides: opsCarrying('no money vocabulary appears here'),
+  },
   // --- steering §4.1, over src/server/** ---------------------------------------------------------
   {
     code: 'ROW_APPEND_STATEMENT_AS_LOCAL',
@@ -250,6 +278,52 @@ describe('an absolute address is only permitted when its authority is injected',
 
   it('does NOT mask it when the authority is concrete, so the shared scan still reports it', () => {
     expect(scanForParticulars(maskPlaceholderAuthority(URL_CONCRETE)).map((f) => f.code)).toContain('PARTICULAR_URL_SCHEME');
+  });
+});
+
+describe('the money-contract vocabulary is permitted in the declared fixture and nowhere else', () => {
+  it('permits the currency code and the milliunit safe edge inside the declared money artifact', () => {
+    const codes = codesFor(moneyArtifactCarrying(''));
+    expect(codes).not.toContain('PARTICULAR_LONG_DIGIT_RUN');
+    expect(codes).not.toContain('PARTICULAR_CURRENCY_FIGURE');
+    expect(codes).not.toContain('DECLARED_MONEY_TOKEN_UNUSED');
+  });
+
+  it('still reports that same vocabulary in any other artifact, everything under ops included', () => {
+    const codes = codesFor(opsCarrying(ALL_MONEY_VOCABULARY));
+    expect(codes).toContain('PARTICULAR_LONG_DIGIT_RUN');
+    expect(codes).toContain('PARTICULAR_CURRENCY_FIGURE');
+  });
+
+  it('still reports an UNDECLARED long digit run inside the declared money artifact', () => {
+    expect(codesFor(moneyArtifactCarrying(LONG_DIGIT_RUN))).toContain('PARTICULAR_LONG_DIGIT_RUN');
+  });
+
+  it('still reports a currency figure that is not the declared code inside the declared artifact', () => {
+    expect(codesFor(moneyArtifactCarrying(CURRENCY_SHAPED))).toContain('PARTICULAR_CURRENCY_FIGURE');
+  });
+
+  it('still reports a hostname and an address literal inside the declared money artifact', () => {
+    const codes = codesFor(moneyArtifactCarrying(`${HOSTNAME_SHAPED} ${ADDRESS_SHAPED}`));
+    expect(codes).toContain('PARTICULAR_HOSTNAME');
+    expect(codes).toContain('PARTICULAR_ADDRESS_LITERAL');
+  });
+
+  it('masks the declared tokens and nothing else, so the masker cannot widen into an exemption', () => {
+    expect(maskDeclaredMoneyVocabulary(MONEY_SAFE_EDGE)).not.toContain(MONEY_SAFE_EDGE);
+    expect(maskDeclaredMoneyVocabulary(LONG_DIGIT_RUN)).toContain(LONG_DIGIT_RUN);
+  });
+
+  it('applies the mask to the declared path only, so any other path keeps the whole scan', () => {
+    expect(normalizeForScanOf(MONEY_ARTIFACT, MONEY_SAFE_EDGE)).not.toContain(MONEY_SAFE_EDGE);
+    expect(normalizeForScanOf('ops/probe.md', MONEY_SAFE_EDGE)).toContain(MONEY_SAFE_EDGE);
+  });
+
+  it('names an artifact that really is in the scan set, so the allowance cannot point at nothing', () => {
+    for (const declared of MONEY_VOCABULARY_ARTIFACTS) {
+      expect(SCAN_ROOTS.some((r) => declared.startsWith(`${r}/`)), declared).toBe(true);
+      expect(FIXTURE_SHAPED_PATH.test(declared), declared).toBe(true);
+    }
   });
 });
 

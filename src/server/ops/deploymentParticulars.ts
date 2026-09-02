@@ -58,9 +58,12 @@ import type { ComposeFinding } from './composeTemplate.ts';
  *
  *   `ops`  - every tracked artifact of the deployment, template and prose alike. Steering §0b's rule
  *            is about the whole directory, not about the files that happen to have a checker.
- *   `src/server/mocks/fixtures` - the recorded-replay fixtures. This is where every fixture in this
- *            repository actually lives, and a fixture is exactly the file where anonymized real data
- *            would look harmless and would not be.
+ *   `src/server/mocks/fixtures` - the recorded-replay fixtures. A fixture is exactly the file where
+ *            anonymized real data would look harmless and would not be.
+ *   `tests/fixtures` - the cross-language fixtures the TypeScript and Python suites both read. It is
+ *            a declared root because {@link FIXTURE_SHAPED_PATH} reported it as a fixture-shaped
+ *            tracked path outside the scan set, and the answer to that is to scan it, never to stop
+ *            calling it a fixture.
  *
  * A third pattern - a file NAMED like a fixture rather than living in a fixture directory - is
  * deliberately NOT declared as a root, because nothing in this repository matches it today and a
@@ -347,6 +350,63 @@ export function normalizeForScan(source: string): string {
 }
 
 // ---------------------------------------------------------------------------------------------
+// The money-contract vocabulary
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The artifacts permitted to carry the money-contract vocabulary below, by EXACT path.
+ *
+ * WHY A SECOND VOCABULARY EXISTS. The shared scan is calibrated for a DEPLOYMENT artifact, where a
+ * run of seven or more digits is the shape of a messaging user identifier and a currency code is a
+ * real balance written down. Both readings are correct for `ops/**` and both are wrong for one
+ * artifact in the scan set: the cross-language money-parity fixture, whose entire purpose is to pin
+ * the money contract in a language-neutral file that the TypeScript and the Python boundary suites
+ * both read. There the currency code and the milliunit safe edge are not particulars, they are the
+ * contract - `.kiro/steering/money-rules.md` rule 1, "1 EGP = 1000 milliunits", is the thing the
+ * fixture exists to assert, and both consumers assert it by literal value.
+ *
+ * This is the SECOND judgement this module adds and, like the first, it is stated here rather than
+ * buried and is exercised by a negative case. It narrows nothing:
+ *   - the shared scan is NOT edited and no pattern is relaxed, so R24 still has one implementation;
+ *   - the allowance is a list of EXACT tokens and never a pattern, so an undeclared long digit run
+ *     in this very fixture is still `PARTICULAR_LONG_DIGIT_RUN`;
+ *   - the allowance is keyed to an EXACT artifact path, so the same tokens in any other artifact,
+ *     everything under `ops/**` included, are still reported;
+ *   - and a token that stops appearing is `DECLARED_MONEY_TOKEN_UNUSED`, so a fixture that is
+ *     renamed, moved or deleted takes the allowance down with it instead of leaving it standing.
+ */
+export const MONEY_VOCABULARY_ARTIFACTS: readonly string[] = ['tests/fixtures/pfos-money-boundary.json'];
+
+/**
+ * The money-contract vocabulary, enumerated exactly: the currency code of the application, the
+ * largest representable milliunit magnitude, and the first magnitude past it - which the fixture
+ * carries because the boundary case a parser must REFUSE is part of the contract too.
+ */
+export const DECLARED_MONEY_TOKENS: readonly string[] = ['EGP', '9007199254740991', '9007199254740992'];
+
+/**
+ * Replace each declared money token with a stand-in that carries no digit run and no currency code,
+ * longest first so a shorter token cannot consume part of a longer one.
+ */
+export function maskDeclaredMoneyVocabulary(source: string): string {
+  let out = source;
+  for (const token of [...DECLARED_MONEY_TOKENS].sort((a, b) => b.length - a.length)) {
+    out = out.split(token).join('DECLAREDMONEYTOKEN');
+  }
+  return out;
+}
+
+/**
+ * Everything the shared scan is applied to for the artifact at `path`. The money-contract
+ * vocabulary is masked for a declared money artifact and for no other path, so this cannot become a
+ * blanket exemption by being called from somewhere new.
+ */
+export function normalizeForScanOf(path: string, source: string): string {
+  const base = normalizeForScan(source);
+  return MONEY_VOCABULARY_ARTIFACTS.includes(path) ? maskDeclaredMoneyVocabulary(base) : base;
+}
+
+// ---------------------------------------------------------------------------------------------
 // The two named bans over src/server/**, assembled from fragments
 // ---------------------------------------------------------------------------------------------
 
@@ -390,6 +450,8 @@ export const PARTICULAR_FINDING_CODES = [
   // the declared-token vocabulary, kept honest in both directions
   'DOTTED_TOKEN_UNDECLARED',
   'DECLARED_TOKEN_UNUSED',
+  // the money-contract vocabulary, kept honest the same way
+  'DECLARED_MONEY_TOKEN_UNUSED',
   // steering §4.1, over src/server/**
   'ROW_APPEND_STATEMENT_AS_LOCAL',
   'SECOND_STORE_KEYWORD_PRESENT',
@@ -508,6 +570,7 @@ export function auditDeploymentParticulars(input: ParticularScanInput, scan: Par
 
   // --- R24 over every artifact ---------------------------------------------------------------
   const declaredSeen = new Set<string>();
+  const declaredMoneySeen = new Set<string>();
   for (const artifact of input.artifacts) {
     if (artifact.text === null) {
       note('ARTIFACT_UNREADABLE', `${artifact.path} could not be read, so it was not scanned; an unreadable artifact is a failure, never a skip`);
@@ -516,7 +579,12 @@ export function auditDeploymentParticulars(input: ParticularScanInput, scan: Par
     for (const token of DECLARED_DOTTED_TOKENS) {
       if (artifact.text.includes(token)) declaredSeen.add(token);
     }
-    const normalized = normalizeForScan(artifact.text);
+    if (MONEY_VOCABULARY_ARTIFACTS.includes(artifact.path)) {
+      for (const token of DECLARED_MONEY_TOKENS) {
+        if (artifact.text.includes(token)) declaredMoneySeen.add(token);
+      }
+    }
+    const normalized = normalizeForScanOf(artifact.path, artifact.text);
     findings.push(...mapParticularFindings(scan(normalized), artifact.path));
     for (const token of dottedTokensIn(normalized)) {
       note(
@@ -531,6 +599,20 @@ export function auditDeploymentParticulars(input: ParticularScanInput, scan: Par
     for (const token of DECLARED_DOTTED_TOKENS) {
       if (!declaredSeen.has(token)) {
         note('DECLARED_TOKEN_UNUSED', `the declared dotted token "${token}" appears in no scanned artifact; a list with a stale entry is a list nobody is reading`);
+      }
+    }
+  }
+
+  // --- the money-contract vocabulary carries no stale entry either ----------------------------
+  // Guarded on "something was read" rather than on "a money artifact was read", so that deleting or
+  // renaming the fixture reports the now-groundless allowance instead of silently retiring it.
+  if (input.artifacts.some((a) => a.text !== null)) {
+    for (const token of DECLARED_MONEY_TOKENS) {
+      if (!declaredMoneySeen.has(token)) {
+        note(
+          'DECLARED_MONEY_TOKEN_UNUSED',
+          `the declared money-contract token "${token}" appears in no declared money artifact (${MONEY_VOCABULARY_ARTIFACTS.join(', ')}); the allowance is groundless and must be removed or repointed`,
+        );
       }
     }
   }
