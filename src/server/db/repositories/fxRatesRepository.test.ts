@@ -40,7 +40,7 @@ function baseInsert(): Parameters<FxRatesRepository['insert']>[0] {
     quoteCurrency: 'EGP',
     rateNum: RATE_NUM,
     rateDen: RATE_DEN,
-    asOf: AS_OF,
+    observedAt: AS_OF,
     source: 'synthetic-fixture',
   };
 }
@@ -155,7 +155,7 @@ describe('fx_rates rate pairs (§4.4)', () => {
 
   it('keeps a rate history rather than a cache, so an old conversion stays re-derivable', () => {
     repo.insert(baseInsert());
-    repo.insert({ ...baseInsert(), id: 'fx-0002', rateNum: 12_401, asOf: '2026-03-20' });
+    repo.insert({ ...baseInsert(), id: 'fx-0002', rateNum: 12_401, observedAt: '2026-03-20' });
 
     // Oldest first, so the order is total and stable across runs.
     expect(repo.list({ baseCurrency: 'SYN' }).map((row) => row.id)).toEqual(['fx-0001', 'fx-0002']);

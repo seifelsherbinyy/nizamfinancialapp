@@ -8,12 +8,16 @@
  */
 import { z } from 'zod';
 import type { Account, AccountType } from '@/features/accounts/accounts.types';
-import type {
-  Category,
-  CategoryGroup,
-  CategoryTarget,
-  MonthBudget,
-  MonthCategoryBudget,
+import {
+  ROLLOVER_BEHAVIOURS,
+  TARGET_TYPES,
+  requiresObligation,
+  requiresTargetMonth,
+  type Category,
+  type CategoryGroup,
+  type CategoryTarget,
+  type MonthBudget,
+  type MonthCategoryBudget,
 } from '@/features/budget/budget.types';
 import type {
   ClearedStatus,
@@ -36,14 +40,31 @@ import {
   type DecisionRecord,
 } from '@/features/decisions/decisionRecord.types';
 import { ASSET_KINDS, DEFAULT_MACRO, type Asset, type FxRate, type MacroContext } from '@/features/netWorth/netWorth.types';
+import { DUPLICATE_STATUSES, type DuplicateStatus } from '@/lib/ledger/ledger.types';
+import { CURRENCY_CODE_PATTERN } from '@/lib/money/currency';
 
-export const SCHEMA_VERSION = 4 as const;
+export const SCHEMA_VERSION = 8 as const;
 
 /** Integer milliunits guard — floats are schema violations. */
 export const zMoney = z.number().int().finite();
 
 export const zMonthKey = z.string().regex(/^\d{4}-\d{2}$/, 'expected YYYY-MM');
 export const zIsoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected YYYY-MM-DD');
+/**
+ * ISO 8601 UTC datetime (vNext P2 / owner decision D1, 2026-09-02). Introduced for
+ * `FxRate.observedAt`, widened from date-only `asOf` in SCHEMA_VERSION 8 so two
+ * observations on the same day can be ordered. Seconds are required; milliseconds are
+ * optional so `${date}T00:00:00Z` (the v7->v8 migration's widened value) validates.
+ */
+export const zIsoDateTime = z.string().regex(
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/,
+  'expected an ISO 8601 UTC datetime',
+);
+/**
+ * ISO 4217 alphabetic currency code (C6 I1.2). Validated at the persistence
+ * boundary so a malformed or absent code can never enter the ledger.
+ */
+export const zCurrencyCode = z.string().regex(CURRENCY_CODE_PATTERN, 'expected a 3-letter ISO 4217 code');
 
 const zAccountType: z.ZodType<AccountType> = z.enum([
   'CIB_DEBIT',
@@ -59,6 +80,7 @@ export const zAccount: z.ZodType<Account> = z.object({
   name: z.string().min(1),
   type: zAccountType,
   onBudget: z.boolean(),
+  currency: zCurrencyCode,
   balance: zMoney,
   clearedBalance: zMoney,
   accountIdentifier: z.string().nullable(),
@@ -75,11 +97,46 @@ export const zCategoryGroup: z.ZodType<CategoryGroup> = z.object({
   hidden: z.boolean(),
 });
 
-const zTarget: z.ZodType<CategoryTarget> = z.object({
-  type: z.enum(['monthly', 'target_by_date']),
-  amount: zMoney,
-  targetMonth: zMonthKey.nullable(),
-});
+/**
+ * Category target validator. Widened in schema v7 from the two legacy names to the
+ * eight-type vocabulary (docs/architecture/FINANCIAL_DATA_MODEL_VNEXT.md section 6).
+ *
+ * The refinements are what make the engine's fail-loud dispatch safe: a `balance_by_date`
+ * family target without `targetMonth`, or an obligation-linked target without
+ * `obligationId`, can never LOAD, so the engine's TypeError for those shapes is a
+ * genuine invariant rather than a crash the UI has to survive.
+ */
+const zTarget: z.ZodType<CategoryTarget> = z
+  .object({
+    type: z.enum(TARGET_TYPES),
+    amount: zMoney,
+    targetMonth: zMonthKey.nullable(),
+    rollover: z.enum(ROLLOVER_BEHAVIOURS),
+    obligationId: z.string().min(1).nullable(),
+  })
+  .superRefine((value, ctx) => {
+    if (requiresTargetMonth(value.type) && value.targetMonth === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['targetMonth'],
+        message: `target type "${value.type}" requires targetMonth`,
+      });
+    }
+    if (requiresObligation(value.type) && value.obligationId === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['obligationId'],
+        message: `target type "${value.type}" requires obligationId`,
+      });
+    }
+    if (!requiresObligation(value.type) && value.obligationId !== null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['obligationId'],
+        message: `target type "${value.type}" must not carry obligationId`,
+      });
+    }
+  });
 
 export const zCategory: z.ZodType<Category> = z.object({
   id: z.string().min(1),
@@ -119,6 +176,15 @@ const zImportInfo: z.ZodType<ImportInfo> = z.object({
   extractionMethod: z.enum(['parser', 'ocr', 'manual']),
   confidenceScore: z.number().min(0).max(1),
   confidenceReason: z.string(),
+  // Step 6 optional fields — absent on pre-Step-6 rows; that is fine.
+  batchId: z.string().optional(),
+  contentHash: z.string().optional(),
+  parserVersion: z.number().int().nonnegative().optional(),
+  sourceType: z.enum(['csv', 'telegram', 'sms', 'email', 'manual']).optional(),
+  sourceTransactionId: z.string().optional(),
+  sourceAccountId: z.string().optional(),
+  statementReference: z.string().optional(),
+  normalizedPayee: z.string().optional(),
 });
 
 export const zTransaction: z.ZodType<Transaction> = z.object({
@@ -129,6 +195,7 @@ export const zTransaction: z.ZodType<Transaction> = z.object({
   categoryId: z.string().nullable(),
   memo: z.string(),
   amount: zMoney,
+  currency: zCurrencyCode,
   cleared: zCleared,
   approved: z.boolean(),
   transferAccountId: z.string().nullable(),
@@ -236,17 +303,58 @@ export const zAsset: z.ZodType<Asset> = z.object({
   valuationAsOf: zIsoDate,
 });
 export const zFxRate: z.ZodType<FxRate> = z.object({
-  currency: z.string().min(1),
+  currency: zCurrencyCode,
   perUnitNum: z.number().int(),
   perUnitDen: z.number().int().positive(),
   source: z.string(),
-  asOf: zIsoDate,
+  // Widened from date-only `asOf` to a datetime `observedAt` in SCHEMA_VERSION 8
+  // (vNext P2 / owner decision D1, 2026-09-02). The migration appends `T00:00:00Z`
+  // to every existing value, so ordering is preserved exactly for migrated rows.
+  observedAt: zIsoDateTime,
+  conversionVersion: z.number().int().nonnegative(),
 });
 export const zMacro: z.ZodType<MacroContext> = z.object({
   referenceCurrency: z.string().min(1),
   annualInflationBps: z.number().int().nonnegative(),
   inflationSource: z.string(),
   inflationAsOf: zIsoDate,
+});
+
+/**
+ * A transaction row that arrived through the ingestion boundary but has not yet been
+ * reviewed and promoted to the canonical `transactions[]` store.
+ *
+ * Candidates are EXCLUDED from every financial engine (balances, budgets, net worth,
+ * forecasts, obligations, reports). The separation is structural: the schema stores them
+ * in a separate collection and no engine function reads `transactionCandidates`.
+ *
+ * Step 6 (2026-09-02): schema type + empty collection. Import routing change (sending
+ * new rows here instead of `transactions[]`) requires UI support and is deferred.
+ */
+export interface TransactionCandidate extends Transaction {
+  /**
+   * Whether dedup analysis found this row unique, a confirmed duplicate, or ambiguous
+   * (fuzzy match requiring owner review before promotion to `transactions[]`).
+   */
+  duplicateStatus: DuplicateStatus;
+}
+
+export const zTransactionCandidate: z.ZodType<TransactionCandidate> = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  date: zIsoDate,
+  payee: z.string(),
+  categoryId: z.string().nullable(),
+  memo: z.string(),
+  amount: zMoney,
+  currency: zCurrencyCode,
+  cleared: zCleared,
+  approved: z.boolean(),
+  transferAccountId: z.string().nullable(),
+  transferTransactionId: z.string().nullable(),
+  splits: z.array(zSplit).nullable(),
+  importInfo: zImportInfo.nullable(),
+  duplicateStatus: z.enum(DUPLICATE_STATUSES),
 });
 
 /** Audit entry for a sync conflict resolved by merge / last-write-wins. */
@@ -306,6 +414,11 @@ export interface NizamDb {
   fxRates: FxRate[];
   /** PFOS Stage 4: macro context (reference currency, inflation) for real net worth. */
   macro: MacroContext;
+  /**
+   * Step 6: Transaction rows in the staging tier — arrived but not yet canonical.
+   * Excluded from every financial engine by structural separation.
+   */
+  transactionCandidates: TransactionCandidate[];
 }
 
 export const zNizamDb: z.ZodType<NizamDb> = z.object({
@@ -323,6 +436,7 @@ export const zNizamDb: z.ZodType<NizamDb> = z.object({
   assets: z.array(zAsset),
   fxRates: z.array(zFxRate),
   macro: zMacro,
+  transactionCandidates: z.array(zTransactionCandidate),
 });
 
 /** New empty database. */
@@ -349,6 +463,7 @@ export function createEmptyDb(nowIso: string): NizamDb {
     assets: [],
     fxRates: [],
     macro: { ...DEFAULT_MACRO },
+    transactionCandidates: [],
   };
 }
 

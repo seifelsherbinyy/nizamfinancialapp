@@ -20,6 +20,7 @@ function acct(p: Partial<Account> & Pick<Account, 'type' | 'clearedBalance'>): A
     id: id('acc'),
     name: 'A',
     onBudget: true,
+    currency: 'EGP',
     balance: p.clearedBalance,
     accountIdentifier: null,
     creditLimit: null,
@@ -41,7 +42,7 @@ function asset(p: Partial<Asset> & Pick<Asset, 'kind' | 'currency' | 'value'>): 
   };
 }
 // USD -> EGP at 49.25 (perUnitNum 4925 / perUnitDen 100)
-const USD_EGP: FxRate = { currency: 'USD', perUnitNum: 4925, perUnitDen: 100, source: 'manual', asOf: '2026-01-01' };
+const USD_EGP: FxRate = { currency: 'USD', perUnitNum: 4925, perUnitDen: 100, source: 'manual', observedAt: '2026-01-01T00:00:00Z', conversionVersion: 0 };
 
 describe('FX conversion (integer ratios, no float drift)', () => {
   it('converts to and from EGP', () => {

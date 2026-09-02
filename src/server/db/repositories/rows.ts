@@ -357,9 +357,11 @@ export interface DecisionInsert {
  * tier's own `FxRate` already carries (`perUnitNum` / `perUnitDen`), because the two tiers
  * convert through the same `mulRatio` and therefore need the same representation.
  *
- * `source` and `asOf` are not decoration: contract 03 §8.3 requires every rate to carry
- * where it came from and when, so a conversion can be re-derived and audited rather than
- * trusted.
+ * `source` and `observedAt` are not decoration: contract 03 §8.3 requires every rate to
+ * carry where it came from and when, so a conversion can be re-derived and audited rather
+ * than trusted. Named `observedAt`, not `asOf`, to match the browser tier's `FxRate`
+ * (owner decision D1, 2026-09-02); this repository is pre-launch, so the underlying
+ * `observed_at` column was renamed directly rather than migrated.
  */
 export interface FxRateRow {
   readonly id: string;
@@ -367,7 +369,7 @@ export interface FxRateRow {
   readonly quoteCurrency: string;
   readonly rateNum: number;
   readonly rateDen: number;
-  readonly asOf: string;
+  readonly observedAt: string;
   readonly source: string;
   readonly recordedAt: string;
 }
@@ -380,7 +382,7 @@ export interface FxRateInsert {
   readonly rateNum: number;
   /** Integer denominator, strictly positive. Guarded, and also a DDL CHECK. */
   readonly rateDen: number;
-  readonly asOf: string;
+  readonly observedAt: string;
   readonly source: string;
 }
 

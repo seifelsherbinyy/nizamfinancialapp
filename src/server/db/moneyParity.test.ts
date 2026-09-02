@@ -83,6 +83,7 @@ const ACCOUNTS: readonly Account[] = [
     name: 'Everyday account',
     type: 'CIB_DEBIT',
     onBudget: true,
+    currency: 'EGP',
     balance: 4_120_000,
     clearedBalance: 3_875_000,
     accountIdentifier: null,
@@ -96,6 +97,7 @@ const ACCOUNTS: readonly Account[] = [
     name: 'Cash on hand',
     type: 'CASH',
     onBudget: true,
+    currency: 'EGP',
     balance: 611_000,
     clearedBalance: 611_000,
     accountIdentifier: null,
@@ -109,6 +111,7 @@ const ACCOUNTS: readonly Account[] = [
     name: 'Revolving card',
     type: 'HSBC_CC',
     onBudget: true,
+    currency: 'EGP',
     balance: -2_403_000,
     clearedBalance: -2_403_000,
     accountIdentifier: null,
@@ -130,6 +133,7 @@ const TRANSACTIONS: readonly Transaction[] = [
     memo: '',
     amount: -287_500,
     cleared: 'cleared',
+    currency: 'EGP',
     approved: true,
     transferAccountId: null,
     transferTransactionId: null,
@@ -145,6 +149,7 @@ const TRANSACTIONS: readonly Transaction[] = [
     memo: '',
     amount: -913_333,
     cleared: 'uncleared',
+    currency: 'EGP',
     approved: true,
     transferAccountId: null,
     transferTransactionId: null,
@@ -160,6 +165,7 @@ const TRANSACTIONS: readonly Transaction[] = [
     memo: '',
     amount: 149_999,
     cleared: 'uncleared',
+    currency: 'EGP',
     approved: true,
     transferAccountId: null,
     transferTransactionId: null,
@@ -175,6 +181,7 @@ const TRANSACTIONS: readonly Transaction[] = [
     memo: '',
     amount: -57_777,
     cleared: 'cleared',
+    currency: 'EGP',
     approved: true,
     transferAccountId: null,
     transferTransactionId: null,
@@ -343,6 +350,7 @@ function accountFromRow(row: AccountRow, declared: Account): Account {
     name: row.name,
     type: row.type,
     onBudget: row.onBudget,
+    currency: 'EGP',
     balance: row.balance,
     clearedBalance: row.clearedBalance,
     accountIdentifier: row.accountIdentifierLast4,
@@ -364,6 +372,7 @@ function transactionFromRow(row: TransactionRow, declared: Transaction): Transac
     memo: row.memo,
     amount: row.amount,
     cleared: clearedFromStatus(row.status),
+    currency: 'EGP',
     // Approval, transfer linkage, splits and import provenance are browser-tier concerns
     // with no column here; carried from the shared vector unchanged.
     approved: declared.approved,
@@ -426,6 +435,7 @@ function persistAndReadBack(store: TestStore): RoundTripped {
       name: account.name,
       type: account.type,
       onBudget: account.onBudget,
+      currency: 'EGP',
       balance: account.balance,
       clearedBalance: account.clearedBalance,
       creditLimit: account.creditLimit,
@@ -474,7 +484,7 @@ function persistAndReadBack(store: TestStore): RoundTripped {
     quoteCurrency: 'EGP',
     rateNum: FX_NUM,
     rateDen: FX_DEN,
-    asOf: AS_OF,
+    observedAt: AS_OF,
     source: 'synthetic-fixture',
   });
 
@@ -575,7 +585,7 @@ describe('T11 the server path and the browser path derive the same figure (§4.3
 
   it('agrees on net worth in a non-base currency, converting through the persisted rate pair', () => {
     const declaredFx: FxRate[] = [
-      { currency: REFERENCE, perUnitNum: FX_NUM, perUnitDen: FX_DEN, source: 'synthetic-fixture', asOf: AS_OF },
+      { currency: REFERENCE, perUnitNum: FX_NUM, perUnitDen: FX_DEN, source: 'synthetic-fixture', observedAt: AS_OF, conversionVersion: 0 },
     ];
     const fromMemory = netWorth(dbFor(ACCOUNTS, OBLIGATIONS, declaredFx), REFERENCE);
 
@@ -668,6 +678,7 @@ describe('T7 allocate exactness survives the persistence boundary (§4.3, R2/R4)
       name: 'Allocation target',
       type: 'CIB_DEBIT',
       onBudget: true,
+      currency: 'EGP',
       balance: 0,
       clearedBalance: 0,
       creditLimit: null,

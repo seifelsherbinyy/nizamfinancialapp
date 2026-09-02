@@ -264,16 +264,19 @@ const MIGRATION_002: readonly string[] = [
 
   // §4.4 — a rate is an integer pair applied through the money core's mulRatio. A row
   // that cannot be expressed as an integer pair is rejected at the boundary.
+  // observed_at renamed from as_of (owner decision D1, 2026-09-02) to match the browser
+  // tier's FxRate.observedAt. This repository is pre-launch (no G1-G8 gate performed, no
+  // live host), so the column is renamed directly rather than migrated with an ALTER TABLE.
   `CREATE TABLE IF NOT EXISTS fx_rates (
      id             TEXT PRIMARY KEY,
      base_currency  TEXT NOT NULL,
      quote_currency TEXT NOT NULL,
      rate_num       INTEGER NOT NULL,
      rate_den       INTEGER NOT NULL CHECK (rate_den > 0),
-     as_of          TEXT NOT NULL,
+     observed_at    TEXT NOT NULL,
      source         TEXT NOT NULL,
      recorded_at    TEXT NOT NULL,
-     UNIQUE (base_currency, quote_currency, as_of, source)
+     UNIQUE (base_currency, quote_currency, observed_at, source)
    ) STRICT`,
 ];
 

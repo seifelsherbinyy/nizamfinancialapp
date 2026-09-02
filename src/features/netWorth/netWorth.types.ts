@@ -12,9 +12,16 @@
  */
 import type { Money } from '@/lib/money/money';
 
-/** ISO 4217-style currency code. EGP is the base of the money core. */
-export type CurrencyCode = string;
-export const BASE_CURRENCY: CurrencyCode = 'EGP';
+/**
+ * ISO 4217-style currency code. EGP is the base of the money core.
+ * MOVED to lib/money/currency.ts in C6 Step 2a so the ledger core (accounts,
+ * transactions) can carry a currency without depending on a net-worth feature
+ * module. Re-exported here so every existing import keeps working unchanged.
+ */
+import type { CurrencyCode } from '@/lib/money/currency';
+import { BASE_CURRENCY } from '@/lib/money/currency';
+export type { CurrencyCode };
+export { BASE_CURRENCY };
 
 /** Financial assets are liquid/near-liquid; real assets are property, vehicles, etc. */
 export const ASSET_KINDS = ['financial', 'real'] as const;
@@ -48,7 +55,19 @@ export interface FxRate {
   perUnitNum: number; // integer
   perUnitDen: number; // integer, > 0
   source: string;
-  asOf: string;
+  /**
+   * ISO 8601 UTC datetime the rate was observed. Widened from a date-only `asOf` in
+   * SCHEMA_VERSION 8 (owner decision D1, 2026-09-02): the only mutation of an
+   * existing tracked field in the vNext model. Every migrated row carries
+   * `${originalDate}T00:00:00Z`; a newly recorded rate may carry a real time.
+   */
+  observedAt: string;
+  /**
+   * Bumped when the SEMANTICS of a rate change (not when a rate value changes),
+   * so a derived figure can state which conversion rule produced it (C6 I2.4).
+   * Additive in Step 2a; defaults to 0 for every migrated row.
+   */
+  conversionVersion: number;
 }
 
 /** Macro context — manual/imported values first; no live API (that is a server concern). */

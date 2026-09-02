@@ -199,7 +199,7 @@ function FxModal(props: { existing: FxRate | null; onClose: () => void }) {
   const [num, setNum] = useState(r ? String(r.perUnitNum) : '');
   const [den, setDen] = useState(r ? String(r.perUnitDen) : '1');
   const [source, setSource] = useState(r?.source ?? 'manual');
-  const [asOf, setAsOf] = useState(r?.asOf ?? today());
+  const [asOf, setAsOf] = useState(r?.observedAt.slice(0, 10) ?? today());
   const [error, setError] = useState<string | null>(null);
 
   function save() {
@@ -218,7 +218,10 @@ function FxModal(props: { existing: FxRate | null; onClose: () => void }) {
       perUnitNum: n,
       perUnitDen: d,
       source: source.trim() || 'manual',
-      asOf,
+      // The date picker stays date-only (no time-of-day input); widen to a datetime the
+      // same way the v7->v8 migration does, so a new rate's shape matches a migrated one.
+      observedAt: `${asOf}T00:00:00Z`,
+      conversionVersion: 0,
     };
     mutate((draft) => {
       const idx = draft.fxRates.findIndex((x) => x.currency === code);
@@ -468,7 +471,7 @@ export function NetWorthView() {
                     : `${rate.perUnitNum} / ${rate.perUnitDen}`}
                 </td>
                 <td>{rate.source}</td>
-                <td className="num">{rate.asOf}</td>
+                <td className="num">{rate.observedAt.slice(0, 10)}</td>
                 <td>
                   <button
                     className="btn btn-sm btn-secondary"

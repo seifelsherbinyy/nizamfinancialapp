@@ -37,7 +37,7 @@ export interface FxRateListFilter {
   /** Restrict to one currency pair. */
   readonly baseCurrency?: string;
   readonly quoteCurrency?: string;
-  /** Inclusive upper bound on `as_of`, i.e. "the table as it stood on this date". */
+  /** Inclusive upper bound on `observed_at`, i.e. "the table as it stood on this date". */
   readonly asOfOnOrBefore?: string;
 }
 
@@ -58,7 +58,7 @@ function mapRow(raw: Record<string, unknown>): FxRateRow {
     quoteCurrency: String(raw['quote_currency']),
     rateNum: Number(raw['rate_num']),
     rateDen: Number(raw['rate_den']),
-    asOf: String(raw['as_of']),
+    observedAt: String(raw['observed_at']),
     source: String(raw['source']),
     recordedAt: String(raw['recorded_at']),
   };
@@ -75,7 +75,11 @@ export function toFxRate(row: FxRateRow): FxRate {
     perUnitNum: row.rateNum,
     perUnitDen: row.rateDen,
     source: row.source,
-    asOf: row.asOf,
+    observedAt: row.observedAt,
+    // The server-tier FX row does not carry a conversion version yet. Adding that
+    // column is a separate, authorized server schema change; 0 is the documented
+    // initial semantics rather than a guess about a newer rule.
+    conversionVersion: 0,
   };
 }
 
@@ -108,7 +112,7 @@ export function createFxRatesRepository(ctx: RepositoryContext): FxRatesReposito
       return withTransaction(db, () => {
         db.prepare(
           `INSERT INTO ${TABLE}
-             (id, base_currency, quote_currency, rate_num, rate_den, as_of, source, recorded_at)
+             (id, base_currency, quote_currency, rate_num, rate_den, observed_at, source, recorded_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         ).run(
           input.id,
@@ -116,7 +120,7 @@ export function createFxRatesRepository(ctx: RepositoryContext): FxRatesReposito
           input.quoteCurrency,
           rate.num,
           rate.den,
-          input.asOf,
+          input.observedAt,
           input.source,
           at,
         );
@@ -126,7 +130,7 @@ export function createFxRatesRepository(ctx: RepositoryContext): FxRatesReposito
           entityId: input.id,
           // Column names and the pair's identity only. The rate itself is a stored fact,
           // not something the audit trail restates outside its guarded columns.
-          detail: `${input.baseCurrency}/${input.quoteCurrency} as_of=${input.asOf}`,
+          detail: `${input.baseCurrency}/${input.quoteCurrency} observed_at=${input.observedAt}`,
         });
         return requireOne(input.id);
       });
@@ -148,12 +152,12 @@ export function createFxRatesRepository(ctx: RepositoryContext): FxRatesReposito
         bindings.push(filter.quoteCurrency);
       }
       if (filter.asOfOnOrBefore !== undefined) {
-        clauses.push('as_of <= ?');
+        clauses.push('observed_at <= ?');
         bindings.push(filter.asOfOnOrBefore);
       }
       const where = clauses.length > 0 ? ` WHERE ${clauses.join(' AND ')}` : '';
       const raws = db
-        .prepare(`SELECT * FROM ${TABLE}${where} ORDER BY as_of, id`)
+        .prepare(`SELECT * FROM ${TABLE}${where} ORDER BY observed_at, id`)
         .all(...bindings) as Record<string, unknown>[];
       return raws.map(mapRow);
     },
@@ -162,8 +166,8 @@ export function createFxRatesRepository(ctx: RepositoryContext): FxRatesReposito
       const raw = db
         .prepare(
           `SELECT * FROM ${TABLE}
-            WHERE base_currency = ? AND quote_currency = ? AND as_of <= ?
-            ORDER BY as_of DESC, recorded_at DESC, id DESC
+            WHERE base_currency = ? AND quote_currency = ? AND observed_at <= ?
+            ORDER BY observed_at DESC, recorded_at DESC, id DESC
             LIMIT 1`,
         )
         .get(baseCurrency, quoteCurrency, asOf) as Record<string, unknown> | undefined;

@@ -27,6 +27,7 @@ const EGP = units;
 function account(partial: Partial<Account> & Pick<Account, 'id' | 'name' | 'type'>): Account {
   return {
     onBudget: true,
+    currency: 'EGP',
     balance: 0,
     clearedBalance: 0,
     accountIdentifier: null,
@@ -46,6 +47,7 @@ function txn(
     categoryId: null,
     memo: '',
     cleared: 'cleared',
+    currency: 'EGP',
     approved: true,
     transferAccountId: null,
     transferTransactionId: null,
@@ -105,6 +107,7 @@ export function buildSampleDb(nowIso: string): NizamDb {
       name: 'Pension (tracked)',
       type: 'TRACKING',
       onBudget: false,
+      currency: 'EGP',
       clearedBalance: EGP(150_000),
       balance: EGP(150_000),
       order: 2,
@@ -166,7 +169,7 @@ export function buildSampleDb(nowIso: string): NizamDb {
 
   // --- FX: USD priced to EGP; SAR intentionally OMITTED to demonstrate the unrated flag. ---
   const fxRates: FxRate[] = [
-    { currency: 'USD', perUnitNum: 49, perUnitDen: 1, source: 'manual', asOf },
+    { currency: 'USD', perUnitNum: 49, perUnitDen: 1, source: 'manual', observedAt: `${asOf}T00:00:00Z`, conversionVersion: 0 },
   ];
   db.fxRates = fxRates;
 
