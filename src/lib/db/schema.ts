@@ -197,6 +197,7 @@ const zCorrectionLink: z.ZodType<CorrectionLink> = z.object({
   role: z.enum(CORRECTION_ROLES),
   correctionGroupId: z.string().min(1),
   reason: z.string(),
+  correctedAt: zIsoDateTime,
 });
 
 const zImportInfo: z.ZodType<ImportInfo> = z.object({

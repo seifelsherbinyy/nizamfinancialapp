@@ -272,7 +272,107 @@ Both confirm the assertions are load-bearing rather than decorative. No acceptan
 - **Privacy/security blast radius:** none. Rates are owner-entered or deterministically imported; no network call, no LLM in the path.
 - **Verification:** `npm test -- --run src/lib/money` then `npm run typecheck`.
 
-## Step 4 — Versioned allocation sets + reconciled lock
+## Step 4 — Versioned allocation sets + reconciled lock  ·  IMPLEMENTED 2026-09-02
+
+Contract 6 Phase 6.4, invariants I4.1-I4.6. Owner decision D4-A (**reversal + replacement**).
+
+### Audit (DISCOVER EXISTING)
+
+| Finding | Label | Disposition |
+|---|---|---|
+| `reconciled` lock already enforced in `updateTransaction`, `deleteTransaction`, `setCleared` | FACT | **PRESERVED.** Step 4 adds the correction path, it does not loosen the lock. |
+| Embedded `splits: TransactionSplit[] \| null` read by 6 non-test modules | FACT | **PRESERVED as the LIVE set.** History was added alongside it, so no engine reader changed. |
+| `updateTransaction` never touched the transfer peer | **DEFECT (I4.6)** | **FIXED.** `date`/`memo` mirror, `amount` mirrors negated, peer lock checked before any write. |
+| `addTransaction` carried its own inline copy of the exact-sum rule | **DEFECT (DRY)** | **FIXED.** Both paths now call `assertAllocationLegsSumExactly`. Found by a tamper, see below. |
+| No allocation versioning, no history, no correction linkage | MISSING | **CREATED.** |
+| `TransactionForm` routes a transfer edit to `addTransfer`, so editing a transfer DUPLICATES it | **DEFECT (pre-existing, UI)** | **OUT OF SCOPE.** It never reaches `updateTransaction`, so it cannot leave a peer stale; it is a separate UI defect, recorded not fixed. |
+
+### What landed
+
+- **`transaction.types.ts`** — `SupersededAllocationSet`, `CORRECTION_ROLES`, `CorrectionLink`
+  (`correctsTransactionId`, `role`, `correctionGroupId`, `reason`, `correctedAt`), three
+  **optional** `Transaction` fields (`allocationSetVersion`, `supersededAllocations`,
+  `correction`), and the accessors that give "absent means 0 / none" one implementation.
+- **`corrections.ts`** (new, pure) — `correctionRowsFor`, `isReversed`, `correctionGroup`,
+  `netAmountOf`, `allocationHistoryOf`, `assertAllocationLegsSumExactly`.
+- **`schema.ts`** — `zSupersededAllocationSet`, `zCorrectionLink`, the three optional fields on
+  both `zTransaction` and `zTransactionCandidate`, `SCHEMA_VERSION 8 -> 9`.
+- **`migrations.ts`** — `migrateV8toV9` (rewrites **no row**) + `downgradeV9toV8` (**refuses**
+  when any row carries Step 4 audit state).
+- **`actions.ts`** — atomic supersession in `updateTransaction`, transfer legs as one unit,
+  `correctReconciledTransaction`.
+- **Tests** — `actions.test.ts` (new, 51) + 12 in `migrations.test.ts`.
+
+### Why the version moved even though every new field is optional
+
+A v9 document parses cleanly under the v8 validator, so nothing would *fail*. That is the
+danger, not the reassurance: `zTransaction` is a `z.object`, which **strips** unknown keys, so a
+v8 client would read a v9 document, silently drop every superseded allocation set and correction
+link, and destroy audit history on its next write. The `version > SCHEMA_VERSION` guard in
+`migrate()` is the only thing that stops it.
+
+### Design choices that departed from the literal vNext text
+
+- **No `currency` on a leg or a set.** vNext §2.1 lists it, but A2 also requires every leg to
+  share the parent's currency. Storing it would create a second source of truth that could
+  disagree with the parent, so it is derived. This is the deferral the Step 2a table already
+  flagged.
+- **No stored `lifecycle` enum.** vNext §3 lists `reversed` as a lifecycle value; it is
+  **derived** by `isReversed()` instead. A stored flag is a second source of truth that a
+  partial write can leave disagreeing with the reversal row itself — and vNext A3 calls partial
+  application a defect. Consistent with D2 and D3 choosing derivation over caching.
+- **Correction rows are `cleared`, not `reconciled`.** `reconciled` asserts a statement match.
+  No statement has matched the appended rows, so stamping them would make the code claim a
+  verification that never happened. `lockReconciled()` locks them at the next reconciliation,
+  the same path `addReconcileAdjustment` already uses.
+- **Both rows are dated on the ORIGINAL's date.** The reconciled period was matched against a
+  bank statement; moving the correction to today would leave that period permanently unable to
+  reconcile *and* make a later period wrong by the same amount. Because that hides *when* locked
+  history changed, `CorrectionLink.correctedAt` records it separately.
+- **`unreconcile + amend` is NOT implemented.** vNext S2 specifies both and requires one to be
+  tested. D4 chose reversal + replacement, so only one exists in code.
+
+### Why this needed no engine change
+
+The appended rows are ordinary members of `transactions[]`, so every engine that sums amounts
+already reports `original + (-original) + replacement`, which reduces to the replacement.
+Split legs are negated **leg by leg**, so category activity nets to exactly zero per category
+rather than only in total. Verified behaviourally: after correcting -20,500 to -25,000,
+`activityFor` and `accountClearedBalance` both report -25,000 with no engine edit.
+
+The one thing that would have broken it: `budget.logic`, `rescue` and `ageOfMoney` all exclude
+transfers by testing `transferAccountId`, so a correction row that dropped it would be counted
+as real spending. Transfer linkage is therefore preserved on every correction row, and the
+reversal pair and replacement pair are re-paired **with each other** — linking back to an
+original would produce the three-leg group vNext T4 forbids.
+
+### Negative controls (tampered, observed, reverted byte-exactly)
+
+| Tamper | Caught by |
+|---|---|
+| Exact-sum relaxed to a ±1 milliunit tolerance (the control this plan specified) | 6 tests |
+| Correction mutates the reconciled original in place | 3 tests |
+| Transfer peer left stale on edit | 3 tests |
+| `transferAccountId` dropped from correction rows | 1 test (the spending/income guard) |
+| Allocation history overwritten instead of appended | 1 test |
+| `migrateV8toV9` stamps `allocationSetVersion` onto every row | 4 tests, incl. the pre-existing v4->v5 zero-drift round-trip |
+| `correction` refusal removed from `downgradeV9toV8` | 1 test |
+
+The ±1 tamper is what exposed the `addTransaction` DRY defect: the edit path failed while the
+create path kept passing, because each held its own copy of the rule. After routing both through
+`assertAllocationLegsSumExactly`, a probe confirmed `addTransaction` accepts an off-by-one only
+when the shared helper is tampered — i.e. it is genuinely behind the same assertion now.
+
+### Known limits carried forward
+
+- **Cross-currency transfers are still refused** in `addTransfer`. vNext T3 wants per-leg native
+  amounts; that is a schema widening of the transfer pair, not part of the allocation/lock work,
+  and it stays refused rather than stamping one currency's magnitude onto the other leg.
+- **No UI yet.** C4 Phase 4.5 (visible allocation history) and 4.6 (the correction workflow)
+  consume `allocationHistoryOf` and `correctReconciledTransaction`; neither is wired to a screen.
+- **`TransactionForm` still duplicates a transfer on edit** (see the audit table).
+
+## Step 4 (original plan text, retained for audit)
 
 - **Files:** `src/features/transactions/transaction.types.ts`, transaction mutation paths in `src/state/actions.ts`, `src/features/reconciliation/*`.
 - **Migration impact:** existing embedded `splits` become allocation-set version 0. Additive.
@@ -461,13 +561,13 @@ All eight decisions below were ratified by the owner on 2026-09-02 and are bindi
 
 | # | Decision | Answer | Disposition |
 |---|---|---|---|
-| D1 | `FxRate.asOf` -> `observedAt` datetime mutation (AD-3) | **A — do it** | Unblocks Step 2b (`SCHEMA_VERSION 7->8`). Not yet implemented — highest-risk remaining item, full negative-control discipline required before touching Drive. |
+| D1 | `FxRate.asOf` -> `observedAt` datetime mutation (AD-3) | **A — do it** | **IMPLEMENTED** (`a38f49e`). `SCHEMA_VERSION 7->8`, `migrateV7toV8` + refusing `downgradeV8toV7`, order-preservation pinned. Follow-up `41ad651` named the file in every `fx` relative specifier so `launchPath.test.ts` F20 passes at source rather than by exclusion. |
 | D2 | Uncleared balance: derive vs store | **A — derive** (`balance - clearedBalance`) | No stored field exists today; recorded as forward policy for when such a field is added. |
 | D3 | Reporting amount: derive-on-read vs cache | **A — derive on read** | No stored field exists today; recorded as forward policy. |
-| D4 | Reconciled correction workflow | **A — reversal + replacement** | Unblocks Step 4. Not yet implemented. |
+| D4 | Reconciled correction workflow | **A — reversal + replacement** | **IMPLEMENTED** as Step 4 / Contract 6 Phase 6.4, in two slices — `665c440` (types, schema `8->9`, migration pair) and the follow-up commit (atomic supersession, transfer unit mutation, `correctReconciledTransaction`). The vNext S2 alternative (`unreconcile + amend`) is deliberately NOT implemented: D4 chose one workflow, so only one exists in code. |
 | D5 | Branded `Money` type | **B — defer** | No action. |
 | D6 | 52 working-tree deletions | **B — confirm intentional** | Committed `f2db9ee` (51 files under `.kiro/` + kickoff files) and `e418825` (`ops/GATE_REGISTER.md`). |
-| D7 | AD-1: Cloudflare Workers + D1 platform ruling | **C — hybrid** (Workers as stateless edge/ingestion; Drive/SQLite stays canonical, ADR-0001 not superseded) **plus** a new requirement: Hermes must proactively ask for and capture daily transactional information | Hybrid ruling recorded here. The daily-capture requirement is new scope with no governing contract yet — per AGENTS.md, a contract/spec addendum must be authored before any implementation. Not started. |
+| D7 | AD-1: Cloudflare Workers + D1 platform ruling | **C — hybrid** (Workers as stateless edge/ingestion; Drive/SQLite stays canonical, ADR-0001 not superseded) **plus** a new requirement: Hermes must proactively ask for and capture daily transactional information | **DONE** (`d802214`). Hybrid ruling written into `docs/adr/ADR-0003` AD-1: Workers permitted only as static-asset host, stateless ingress terminator and Cron trigger; D1/R2/KV/Durable Objects NOT ADOPTED as ledger store; monetary arithmetic in a Worker FORBIDDEN. The capture requirement was genuinely ungoverned, so `contracts/pfos/15` was authored before any code. Capture is deterministic ingestion, **not** a Hermes tool — `HERMES_TOOL_NAMES` is unchanged, because `runtimeAdapter.ts` `AUTHORITY_KEY` already makes a monetary field unrepresentable across the bounded tool boundary. `src/server/ingest/dailyCapture.ts` + 58 tests. `contracts/pfos/_PFOS_CONTRACT_INDEX.md` carries the matching entry on disk but was excluded from the commit: its working copy is CRLF against an LF blob, a mismatch predating this change, so staging it would sweep a whole-file line-ending rewrite into a D7 commit. |
 | D8 | Repair `ops/hermes/WORKSPACE_MOUNT.md:18` + declare the WHOOP runbook's legitimate dotted tokens | **A — fix it**, and the owner granted full authorization to operate on their behalf for proper completion | Done. `WORKSPACE_MOUNT.md:18` redacted (no longer names the excluded classification tier contiguously). `deploymentParticulars.ts` `DECLARED_DOTTED_TOKENS` extended. `ops/hermes/WHOOP_RUNBOOK.md` real IP/hostname/client_id/user_id/loopback-port particulars placeholder-ized into the repo's standard `<ANGLE_BRACKET>` convention (required for AC18/AC04 to pass; discovered once the dotted-token fix surfaced the underlying particulars). Verified: `tsc --noEmit`, lint, full suite (2777/2777), `vite build` all green. Committed `32aaa2e` (amended `3861fe3` to also repair a pre-existing UTF-8 double-encoding defect — `§`/`·` mojibake — found in the same file while verifying). `ops/hermes/` itself remains untracked by git; only the pre-existing tracked file (`deploymentParticulars.ts`) was committed.
 
 Steps 1 and 2a needed none of these and are implemented. Step 3 needs none of these either: it can be built against the existing date-only `asOf` with the resolution limit documented, so it was the next unblocked step at the time. D1/D4 now unblock Step 2b and Step 4 respectively.
